@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { getFaceScansByUser } from "@/services/faceScanService";
@@ -20,6 +20,8 @@ const FaceScanGallery = ({
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [api, setApi] = useState<CarouselApi>();
+  const [isAutoScrolling, setIsAutoScrolling] = useState(true);
+  const autoScrollRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchFaceScans = async () => {
     try {
@@ -59,6 +61,49 @@ const FaceScanGallery = ({
       api.off("select", onSelect);
     };
   }, [api]);
+
+  // Auto-scroll functionality
+  useEffect(() => {
+    if (!api || !isAutoScrolling || faceScans.length <= 1) {
+      return;
+    }
+
+    autoScrollRef.current = setInterval(() => {
+      if (api.canScrollNext()) {
+        api.scrollNext();
+      } else {
+        api.scrollTo(0); // Loop back to start
+      }
+    }, 3000); // Auto-scroll every 3 seconds
+
+    return () => {
+      if (autoScrollRef.current) {
+        clearInterval(autoScrollRef.current);
+      }
+    };
+  }, [api, isAutoScrolling, faceScans.length]);
+
+  const toggleAutoScroll = () => {
+    setIsAutoScrolling(!isAutoScrolling);
+  };
+
+  const handleMouseEnter = () => {
+    if (autoScrollRef.current) {
+      clearInterval(autoScrollRef.current);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (isAutoScrolling && api && faceScans.length > 1) {
+      autoScrollRef.current = setInterval(() => {
+        if (api.canScrollNext()) {
+          api.scrollNext();
+        } else {
+          api.scrollTo(0);
+        }
+      }, 3000);
+    }
+  };
 
   const getScanTypeColor = (scanType: string) => {
     switch (scanType) {
@@ -145,15 +190,28 @@ const FaceScanGallery = ({
             <Camera className="mr-3 h-6 w-6 text-white" />
             Face Card Log
           </div>
-          <Button 
-            onClick={fetchFaceScans} 
-            variant="outline" 
-            size="sm" 
-            className="border-gray-600 text-gray-300 bg-slate-900 hover:bg-slate-800"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            {faceScans.length > 1 && (
+              <Button 
+                onClick={toggleAutoScroll} 
+                variant="outline" 
+                size="sm" 
+                className="border-gray-600 text-gray-300 bg-slate-900 hover:bg-slate-800"
+              >
+                {isAutoScrolling ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                {isAutoScrolling ? 'Pause' : 'Play'}
+              </Button>
+            )}
+            <Button 
+              onClick={fetchFaceScans} 
+              variant="outline" 
+              size="sm" 
+              className="border-gray-600 text-gray-300 bg-slate-900 hover:bg-slate-800"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -168,96 +226,111 @@ const FaceScanGallery = ({
             {/* Card Position Indicator */}
             <div className="text-center">
               <p className="text-gray-400 text-sm">
-                Card {currentIndex + 1} of {faceScans.length}
+                Showing {Math.min(3, faceScans.length)} of {faceScans.length} cards
+                {faceScans.length > 1 && (
+                  <span className="ml-2">
+                    • {isAutoScrolling ? 'Auto-scrolling' : 'Manual navigation'}
+                  </span>
+                )}
               </p>
             </div>
 
             {/* Carousel Container */}
-            <Carousel 
-              className="w-full max-w-md mx-auto"
-              setApi={setApi}
+            <div 
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
             >
-              <CarouselContent>
-                {faceScans.map((scan, index) => (
-                  <CarouselItem key={scan.id}>
-                    <div className="flex justify-center">
-                      <div className="bg-gray-800 rounded-xl overflow-hidden border border-gray-700 w-80 shadow-2xl">
-                        {/* Main Face Image */}
-                        <div className="aspect-square relative">
-                          {imageLoadErrors.has(scan.id) ? (
-                            <div className="w-full h-full bg-gray-700 flex items-center justify-center flex-col">
-                              <AlertCircle className="h-12 w-12 text-red-400 mb-4" />
-                              <p className="text-red-400 text-sm text-center px-4 mb-4">Failed to load image</p>
-                              <Button 
-                                onClick={() => retryImageLoad(scan.id)} 
-                                variant="outline" 
-                                size="sm" 
-                                className="border-red-400 text-red-400 hover:bg-red-400 hover:text-white"
-                              >
-                                <RefreshCw className="h-4 w-4 mr-2" />
-                                Retry
-                              </Button>
+              <Carousel 
+                className="w-full max-w-5xl mx-auto"
+                setApi={setApi}
+                opts={{
+                  align: "start",
+                  loop: true,
+                  slidesToScroll: 1,
+                }}
+              >
+                <CarouselContent className="-ml-2 md:-ml-4">
+                  {faceScans.map((scan, index) => (
+                    <CarouselItem key={scan.id} className="pl-2 md:pl-4 md:basis-1/3">
+                      <div className="flex justify-center">
+                        <div className="bg-gray-800 rounded-xl overflow-hidden border border-gray-700 w-72 shadow-2xl transition-transform duration-200 hover:scale-105">
+                          {/* Main Face Image */}
+                          <div className="aspect-square relative">
+                            {imageLoadErrors.has(scan.id) ? (
+                              <div className="w-full h-full bg-gray-700 flex items-center justify-center flex-col">
+                                <AlertCircle className="h-8 w-8 text-red-400 mb-2" />
+                                <p className="text-red-400 text-xs text-center px-2 mb-2">Failed to load</p>
+                                <Button 
+                                  onClick={() => retryImageLoad(scan.id)} 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="border-red-400 text-red-400 hover:bg-red-400 hover:text-white text-xs"
+                                >
+                                  <RefreshCw className="h-3 w-3 mr-1" />
+                                  Retry
+                                </Button>
+                              </div>
+                            ) : retryingImages.has(scan.id) ? (
+                              <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                                <div className="animate-spin h-6 w-6 border-4 border-white border-t-transparent rounded-full"></div>
+                              </div>
+                            ) : (
+                              <img 
+                                src={scan.image_url} 
+                                alt={`Face scan - ${scan.scan_type}`} 
+                                className="w-full h-full object-cover" 
+                                onError={() => handleImageError(scan.id, scan.image_url)} 
+                                onLoad={() => handleImageLoad(scan.id, scan.image_url)} 
+                              />
+                            )}
+                            
+                            {/* Scan Type Badge */}
+                            <div className="absolute top-3 right-3">
+                              <Badge className={`${getScanTypeColor(scan.scan_type)} text-white text-xs px-2 py-1`}>
+                                {scan.scan_type}
+                              </Badge>
                             </div>
-                          ) : retryingImages.has(scan.id) ? (
-                            <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                              <div className="animate-spin h-8 w-8 border-4 border-white border-t-transparent rounded-full"></div>
-                            </div>
-                          ) : (
-                            <img 
-                              src={scan.image_url} 
-                              alt={`Face scan - ${scan.scan_type}`} 
-                              className="w-full h-full object-cover" 
-                              onError={() => handleImageError(scan.id, scan.image_url)} 
-                              onLoad={() => handleImageLoad(scan.id, scan.image_url)} 
-                            />
-                          )}
-                          
-                          {/* Scan Type Badge */}
-                          <div className="absolute top-4 right-4">
-                            <Badge className={`${getScanTypeColor(scan.scan_type)} text-white text-sm px-3 py-1`}>
-                              {scan.scan_type}
-                            </Badge>
                           </div>
-                        </div>
-                        
-                        {/* Card Metadata */}
-                        <div className="p-6 space-y-4">
-                          {/* Date and Time */}
-                          <div className="flex items-center justify-center text-gray-300">
-                            <Clock className="h-4 w-4 mr-2" />
-                            <span className="text-sm">{formatDate(scan.created_at)}</span>
-                          </div>
                           
-                          {/* Quality Metrics */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-gray-700 rounded-lg px-3 py-2 text-center">
-                              <p className="text-gray-400 text-xs mb-1">Quality</p>
-                              <p className="text-white font-semibold">
-                                {((scan.quality_score || 0) * 100).toFixed(0)}%
-                              </p>
+                          {/* Card Metadata */}
+                          <div className="p-4 space-y-3">
+                            {/* Date and Time */}
+                            <div className="flex items-center justify-center text-gray-300">
+                              <Clock className="h-3 w-3 mr-2" />
+                              <span className="text-xs">{formatDate(scan.created_at)}</span>
                             </div>
-                            <div className="bg-gray-700 rounded-lg px-3 py-2 text-center">
-                              <p className="text-gray-400 text-xs mb-1">Confidence</p>
-                              <p className="text-white font-semibold">
-                                {((scan.confidence_score || 0) * 100).toFixed(0)}%
-                              </p>
+                            
+                            {/* Quality Metrics */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="bg-gray-700 rounded-lg px-2 py-2 text-center">
+                                <p className="text-gray-400 text-xs mb-1">Quality</p>
+                                <p className="text-white font-semibold text-sm">
+                                  {((scan.quality_score || 0) * 100).toFixed(0)}%
+                                </p>
+                              </div>
+                              <div className="bg-gray-700 rounded-lg px-2 py-2 text-center">
+                                <p className="text-gray-400 text-xs mb-1">Confidence</p>
+                                <p className="text-white font-semibold text-sm">
+                                  {((scan.confidence_score || 0) * 100).toFixed(0)}%
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              
-              {/* Navigation Controls */}
-              {faceScans.length > 1 && (
-                <>
-                  <CarouselPrevious className="left-4 bg-gray-800 border-gray-600 text-white hover:bg-gray-700" />
-                  <CarouselNext className="right-4 bg-gray-800 border-gray-600 text-white hover:bg-gray-700" />
-                </>
-              )}
-            </Carousel>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                
+                {/* Navigation Controls */}
+                {faceScans.length > 3 && (
+                  <>
+                    <CarouselPrevious className="left-4 bg-gray-800 border-gray-600 text-white hover:bg-gray-700" />
+                    <CarouselNext className="right-4 bg-gray-800 border-gray-600 text-white hover:bg-gray-700" />
+                  </>
+                )}
+              </Carousel>
+            </div>
           </div>
         )}
       </CardContent>
