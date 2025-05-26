@@ -14,16 +14,14 @@ const CurrentUserCard = ({
   return <Card className="bg-gray-900 border-gray-800">
       <CardHeader className="text-center">
         <CheckCircle className="h-16 w-16 text-white mx-auto mb-4" />
-        <CardTitle className="text-3xl text-white">Already Signed In</CardTitle>
-        <CardDescription className="text-gray-400 text-lg">
-          You are currently signed in as {currentUser}
-        </CardDescription>
+        <CardTitle className="text-3xl text-white">Signed In</CardTitle>
+        
       </CardHeader>
       <CardContent className="text-center space-y-6">
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
           <p className="text-white font-semibold">Current Session Active</p>
           <p className="text-gray-300 mt-2">Welcome back, {currentUser}!</p>
-          <p className="text-gray-400 text-sm mt-1">You can continue to your dashboard or sign in as a different user</p>
+          
         </div>
         
         <div className="space-y-4">
