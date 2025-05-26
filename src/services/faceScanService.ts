@@ -26,37 +26,6 @@ export const uploadFaceImage = async (
     
     console.log('📍 Uploading to path:', fileName);
     
-    // First, check if the bucket exists and is accessible
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-    
-    if (bucketsError) {
-      console.error('❌ Error listing buckets:', bucketsError);
-      return null;
-    }
-    
-    console.log('📁 Available buckets:', buckets?.map(b => b.id));
-    
-    const faceImagesBucket = buckets?.find(b => b.id === 'face-images');
-    
-    if (!faceImagesBucket) {
-      console.error('❌ face-images bucket not found in available buckets');
-      return null;
-    }
-    
-    console.log('✅ face-images bucket found:', faceImagesBucket);
-    
-    // Test bucket accessibility by trying to list files
-    const { data: testList, error: testError } = await supabase.storage
-      .from('face-images')
-      .list('', { limit: 1 });
-    
-    if (testError) {
-      console.error('❌ Cannot access face-images bucket:', testError);
-      return null;
-    }
-    
-    console.log('✅ Bucket is accessible');
-    
     // Convert blob to ensure it's a proper JPEG
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -106,7 +75,7 @@ export const uploadFaceImage = async (
       
     console.log('🔗 Generated public URL:', urlData.publicUrl);
     
-    // Test if the URL is accessible
+    // Test if the URL is accessible now that bucket is public
     try {
       const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
       console.log('🌐 URL accessibility test:', response.status, response.statusText);
@@ -116,12 +85,11 @@ export const uploadFaceImage = async (
         return urlData.publicUrl;
       } else {
         console.error('❌ Image uploaded but not accessible, status:', response.status);
-        // Still return URL as it might be a CORS issue in browser
-        return urlData.publicUrl;
+        return urlData.publicUrl; // Still return URL as it might work in the gallery
       }
     } catch (urlError) {
       console.error('🌐 URL accessibility test failed:', urlError);
-      console.log('⚠️ Returning URL anyway, might be CORS restriction');
+      console.log('⚠️ Returning URL anyway - should work now that bucket is public');
       return urlData.publicUrl;
     }
   } catch (error) {

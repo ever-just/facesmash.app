@@ -5,7 +5,7 @@ export const testStorageSetup = async (): Promise<void> => {
   console.log('🔍 Testing storage setup...');
   
   try {
-    // Check if bucket exists
+    // Check if bucket exists and is public
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
     
     if (bucketsError) {
@@ -13,7 +13,11 @@ export const testStorageSetup = async (): Promise<void> => {
       return;
     }
     
-    console.log('📁 Available buckets:', buckets?.map(b => ({ id: b.id, public: b.public })));
+    console.log('📁 Available buckets:', buckets?.map(b => ({ 
+      id: b.id, 
+      public: b.public,
+      name: b.name 
+    })));
     
     const faceImagesBucket = buckets?.find(b => b.id === 'face-images');
     
@@ -25,8 +29,15 @@ export const testStorageSetup = async (): Promise<void> => {
     console.log('✅ face-images bucket found:', {
       id: faceImagesBucket.id,
       public: faceImagesBucket.public,
+      name: faceImagesBucket.name,
       created_at: faceImagesBucket.created_at
     });
+    
+    if (!faceImagesBucket.public) {
+      console.log('⚠️ Bucket is not public - images may not be accessible');
+    } else {
+      console.log('✅ Bucket is public - images should be accessible');
+    }
     
     // Try to list files in the bucket
     const { data: files, error: filesError } = await supabase.storage
@@ -44,10 +55,32 @@ export const testStorageSetup = async (): Promise<void> => {
           size: f.metadata?.size,
           updated_at: f.updated_at
         })));
+        
+        // Test accessibility of first file
+        const firstFile = files[0];
+        if (firstFile) {
+          const { data: urlData } = supabase.storage
+            .from('face-images')
+            .getPublicUrl(firstFile.name);
+          
+          console.log('🔗 Testing accessibility of first file:', urlData.publicUrl);
+          
+          try {
+            const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
+            console.log('🌐 File accessibility test:', response.status, response.statusText);
+            if (response.ok) {
+              console.log('✅ Files are accessible via public URLs');
+            } else {
+              console.log('❌ Files are not accessible, status:', response.status);
+            }
+          } catch (error) {
+            console.error('🌐 File accessibility test failed:', error);
+          }
+        }
       }
     }
     
-    // Test upload permissions
+    // Test upload permissions with a tiny test file
     const testBlob = new Blob(['test-storage-setup'], { type: 'text/plain' });
     const testPath = `test/storage-test-${Date.now()}.txt`;
     
@@ -67,6 +100,17 @@ export const testStorageSetup = async (): Promise<void> => {
         .getPublicUrl(uploadData.path);
       
       console.log('🔗 Test file public URL:', urlData.publicUrl);
+      
+      // Test accessibility
+      try {
+        const response = await fetch(urlData.publicUrl);
+        console.log('🌐 Test file accessibility:', response.status, response.statusText);
+        if (response.ok) {
+          console.log('✅ Upload and accessibility working perfectly');
+        }
+      } catch (error) {
+        console.error('🌐 Test file accessibility failed:', error);
+      }
       
       // Clean up test file
       const { error: deleteError } = await supabase.storage
