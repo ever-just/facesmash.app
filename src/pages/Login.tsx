@@ -1,12 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Square, ArrowLeft, CheckCircle, AlertCircle, Loader2, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
-import { initializeFaceAPI, processMultipleImages, facesMatch } from "@/utils/faceRecognition";
-import { getAllUserProfiles } from "@/services/userProfileService";
+import { initializeFaceAPI, processMultipleImages } from "@/utils/faceRecognition";
+import { analyzeFaceQuality, enhancedFaceMatch, base64ToBlob } from "@/utils/enhancedFaceRecognition";
+import { getAllUserProfiles, updateUserProfile } from "@/services/userProfileService";
 import { createSignInLog } from "@/services/signInLogService";
+import { uploadFaceImage, createFaceScan, updateUserEmbeddingWithScan } from "@/services/faceScanService";
 import LoginHeader from "@/components/LoginHeader";
 import LoginSuccess from "@/components/LoginSuccess";
 import LoginFailed from "@/components/LoginFailed";
@@ -70,13 +73,14 @@ const Login = () => {
       return;
     }
 
-    console.log('Starting face verification process...');
+    console.log('Starting enhanced face verification process...');
     setIsScanning(true);
     
     try {
-      const loginFaceEmbedding = await processMultipleImages(images);
+      // Analyze face quality first
+      const faceAnalysis = await analyzeFaceQuality(images[0]);
       
-      if (!loginFaceEmbedding) {
+      if (!faceAnalysis) {
         setIsScanning(false);
         setScanComplete(true);
         setLoginResult('failed');
@@ -84,7 +88,13 @@ const Login = () => {
         return;
       }
 
-      console.log('Face embedding extracted, comparing with registered users...');
+      // Check quality threshold
+      if (faceAnalysis.qualityScore < 0.4) {
+        console.log(`Low quality face detected: ${faceAnalysis.qualityScore.toFixed(3)}`);
+        toast.warning("Face quality is low. Please ensure good lighting and face the camera directly.");
+      }
+
+      console.log('Face analysis complete, comparing with registered users...');
       const userProfiles = await getAllUserProfiles();
       
       if (userProfiles.length === 0) {
@@ -98,14 +108,61 @@ const Login = () => {
       console.log(`Checking against ${userProfiles.length} registered user(s)...`);
       
       let foundMatch = false;
+      let bestMatch = { user: '', similarity: 0, profile: null as any };
+      
       for (const profile of userProfiles) {
         console.log(`Comparing with user: ${profile.email}`);
         const storedEmbedding = new Float32Array(profile.face_embedding);
         
-        if (facesMatch(loginFaceEmbedding, storedEmbedding, 0.6)) {
+        const matchResult = enhancedFaceMatch(
+          faceAnalysis.descriptor, 
+          storedEmbedding, 
+          profile.recognition_threshold || 0.6,
+          faceAnalysis.qualityScore
+        );
+        
+        if (matchResult.similarity > bestMatch.similarity) {
+          bestMatch = { user: profile.email, similarity: matchResult.similarity, profile };
+        }
+        
+        if (matchResult.isMatch) {
           foundMatch = true;
           setMatchedUser(profile.email);
-          console.log(`Match found! User: ${profile.email}`);
+          console.log(`Match found! User: ${profile.email}, Similarity: ${matchResult.similarity.toFixed(3)}`);
+          
+          // Store the login scan
+          try {
+            const imageBlob = base64ToBlob(images[0]);
+            const imageUrl = await uploadFaceImage(imageBlob, profile.email, 'login');
+            
+            if (imageUrl) {
+              await createFaceScan(
+                profile.email,
+                imageUrl,
+                faceAnalysis.descriptor,
+                'login',
+                faceAnalysis.confidence,
+                faceAnalysis.qualityScore
+              );
+              
+              // Update user embedding with new scan (learning)
+              await updateUserEmbeddingWithScan(
+                profile.email,
+                faceAnalysis.descriptor,
+                faceAnalysis.qualityScore
+              );
+              
+              // Update login statistics
+              await updateUserProfile(profile.id, {
+                total_logins: (profile.total_logins || 0) + 1,
+                successful_logins: (profile.successful_logins || 0) + 1,
+                last_updated: new Date().toISOString()
+              });
+            }
+          } catch (storageError) {
+            console.error('Error storing login scan:', storageError);
+            // Don't fail login if storage fails
+          }
           
           localStorage.setItem('currentUserName', profile.email);
           
@@ -121,18 +178,30 @@ const Login = () => {
       
       if (foundMatch) {
         setLoginResult('success');
-        toast.success(`Welcome back, ${matchedUser}!`);
+        toast.success(`Welcome back, ${matchedUser}! Face recognition improved with this login.`);
         
         setTimeout(() => {
           navigate('/dashboard');
         }, 1500);
       } else {
         setLoginResult('failed');
-        console.log('No matching face found');
+        console.log(`No matching face found. Best similarity: ${bestMatch.similarity.toFixed(3)} with ${bestMatch.user}`);
+        
+        // Update failed login statistics for best match if similarity is reasonable
+        if (bestMatch.similarity > 0.4 && bestMatch.profile) {
+          try {
+            await updateUserProfile(bestMatch.profile.id, {
+              total_logins: (bestMatch.profile.total_logins || 0) + 1
+            });
+          } catch (error) {
+            console.error('Error updating failed login stats:', error);
+          }
+        }
+        
         toast.error("Face not recognized. Please try again or register a new Face Card.");
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Enhanced login error:', error);
       setIsScanning(false);
       setScanComplete(true);
       setLoginResult('failed');
@@ -197,10 +266,10 @@ const Login = () => {
               <CardHeader className="text-center">
                 <CardTitle className="text-3xl text-white flex items-center justify-center">
                   <Square className="mr-3 h-8 w-8 text-white" />
-                  Face Card Login
+                  Enhanced Face Card Login
                 </CardTitle>
                 <CardDescription className="text-gray-400 text-lg">
-                  Position your face in the camera frame to sign in
+                  Position your face in the camera frame to sign in. Your face data will be improved with each login.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -208,7 +277,7 @@ const Login = () => {
                   <div className="text-center py-12">
                     <Loader2 className="h-16 w-16 text-white mx-auto mb-6 animate-spin" />
                     <h3 className="text-xl font-semibold text-white mb-2">Analyzing Your Face...</h3>
-                    <p className="text-gray-400">Please hold still while we verify your identity</p>
+                    <p className="text-gray-400">Please hold still while we verify your identity and improve recognition</p>
                   </div>
                 ) : (
                   <WebcamCapture 

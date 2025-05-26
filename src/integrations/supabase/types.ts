@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      face_scans: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          face_embedding: number[]
+          id: string
+          image_url: string
+          quality_score: number | null
+          scan_type: string
+          user_email: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          face_embedding: number[]
+          id?: string
+          image_url: string
+          quality_score?: number | null
+          scan_type: string
+          user_email: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          face_embedding?: number[]
+          id?: string
+          image_url?: string
+          quality_score?: number | null
+          scan_type?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
       sign_in_logs: {
         Row: {
           created_at: string
@@ -40,22 +73,37 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string
+          embedding_count: number | null
           face_embedding: number[]
           id: string
+          last_updated: string | null
+          recognition_threshold: number | null
+          successful_logins: number | null
+          total_logins: number | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           email: string
+          embedding_count?: number | null
           face_embedding: number[]
           id?: string
+          last_updated?: string | null
+          recognition_threshold?: number | null
+          successful_logins?: number | null
+          total_logins?: number | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           email?: string
+          embedding_count?: number | null
           face_embedding?: number[]
           id?: string
+          last_updated?: string | null
+          recognition_threshold?: number | null
+          successful_logins?: number | null
+          total_logins?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -65,7 +113,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_user_embedding_with_scan: {
+        Args: {
+          p_user_email: string
+          p_new_embedding: number[]
+          p_confidence: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

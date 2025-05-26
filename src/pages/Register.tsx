@@ -8,8 +8,10 @@ import { Square, ArrowLeft, CheckCircle, User, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
-import { initializeFaceAPI, processMultipleImages } from "@/utils/faceRecognition";
+import { initializeFaceAPI } from "@/utils/faceRecognition";
+import { analyzeFaceQuality, base64ToBlob } from "@/utils/enhancedFaceRecognition";
 import { createUserProfile } from "@/services/userProfileService";
+import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -49,28 +51,66 @@ const Register = () => {
     setIsRegistering(true);
     
     try {
-      console.log('Starting registration process...');
-      const faceEmbedding = await processMultipleImages(capturedImages);
+      console.log('Starting enhanced registration process...');
       
-      if (!faceEmbedding) {
+      // Analyze face quality
+      const faceAnalysis = await analyzeFaceQuality(capturedImages[0]);
+      
+      if (!faceAnalysis) {
         toast.error("No face detected in the captured image. Please try again.");
         setStep(2);
         setIsRegistering(false);
         return;
       }
 
-      console.log('Face embedding extracted, creating user profile...');
-      const profile = await createUserProfile(name, faceEmbedding);
-      
-      if (profile) {
-        console.log('User profile created successfully:', profile.id);
-        setStep(4);
-        toast.success("Face Card created successfully!");
-      } else {
-        toast.error("Failed to create Face Card. Please try again.");
+      // Check quality threshold for registration
+      if (faceAnalysis.qualityScore < 0.5) {
+        toast.error("Face quality is too low for registration. Please ensure good lighting and face the camera directly.");
+        setStep(2);
+        setIsRegistering(false);
+        return;
       }
+
+      console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
+      console.log('Creating user profile with enhanced face data...');
+      
+      // Create user profile
+      const profile = await createUserProfile(name, faceAnalysis.descriptor);
+      
+      if (!profile) {
+        toast.error("Failed to create Face Card. Please try again.");
+        setIsRegistering(false);
+        return;
+      }
+
+      // Upload and store the registration image
+      try {
+        const imageBlob = base64ToBlob(capturedImages[0]);
+        const imageUrl = await uploadFaceImage(imageBlob, name, 'registration');
+        
+        if (imageUrl) {
+          await createFaceScan(
+            name,
+            imageUrl,
+            faceAnalysis.descriptor,
+            'registration',
+            faceAnalysis.confidence,
+            faceAnalysis.qualityScore
+          );
+          console.log('Registration scan stored successfully');
+        }
+      } catch (storageError) {
+        console.error('Error storing registration image:', storageError);
+        // Don't fail registration if storage fails
+        toast.warning("Face Card created, but image storage had issues. Recognition will still work.");
+      }
+
+      console.log('Enhanced user profile created successfully:', profile.id);
+      setStep(4);
+      toast.success("Enhanced Face Card created successfully with high-quality face data!");
+      
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Enhanced registration error:', error);
       toast.error("An error occurred during registration. Please try again.");
     }
     
@@ -126,7 +166,7 @@ const Register = () => {
             <Card className="bg-gray-900 border-gray-800 mb-6">
               <CardContent className="text-center py-8">
                 <Loader2 className="h-8 w-8 text-white mx-auto mb-4 animate-spin" />
-                <p className="text-white">Loading face recognition models...</p>
+                <p className="text-white">Loading enhanced face recognition models...</p>
                 <p className="text-gray-400 text-sm mt-2">This may take a moment on first load</p>
               </CardContent>
             </Card>
@@ -138,10 +178,10 @@ const Register = () => {
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white flex items-center justify-center">
                   <User className="mr-2 h-6 w-6 text-white" />
-                  Create Your Face Card
+                  Create Your Enhanced Face Card
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Enter your name to get started with face recognition
+                  Enter your name to get started with advanced face recognition that learns over time
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -163,7 +203,7 @@ const Register = () => {
                     className="w-full bg-white text-black hover:bg-gray-200"
                     disabled={!name || !faceAPILoaded}
                   >
-                    {faceAPILoaded ? "Continue to Face Capture" : "Loading..."}
+                    {faceAPILoaded ? "Continue to Enhanced Face Capture" : "Loading..."}
                   </Button>
                 </form>
               </CardContent>
@@ -176,10 +216,10 @@ const Register = () => {
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white flex items-center justify-center">
                   <Square className="mr-2 h-6 w-6 text-white" />
-                  Capture Your Face
+                  Capture Your High-Quality Face
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  We'll automatically take your photo when we detect your face
+                  We'll automatically take your photo when we detect a high-quality face. Good lighting is important!
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -192,9 +232,9 @@ const Register = () => {
           {step === 3 && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
-                <CardTitle className="text-2xl text-white">Review Your Face Card</CardTitle>
+                <CardTitle className="text-2xl text-white">Review Your Enhanced Face Card</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Confirm your details and complete registration
+                  Confirm your details and complete registration with advanced face recognition
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -213,7 +253,10 @@ const Register = () => {
                     <strong>Name:</strong> {name}
                   </p>
                   <p className="text-gray-300">
-                    <strong>Face Photo:</strong> Ready for processing
+                    <strong>Face Data:</strong> High-quality face profile ready for enhanced recognition
+                  </p>
+                  <p className="text-gray-400 text-sm">
+                    Your face data will improve automatically with each login for better recognition over time.
                   </p>
                   
                   <div className="flex space-x-4">
@@ -233,10 +276,10 @@ const Register = () => {
                       {isRegistering ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing Face...
+                          Processing Enhanced Face...
                         </>
                       ) : (
-                        "Complete Registration"
+                        "Complete Enhanced Registration"
                       )}
                     </Button>
                   </div>
@@ -250,19 +293,28 @@ const Register = () => {
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CheckCircle className="h-16 w-16 text-white mx-auto mb-4" />
-                <CardTitle className="text-2xl text-white">Face Card Created!</CardTitle>
+                <CardTitle className="text-2xl text-white">Enhanced Face Card Created!</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Your face profile has been created successfully
+                  Your advanced face profile has been created with learning capabilities
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center space-y-4">
                 <p className="text-gray-300">
-                  You can now sign in using facial recognition. No password required!
+                  You can now sign in using facial recognition. Your face recognition will improve automatically with each login!
                 </p>
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                  <p className="text-green-400 font-semibold text-sm">✨ Enhanced Features Active</p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    • Adaptive recognition threshold<br/>
+                    • Face quality scoring<br/>
+                    • Continuous learning from logins<br/>
+                    • Secure image storage
+                  </p>
+                </div>
                 <Link to="/login">
                   <Button className="w-full bg-white text-black hover:bg-gray-200">
                     <Square className="mr-2 h-4 w-4" />
-                    Sign In with Face
+                    Sign In with Enhanced Face Recognition
                   </Button>
                 </Link>
               </CardContent>
