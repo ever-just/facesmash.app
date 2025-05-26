@@ -12,9 +12,7 @@ const LoginFailed = ({
       <CardHeader className="text-center">
         <AlertCircle className="h-20 w-20 text-white mx-auto mb-4" />
         <CardTitle className="text-3xl text-white">Access Denied</CardTitle>
-        <CardDescription className="text-gray-400 text-lg">
-          Face not recognized
-        </CardDescription>
+        
       </CardHeader>
       <CardContent className="text-center space-y-6">
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
@@ -27,7 +25,7 @@ const LoginFailed = ({
             Try Again
           </Button>
           <Link to="/register">
-            <Button variant="outline" className="w-full border-white hover:bg-white text-gray-900">
+            <Button variant="outline" className="w-full border-white bg-gray-700 hover:bg-gray-600 text-gray-200 my-[13px]">
               Create New Face Card
             </Button>
           </Link>
