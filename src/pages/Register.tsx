@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,28 +16,21 @@ import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
 const Register = () => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [faceAPILoaded, setFaceAPILoaded] = useState(false);
 
-  useEffect(() => {
-    const loadFaceAPI = async () => {
+  const handleNameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (name && email) {
+      // Initialize face API when moving to step 2
       console.log('Initializing face recognition models...');
       const loaded = await initializeFaceAPI();
-      setFaceAPILoaded(loaded);
       if (!loaded) {
-        toast.error("Failed to load face recognition models. Please refresh the page.");
+        toast.error("Failed to load face recognition models. Please try again.");
+        return;
       }
-    };
-    loadFaceAPI();
-  }, []);
-
-  const handleNameSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name && faceAPILoaded) {
       setStep(2);
-    } else if (!faceAPILoaded) {
-      toast.error("Face recognition is still loading. Please wait.");
     }
   };
 
@@ -72,8 +65,8 @@ const Register = () => {
       console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
       console.log('Creating user profile with enhanced face data...');
 
-      // Create user profile
-      const profile = await createUserProfile(name, faceAnalysis.descriptor);
+      // Create user profile using email
+      const profile = await createUserProfile(email, faceAnalysis.descriptor);
       if (!profile) {
         toast.error("Failed to create Face Card. Please try again.");
         setIsRegistering(false);
@@ -83,9 +76,9 @@ const Register = () => {
       // Upload and store the registration image
       try {
         const imageBlob = base64ToBlob(capturedImages[0]);
-        const imageUrl = await uploadFaceImage(imageBlob, name, 'registration');
+        const imageUrl = await uploadFaceImage(imageBlob, email, 'registration');
         if (imageUrl) {
-          await createFaceScan(name, imageUrl, faceAnalysis.descriptor, 'registration', faceAnalysis.confidence, faceAnalysis.qualityScore);
+          await createFaceScan(email, imageUrl, faceAnalysis.descriptor, 'registration', faceAnalysis.confidence, faceAnalysis.qualityScore);
           console.log('Registration scan stored successfully');
         }
       } catch (storageError) {
@@ -148,7 +141,7 @@ const Register = () => {
             ))}
           </div>
 
-          {/* Step 1: Name Input */}
+          {/* Step 1: Name and Email Input */}
           {step === 1 && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
@@ -157,7 +150,7 @@ const Register = () => {
                   Create Your Enhanced Face Card
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Enter your name to get started with advanced face recognition that learns over time
+                  Enter your name and email to get started with advanced face recognition that learns over time
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -174,12 +167,24 @@ const Register = () => {
                       required
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="email" className="text-white">Your Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      className="bg-gray-800 border-gray-700 text-white"
+                      required
+                    />
+                  </div>
                   <Button
                     type="submit"
                     className="w-full bg-white text-black hover:bg-gray-200"
-                    disabled={!name || !faceAPILoaded}
+                    disabled={!name || !email}
                   >
-                    {faceAPILoaded ? "Continue to Enhanced Face Capture" : "Loading..."}
+                    Continue to Enhanced Face Capture
                   </Button>
                 </form>
               </CardContent>
@@ -227,6 +232,9 @@ const Register = () => {
                 <div className="text-center space-y-4">
                   <p className="text-gray-300">
                     <strong>Name:</strong> {name}
+                  </p>
+                  <p className="text-gray-300">
+                    <strong>Email:</strong> {email}
                   </p>
                   <p className="text-gray-300">
                     <strong>Face Data:</strong> High-quality face profile ready for enhanced recognition
