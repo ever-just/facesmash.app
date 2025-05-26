@@ -92,7 +92,7 @@ const LoginSuccess = ({
             Continue to Dashboard
           </Button>
           
-          <Button variant="outline" onClick={onSignInAgain} className="w-full border-2 border-gray-600 hover:border-white hover:bg-gray-800 py-4 rounded-xl font-semibold transition-all duration-300 text-gray-50">Sign Out</Button>
+          <Button variant="outline" onClick={onSignInAgain} className="w-full border-2 border-gray-600 hover:border-white py-4 rounded-xl font-semibold transition-all duration-300 text-gray-50 bg-slate-900 hover:bg-slate-800">Sign Out</Button>
         </div>
       </CardContent>
     </Card>;
