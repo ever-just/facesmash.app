@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface FaceScan {
@@ -18,40 +17,45 @@ export const uploadFaceImage = async (
   scanType: string
 ): Promise<string | null> => {
   try {
-    console.log('Starting face image upload process...');
-    console.log('Blob size:', imageBlob.size, 'bytes');
-    console.log('Blob type:', imageBlob.type);
+    console.log('🔄 Starting face image upload process...');
+    console.log('📊 Blob size:', imageBlob.size, 'bytes');
+    console.log('📄 Blob type:', imageBlob.type);
     
     const timestamp = Date.now();
     const fileName = `${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}/${scanType}_${timestamp}.jpg`;
     
-    console.log('Uploading to path:', fileName);
+    console.log('📍 Uploading to path:', fileName);
     
-    // Check if bucket exists first and create if needed
+    // First, check if the bucket exists and is accessible
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-    console.log('Available buckets:', buckets?.map(b => b.id));
     
     if (bucketsError) {
-      console.error('Error listing buckets:', bucketsError);
+      console.error('❌ Error listing buckets:', bucketsError);
+      return null;
     }
     
-    const bucketExists = buckets?.some(bucket => bucket.id === 'face-images');
-    console.log('face-images bucket exists:', bucketExists);
+    console.log('📁 Available buckets:', buckets?.map(b => b.id));
     
-    if (!bucketExists) {
-      console.log('Creating face-images bucket...');
-      const { data: newBucket, error: createError } = await supabase.storage.createBucket('face-images', {
-        public: true,
-        allowedMimeTypes: ['image/jpeg', 'image/png'],
-        fileSizeLimit: 1024 * 1024 * 2 // 2MB
-      });
-      
-      if (createError) {
-        console.error('Error creating bucket:', createError);
-        return null;
-      }
-      console.log('Bucket created successfully:', newBucket);
+    const faceImagesBucket = buckets?.find(b => b.id === 'face-images');
+    
+    if (!faceImagesBucket) {
+      console.error('❌ face-images bucket not found in available buckets');
+      return null;
     }
+    
+    console.log('✅ face-images bucket found:', faceImagesBucket);
+    
+    // Test bucket accessibility by trying to list files
+    const { data: testList, error: testError } = await supabase.storage
+      .from('face-images')
+      .list('', { limit: 1 });
+    
+    if (testError) {
+      console.error('❌ Cannot access face-images bucket:', testError);
+      return null;
+    }
+    
+    console.log('✅ Bucket is accessible');
     
     // Convert blob to ensure it's a proper JPEG
     const canvas = document.createElement('canvas');
@@ -75,9 +79,10 @@ export const uploadFaceImage = async (
       img.src = URL.createObjectURL(imageBlob);
     });
     
-    console.log('Processed blob size:', processedBlob.size, 'bytes');
-    console.log('Processed blob type:', processedBlob.type);
+    console.log('🔄 Processed blob size:', processedBlob.size, 'bytes');
+    console.log('📄 Processed blob type:', processedBlob.type);
     
+    // Upload the image
     const { data, error } = await supabase.storage
       .from('face-images')
       .upload(fileName, processedBlob, {
@@ -87,57 +92,40 @@ export const uploadFaceImage = async (
       });
 
     if (error) {
-      console.error('Storage upload error:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      
-      // Try alternative upload method
-      console.log('Trying alternative upload method...');
-      const { data: retryData, error: retryError } = await supabase.storage
-        .from('face-images')
-        .upload(fileName, imageBlob, {
-          upsert: true
-        });
-        
-      if (retryError) {
-        console.error('Retry upload also failed:', retryError);
-        return null;
-      }
-      
-      console.log('Retry upload successful:', retryData);
-      const { data: urlData } = supabase.storage
-        .from('face-images')
-        .getPublicUrl(retryData.path);
-      return urlData.publicUrl;
+      console.error('❌ Storage upload error:', error);
+      console.error('🔍 Error details:', JSON.stringify(error, null, 2));
+      return null;
     }
 
-    console.log('Upload successful:', data);
+    console.log('✅ Upload successful:', data);
     
     // Get public URL
     const { data: urlData } = supabase.storage
       .from('face-images')
       .getPublicUrl(data.path);
       
-    console.log('Generated public URL:', urlData.publicUrl);
+    console.log('🔗 Generated public URL:', urlData.publicUrl);
     
     // Test if the URL is accessible
     try {
       const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
-      console.log('URL accessibility test:', response.status, response.statusText);
+      console.log('🌐 URL accessibility test:', response.status, response.statusText);
       
-      if (response.status === 200) {
+      if (response.ok) {
         console.log('✅ Image upload and accessibility confirmed');
         return urlData.publicUrl;
       } else {
         console.error('❌ Image uploaded but not accessible, status:', response.status);
-        return urlData.publicUrl; // Return anyway, might be CORS issue
+        // Still return URL as it might be a CORS issue in browser
+        return urlData.publicUrl;
       }
     } catch (urlError) {
-      console.error('URL accessibility test failed:', urlError);
-      console.log('Returning URL anyway, might be CORS restriction');
+      console.error('🌐 URL accessibility test failed:', urlError);
+      console.log('⚠️ Returning URL anyway, might be CORS restriction');
       return urlData.publicUrl;
     }
   } catch (error) {
-    console.error('Unexpected error in uploadFaceImage:', error);
+    console.error('💥 Unexpected error in uploadFaceImage:', error);
     return null;
   }
 };
