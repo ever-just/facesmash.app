@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { toast } from "sonner";
 import { getUserProfileByName } from "@/services/userProfileService";
 import SignInHistory from "@/components/SignInHistory";
 import FaceScanGallery from "@/components/FaceScanGallery";
+import { testStorageSetup } from "@/utils/storageTest";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -27,6 +27,9 @@ const Dashboard = () => {
       setUserProfile(profile);
     };
     fetchUserProfile();
+    
+    // Test storage setup for debugging
+    testStorageSetup();
   }, [navigate]);
 
   const handleSignOut = () => {

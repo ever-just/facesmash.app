@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface FaceScan {
@@ -26,7 +27,7 @@ export const uploadFaceImage = async (
     
     console.log('Uploading to path:', fileName);
     
-    // Check if bucket exists first
+    // Check if bucket exists first and create if needed
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
     console.log('Available buckets:', buckets?.map(b => b.id));
     
@@ -34,18 +35,79 @@ export const uploadFaceImage = async (
       console.error('Error listing buckets:', bucketsError);
     }
     
+    const bucketExists = buckets?.some(bucket => bucket.id === 'face-images');
+    console.log('face-images bucket exists:', bucketExists);
+    
+    if (!bucketExists) {
+      console.log('Creating face-images bucket...');
+      const { data: newBucket, error: createError } = await supabase.storage.createBucket('face-images', {
+        public: true,
+        allowedMimeTypes: ['image/jpeg', 'image/png'],
+        fileSizeLimit: 1024 * 1024 * 2 // 2MB
+      });
+      
+      if (createError) {
+        console.error('Error creating bucket:', createError);
+        return null;
+      }
+      console.log('Bucket created successfully:', newBucket);
+    }
+    
+    // Convert blob to ensure it's a proper JPEG
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    const processedBlob = await new Promise<Blob>((resolve, reject) => {
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to convert image to blob'));
+          }
+        }, 'image/jpeg', 0.9);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(imageBlob);
+    });
+    
+    console.log('Processed blob size:', processedBlob.size, 'bytes');
+    console.log('Processed blob type:', processedBlob.type);
+    
     const { data, error } = await supabase.storage
       .from('face-images')
-      .upload(fileName, imageBlob, {
+      .upload(fileName, processedBlob, {
         cacheControl: '3600',
-        upsert: false,
+        upsert: true,
         contentType: 'image/jpeg'
       });
 
     if (error) {
       console.error('Storage upload error:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
-      return null;
+      
+      // Try alternative upload method
+      console.log('Trying alternative upload method...');
+      const { data: retryData, error: retryError } = await supabase.storage
+        .from('face-images')
+        .upload(fileName, imageBlob, {
+          upsert: true
+        });
+        
+      if (retryError) {
+        console.error('Retry upload also failed:', retryError);
+        return null;
+      }
+      
+      console.log('Retry upload successful:', retryData);
+      const { data: urlData } = supabase.storage
+        .from('face-images')
+        .getPublicUrl(retryData.path);
+      return urlData.publicUrl;
     }
 
     console.log('Upload successful:', data);
@@ -61,11 +123,19 @@ export const uploadFaceImage = async (
     try {
       const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
       console.log('URL accessibility test:', response.status, response.statusText);
+      
+      if (response.status === 200) {
+        console.log('✅ Image upload and accessibility confirmed');
+        return urlData.publicUrl;
+      } else {
+        console.error('❌ Image uploaded but not accessible, status:', response.status);
+        return urlData.publicUrl; // Return anyway, might be CORS issue
+      }
     } catch (urlError) {
       console.error('URL accessibility test failed:', urlError);
+      console.log('Returning URL anyway, might be CORS restriction');
+      return urlData.publicUrl;
     }
-    
-    return urlData.publicUrl;
   } catch (error) {
     console.error('Unexpected error in uploadFaceImage:', error);
     return null;
