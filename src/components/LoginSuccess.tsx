@@ -1,43 +1,33 @@
-
 import { CheckCircle, Sparkles, Shield } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-
 interface LoginSuccessProps {
   matchedUser: string | null;
   onContinue: () => void;
   onSignInAgain: () => void;
 }
-
 const LoginSuccess = ({
   matchedUser,
   onContinue,
   onSignInAgain
 }: LoginSuccessProps) => {
   const [showAnimation, setShowAnimation] = useState(false);
-
   useEffect(() => {
     setShowAnimation(true);
   }, []);
-
-  return (
-    <Card className="bg-gray-900 border-gray-800 overflow-hidden relative">
+  return <Card className="bg-gray-900 border-gray-800 overflow-hidden relative">
       {/* Animated Background */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0 bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 animate-pulse"></div>
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 bg-white rounded-full animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${2 + Math.random() * 2}s`
-            }}
-          ></div>
-        ))}
+        {Array.from({
+        length: 20
+      }).map((_, i) => <div key={i} className="absolute w-2 h-2 bg-white rounded-full animate-pulse" style={{
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 2}s`,
+        animationDuration: `${2 + Math.random() * 2}s`
+      }}></div>)}
       </div>
 
       <CardHeader className="text-center relative z-10">
@@ -97,25 +87,14 @@ const LoginSuccess = ({
         </div>
         
         <div className={`space-y-4 transform transition-all duration-1000 delay-1000 ${showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-          <Button 
-            onClick={onContinue} 
-            className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600 font-bold py-4 rounded-xl transform transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
-          >
+          <Button onClick={onContinue} className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600 font-bold py-4 rounded-xl transform transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl">
             <Sparkles className="mr-2 h-5 w-5" />
             Continue to Dashboard
           </Button>
           
-          <Button 
-            variant="outline" 
-            onClick={onSignInAgain} 
-            className="w-full border-2 border-gray-600 hover:border-white text-gray-300 hover:text-white hover:bg-gray-800 py-4 rounded-xl font-semibold transition-all duration-300"
-          >
-            Sign In Again
-          </Button>
+          <Button variant="outline" onClick={onSignInAgain} className="w-full border-2 border-gray-600 hover:border-white hover:bg-gray-800 py-4 rounded-xl font-semibold transition-all duration-300 text-gray-50">Sign Out</Button>
         </div>
       </CardContent>
-    </Card>
-  );
+    </Card>;
 };
-
 export default LoginSuccess;
