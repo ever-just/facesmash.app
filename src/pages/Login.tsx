@@ -1,34 +1,94 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Camera, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
+import { initializeFaceAPI, processMultipleImages, facesMatch } from "@/utils/faceRecognition";
+import { getAllUserProfiles } from "@/services/userProfileService";
 
 const Login = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
   const [loginResult, setLoginResult] = useState<'success' | 'failed' | null>(null);
+  const [matchedUser, setMatchedUser] = useState<string | null>(null);
+  const [faceAPILoaded, setFaceAPILoaded] = useState(false);
+
+  useEffect(() => {
+    const loadFaceAPI = async () => {
+      const loaded = await initializeFaceAPI();
+      setFaceAPILoaded(loaded);
+      if (!loaded) {
+        toast.error("Failed to load face recognition models. Please refresh the page.");
+      }
+    };
+    loadFaceAPI();
+  }, []);
 
   const handleImagesCapture = async (images: string[]) => {
+    if (!faceAPILoaded) {
+      toast.error("Face recognition is still loading. Please wait.");
+      return;
+    }
+
     setIsScanning(true);
     
-    // Simulate face recognition processing
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Simulate random result for demo (in real app, this would be actual face matching)
-    const success = Math.random() > 0.3; // 70% success rate for demo
-    
-    setIsScanning(false);
-    setScanComplete(true);
-    setLoginResult(success ? 'success' : 'failed');
-    
-    if (success) {
-      toast.success("Face recognized! Welcome back!");
-    } else {
-      toast.error("Face not recognized. Please try again.");
+    try {
+      // Extract face embedding from captured images
+      const loginFaceEmbedding = await processMultipleImages(images);
+      
+      if (!loginFaceEmbedding) {
+        setIsScanning(false);
+        setScanComplete(true);
+        setLoginResult('failed');
+        toast.error("No face detected in the captured images. Please try again.");
+        return;
+      }
+
+      // Get all registered user profiles
+      const userProfiles = await getAllUserProfiles();
+      
+      if (userProfiles.length === 0) {
+        setIsScanning(false);
+        setScanComplete(true);
+        setLoginResult('failed');
+        toast.error("No registered users found. Please register first.");
+        return;
+      }
+
+      // Find matching user
+      let foundMatch = false;
+      for (const profile of userProfiles) {
+        const storedEmbedding = new Float32Array(profile.face_embedding);
+        
+        if (facesMatch(loginFaceEmbedding, storedEmbedding, 0.6)) {
+          foundMatch = true;
+          setMatchedUser(profile.email);
+          break;
+        }
+      }
+
+      // Simulate processing time for better UX
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      setIsScanning(false);
+      setScanComplete(true);
+      
+      if (foundMatch) {
+        setLoginResult('success');
+        toast.success(`Welcome back, ${matchedUser}!`);
+      } else {
+        setLoginResult('failed');
+        toast.error("Face not recognized. Please try again or register a new account.");
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setIsScanning(false);
+      setScanComplete(true);
+      setLoginResult('failed');
+      toast.error("An error occurred during face recognition. Please try again.");
     }
   };
 
@@ -36,6 +96,7 @@ const Login = () => {
     setIsScanning(false);
     setScanComplete(false);
     setLoginResult(null);
+    setMatchedUser(null);
   };
 
   return (
@@ -56,7 +117,18 @@ const Login = () => {
 
       <div className="container mx-auto px-6 py-12">
         <div className="max-w-2xl mx-auto">
-          {!scanComplete && (
+          {/* Loading State for Face API */}
+          {!faceAPILoaded && (
+            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm mb-6">
+              <CardContent className="text-center py-8">
+                <Loader2 className="h-8 w-8 text-cyan-400 mx-auto mb-4 animate-spin" />
+                <p className="text-white">Loading face recognition models...</p>
+                <p className="text-gray-400 text-sm mt-2">This may take a moment on first load</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!scanComplete && faceAPILoaded && (
             <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
               <CardHeader className="text-center">
                 <CardTitle className="text-3xl text-white flex items-center justify-center">
@@ -103,7 +175,8 @@ const Login = () => {
               <CardContent className="text-center space-y-6">
                 <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-6">
                   <p className="text-green-400 font-semibold">Authentication Successful</p>
-                  <p className="text-gray-300 mt-2">You have been securely logged in</p>
+                  <p className="text-gray-300 mt-2">Welcome back, {matchedUser}!</p>
+                  <p className="text-gray-400 text-sm mt-1">You have been securely logged in</p>
                 </div>
                 
                 <div className="space-y-4">

@@ -1,24 +1,40 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, ArrowLeft, CheckCircle, User } from "lucide-react";
+import { Camera, ArrowLeft, CheckCircle, User, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
+import { initializeFaceAPI, processMultipleImages } from "@/utils/faceRecognition";
+import { createUserProfile } from "@/services/userProfileService";
 
 const Register = () => {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [faceAPILoaded, setFaceAPILoaded] = useState(false);
+
+  useEffect(() => {
+    const loadFaceAPI = async () => {
+      const loaded = await initializeFaceAPI();
+      setFaceAPILoaded(loaded);
+      if (!loaded) {
+        toast.error("Failed to load face recognition models. Please refresh the page.");
+      }
+    };
+    loadFaceAPI();
+  }, []);
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
+    if (email && faceAPILoaded) {
       setStep(2);
+    } else if (!faceAPILoaded) {
+      toast.error("Face recognition is still loading. Please wait.");
     }
   };
 
@@ -29,11 +45,33 @@ const Register = () => {
 
   const handleRegister = async () => {
     setIsRegistering(true);
-    // Simulate registration process
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    try {
+      // Process captured images to extract face embedding
+      const faceEmbedding = await processMultipleImages(capturedImages);
+      
+      if (!faceEmbedding) {
+        toast.error("No face detected in the captured images. Please try again.");
+        setStep(2);
+        setIsRegistering(false);
+        return;
+      }
+
+      // Save user profile with face embedding
+      const profile = await createUserProfile(email, faceEmbedding);
+      
+      if (profile) {
+        setStep(4);
+        toast.success("Registration completed successfully!");
+      } else {
+        toast.error("Failed to create user profile. Please try again.");
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error("An error occurred during registration. Please try again.");
+    }
+    
     setIsRegistering(false);
-    setStep(4);
-    toast.success("Registration completed successfully!");
   };
 
   return (
@@ -74,6 +112,17 @@ const Register = () => {
             ))}
           </div>
 
+          {/* Loading State for Face API */}
+          {!faceAPILoaded && (
+            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm mb-6">
+              <CardContent className="text-center py-8">
+                <Loader2 className="h-8 w-8 text-cyan-400 mx-auto mb-4 animate-spin" />
+                <p className="text-white">Loading face recognition models...</p>
+                <p className="text-gray-400 text-sm mt-2">This may take a moment on first load</p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Step 1: Email Input */}
           {step === 1 && (
             <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
@@ -103,9 +152,9 @@ const Register = () => {
                   <Button 
                     type="submit" 
                     className="w-full bg-cyan-500 hover:bg-cyan-600"
-                    disabled={!email}
+                    disabled={!email || !faceAPILoaded}
                   >
-                    Continue to Face Capture
+                    {faceAPILoaded ? "Continue to Face Capture" : "Loading..."}
                   </Button>
                 </form>
               </CardContent>
@@ -165,6 +214,7 @@ const Register = () => {
                       variant="outline"
                       onClick={() => setStep(2)}
                       className="flex-1 border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-slate-900"
+                      disabled={isRegistering}
                     >
                       Retake Photos
                     </Button>
@@ -173,7 +223,14 @@ const Register = () => {
                       disabled={isRegistering}
                       className="flex-1 bg-cyan-500 hover:bg-cyan-600"
                     >
-                      {isRegistering ? "Creating Profile..." : "Complete Registration"}
+                      {isRegistering ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing Face...
+                        </>
+                      ) : (
+                        "Complete Registration"
+                      )}
                     </Button>
                   </div>
                 </div>
