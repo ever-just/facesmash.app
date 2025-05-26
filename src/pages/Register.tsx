@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,12 +12,14 @@ import { initializeFaceAPI } from "@/utils/faceRecognition";
 import { analyzeFaceQuality, base64ToBlob } from "@/utils/enhancedFaceRecognition";
 import { createUserProfile } from "@/services/userProfileService";
 import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
+
 const Register = () => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState(false);
   const [faceAPILoaded, setFaceAPILoaded] = useState(false);
+
   useEffect(() => {
     const loadFaceAPI = async () => {
       console.log('Initializing face recognition models...');
@@ -28,6 +31,7 @@ const Register = () => {
     };
     loadFaceAPI();
   }, []);
+
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name && faceAPILoaded) {
@@ -36,11 +40,13 @@ const Register = () => {
       toast.error("Face recognition is still loading. Please wait.");
     }
   };
+
   const handleImagesCapture = (images: string[]) => {
     console.log('Images captured for registration:', images.length);
     setCapturedImages(images);
     setStep(3);
   };
+
   const handleRegister = async () => {
     setIsRegistering(true);
     try {
@@ -62,6 +68,7 @@ const Register = () => {
         setIsRegistering(false);
         return;
       }
+
       console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
       console.log('Creating user profile with enhanced face data...');
 
@@ -86,6 +93,7 @@ const Register = () => {
         // Don't fail registration if storage fails
         toast.warning("Face Card created, but image storage had issues. Recognition will still work.");
       }
+
       console.log('Enhanced user profile created successfully:', profile.id);
       setStep(4);
       toast.success("Enhanced Face Card created successfully with high-quality face data!");
@@ -95,7 +103,9 @@ const Register = () => {
     }
     setIsRegistering(false);
   };
-  return <div className="min-h-screen bg-black text-white">
+
+  return (
+    <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
       <nav className="flex items-center justify-between p-6 border-b border-gray-800">
         <Link to="/" className="flex items-center space-x-3">
@@ -120,25 +130,27 @@ const Register = () => {
         <div className="max-w-2xl mx-auto">
           {/* Progress Steps */}
           <div className="flex items-center justify-center mb-8">
-            {[1, 2, 3, 4].map(stepNumber => <div key={stepNumber} className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${stepNumber <= step ? 'bg-white border-white text-black' : 'border-gray-600 text-gray-400'}`}>
+            {[1, 2, 3, 4].map((stepNumber) => (
+              <div key={stepNumber} className="flex items-center">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                    stepNumber <= step
+                      ? 'bg-white border-white text-black'
+                      : 'border-gray-600 text-gray-400'
+                  }`}
+                >
                   {stepNumber < step ? <CheckCircle className="h-5 w-5" /> : stepNumber}
                 </div>
-                {stepNumber < 4 && <div className={`w-16 h-0.5 ${stepNumber < step ? 'bg-white' : 'bg-gray-600'}`} />}
-              </div>)}
+                {stepNumber < 4 && (
+                  <div className={`w-16 h-0.5 ${stepNumber < step ? 'bg-white' : 'bg-gray-600'}`} />
+                )}
+              </div>
+            ))}
           </div>
 
-          {/* Loading State for Face API */}
-          {!faceAPILoaded && <Card className="bg-gray-900 border-gray-800 mb-6">
-              <CardContent className="text-center py-8">
-                <Loader2 className="h-8 w-8 text-white mx-auto mb-4 animate-spin" />
-                <p className="text-white">Loading enhanced face recognition models...</p>
-                <p className="text-gray-400 text-sm mt-2">This may take a moment on first load</p>
-              </CardContent>
-            </Card>}
-
           {/* Step 1: Name Input */}
-          {step === 1 && <Card className="bg-gray-900 border-gray-800">
+          {step === 1 && (
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white flex items-center justify-center">
                   <User className="mr-2 h-6 w-6 text-white" />
@@ -152,17 +164,31 @@ const Register = () => {
                 <form onSubmit={handleNameSubmit} className="space-y-4">
                   <div>
                     <Label htmlFor="name" className="text-white">Your Name</Label>
-                    <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Enter your name" className="bg-gray-800 border-gray-700 text-white" required />
+                    <Input
+                      id="name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter your name"
+                      className="bg-gray-800 border-gray-700 text-white"
+                      required
+                    />
                   </div>
-                  <Button type="submit" className="w-full bg-white text-black hover:bg-gray-200" disabled={!name || !faceAPILoaded}>
+                  <Button
+                    type="submit"
+                    className="w-full bg-white text-black hover:bg-gray-200"
+                    disabled={!name || !faceAPILoaded}
+                  >
                     {faceAPILoaded ? "Continue to Enhanced Face Capture" : "Loading..."}
                   </Button>
                 </form>
               </CardContent>
-            </Card>}
+            </Card>
+          )}
 
           {/* Step 2: Face Capture */}
-          {step === 2 && <Card className="bg-gray-900 border-gray-800">
+          {step === 2 && (
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white flex items-center justify-center">
                   <Square className="mr-2 h-6 w-6 text-white" />
@@ -175,10 +201,12 @@ const Register = () => {
               <CardContent>
                 <WebcamCapture onImagesCapture={handleImagesCapture} />
               </CardContent>
-            </Card>}
+            </Card>
+          )}
 
           {/* Step 3: Review and Confirm */}
-          {step === 3 && <Card className="bg-gray-900 border-gray-800">
+          {step === 3 && (
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white">Review Your Enhanced Face Card</CardTitle>
                 <CardDescription className="text-gray-400">
@@ -188,7 +216,11 @@ const Register = () => {
               <CardContent className="space-y-6">
                 <div className="flex justify-center">
                   <div className="w-48 h-48 rounded-lg overflow-hidden border border-gray-600">
-                    <img src={capturedImages[0]} alt="Captured face" className="w-full h-full object-cover" />
+                    <img
+                      src={capturedImages[0]}
+                      alt="Captured face"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
                 
@@ -204,22 +236,37 @@ const Register = () => {
                   </p>
                   
                   <div className="flex space-x-4">
-                    <Button variant="outline" onClick={() => setStep(2)} disabled={isRegistering} className="flex-1 border-white hover:bg-white text-gray-900">
+                    <Button
+                      variant="outline"
+                      onClick={() => setStep(2)}
+                      disabled={isRegistering}
+                      className="flex-1 border-white hover:bg-white text-gray-900"
+                    >
                       Retake Photo
                     </Button>
-                    <Button onClick={handleRegister} disabled={isRegistering} className="flex-1 bg-white text-black hover:bg-gray-200">
-                      {isRegistering ? <>
+                    <Button
+                      onClick={handleRegister}
+                      disabled={isRegistering}
+                      className="flex-1 bg-white text-black hover:bg-gray-200"
+                    >
+                      {isRegistering ? (
+                        <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Processing Enhanced Face...
-                        </> : "Complete Enhanced Registration"}
+                        </>
+                      ) : (
+                        "Complete Enhanced Registration"
+                      )}
                     </Button>
                   </div>
                 </div>
               </CardContent>
-            </Card>}
+            </Card>
+          )}
 
           {/* Step 4: Success */}
-          {step === 4 && <Card className="bg-gray-900 border-gray-800">
+          {step === 4 && (
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CheckCircle className="h-16 w-16 text-white mx-auto mb-4" />
                 <CardTitle className="text-2xl text-white">Enhanced Face Card Created!</CardTitle>
@@ -247,9 +294,12 @@ const Register = () => {
                   </Button>
                 </Link>
               </CardContent>
-            </Card>}
+            </Card>
+          )}
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Register;
