@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface UserProfile {
   id: string;
-  name: string;
+  email: string;
   face_embedding: number[];
   created_at: string;
   updated_at: string;
@@ -20,7 +20,7 @@ export const createUserProfile = async (name: string, faceEmbedding: Float32Arra
       .from('user_profiles')
       .insert([
         {
-          name: name,
+          email: name, // Using name as email for now since schema expects email
           face_embedding: embeddingArray
         }
       ])
@@ -45,7 +45,7 @@ export const getUserProfileByName = async (name: string): Promise<UserProfile | 
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('name', name)
+      .eq('email', name) // Using email field to search by name
       .single();
 
     if (error) {
