@@ -10,6 +10,7 @@ import { getAllUserProfiles } from "@/services/userProfileService";
 import LoginHeader from "@/components/LoginHeader";
 import LoginSuccess from "@/components/LoginSuccess";
 import LoginFailed from "@/components/LoginFailed";
+import AnimatedLogo from "@/components/AnimatedLogo";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const Login = () => {
   const [loginResult, setLoginResult] = useState<'success' | 'failed' | null>(null);
   const [matchedUser, setMatchedUser] = useState<string | null>(null);
   const [faceAPILoaded, setFaceAPILoaded] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
 
   useEffect(() => {
     const loadFaceAPI = async () => {
@@ -30,6 +32,11 @@ const Login = () => {
     };
     loadFaceAPI();
   }, []);
+
+  const handleAnimationComplete = () => {
+    console.log('Logo animation complete, showing camera...');
+    setShowCamera(true);
+  };
 
   const handleImagesCapture = async (images: string[]) => {
     if (!faceAPILoaded) {
@@ -108,6 +115,7 @@ const Login = () => {
     setScanComplete(false);
     setLoginResult(null);
     setMatchedUser(null);
+    setShowCamera(false);
   };
 
   const goToDashboard = () => {
@@ -130,7 +138,15 @@ const Login = () => {
             </Card>
           )}
 
-          {!scanComplete && faceAPILoaded && (
+          {!showCamera && !scanComplete && faceAPILoaded && (
+            <Card className="bg-gray-900 border-gray-800">
+              <CardContent className="text-center py-12">
+                <AnimatedLogo onAnimationComplete={handleAnimationComplete} />
+              </CardContent>
+            </Card>
+          )}
+
+          {showCamera && !scanComplete && faceAPILoaded && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-3xl text-white flex items-center justify-center">
@@ -138,23 +154,25 @@ const Login = () => {
                   Face Card Login
                 </CardTitle>
                 <CardDescription className="text-gray-400 text-lg">
-                  Position your face in the camera frame to sign in
+                  Scanning your face for secure access
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {isScanning ? (
-                  <div className="text-center py-12">
-                    <Loader2 className="h-16 w-16 text-white mx-auto mb-6 animate-spin" />
-                    <h3 className="text-xl font-semibold text-white mb-2">Analyzing Your Face...</h3>
-                    <p className="text-gray-400">Please hold still while we verify your identity</p>
-                  </div>
-                ) : (
-                  <WebcamCapture 
-                    onImagesCapture={handleImagesCapture} 
-                    isLogin={true} 
-                    autoStart={true}
-                  />
-                )}
+                <div className="animate-camera-fade-in">
+                  {isScanning ? (
+                    <div className="text-center py-12">
+                      <Loader2 className="h-16 w-16 text-white mx-auto mb-6 animate-spin" />
+                      <h3 className="text-xl font-semibold text-white mb-2">Analyzing Your Face...</h3>
+                      <p className="text-gray-400">Please hold still while we verify your identity</p>
+                    </div>
+                  ) : (
+                    <WebcamCapture 
+                      onImagesCapture={handleImagesCapture} 
+                      isLogin={true} 
+                      autoStart={true}
+                    />
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
