@@ -1,9 +1,11 @@
+
 import { useCallback, useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import { Button } from "@/components/ui/button";
 import { Square, RotateCcw, CheckCircle, Scan } from "lucide-react";
 import { toast } from "sonner";
 import * as faceapi from 'face-api.js';
+import { useFaceAPI } from '@/contexts/FaceAPIContext';
 
 interface WebcamCaptureProps {
   onImagesCapture: (images: string[]) => void;
@@ -20,6 +22,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
   const [scanProgress, setScanProgress] = useState(0);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { isLoaded } = useFaceAPI();
 
   const videoConstraints = {
     width: 640,
@@ -71,7 +74,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
   }, [onImagesCapture]);
 
   const startFaceDetection = useCallback(async () => {
-    if (!webcamRef.current?.video || isDetecting || !webcamReady) return;
+    if (!webcamRef.current?.video || isDetecting || !webcamReady || !isLoaded) return;
     
     setIsDetecting(true);
     setScanProgress(0);
@@ -114,7 +117,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
         console.error('Face detection error:', error);
       }
     }, 200);
-  }, [capture, isDetecting, webcamReady]);
+  }, [capture, isDetecting, webcamReady, isLoaded]);
 
   const onWebcamReady = useCallback(() => {
     console.log('Webcam is ready');
@@ -122,13 +125,13 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
   }, []);
 
   useEffect(() => {
-    if (webcamReady && autoStart && !isDetecting && capturedImages.length === 0) {
+    if (webcamReady && autoStart && !isDetecting && capturedImages.length === 0 && isLoaded) {
       console.log('Auto-starting face detection...');
       setTimeout(() => {
         startFaceDetection();
       }, 500);
     }
-  }, [webcamReady, autoStart, startFaceDetection, isDetecting, capturedImages.length]);
+  }, [webcamReady, autoStart, startFaceDetection, isDetecting, capturedImages.length, isLoaded]);
 
   const reset = () => {
     setCapturedImages([]);
@@ -180,14 +183,12 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
                 ? 'border-blue-400 shadow-lg shadow-blue-400/30' 
                 : 'border-white/50'
             }`}>
-              {/* Corner Indicators */}
               <div className="absolute -top-2 -left-2 w-8 h-8 border-l-4 border-t-4 border-white rounded-tl-lg"></div>
               <div className="absolute -top-2 -right-2 w-8 h-8 border-r-4 border-t-4 border-white rounded-tr-lg"></div>
               <div className="absolute -bottom-2 -left-2 w-8 h-8 border-l-4 border-b-4 border-white rounded-bl-lg"></div>
               <div className="absolute -bottom-2 -right-2 w-8 h-8 border-r-4 border-b-4 border-white rounded-br-lg"></div>
             </div>
             
-            {/* Scanning Animation */}
             {isDetecting && !faceDetected && (
               <div className="absolute inset-0 rounded-full overflow-hidden">
                 <div 
@@ -198,14 +199,12 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
             )}
           </div>
 
-          {/* Position Guide */}
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
             <div className="bg-black/80 text-white text-sm px-3 py-1 rounded-full backdrop-blur-sm">
               Position your face here
             </div>
           </div>
 
-          {/* Face Detected Overlay */}
           {faceDetected && (
             <div className="absolute inset-0 bg-green-400/20 flex items-center justify-center animate-pulse">
               <div className="text-2xl font-bold text-white drop-shadow-lg flex items-center">
@@ -215,7 +214,6 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
             </div>
           )}
 
-          {/* Scanning Grid Pattern */}
           {isDetecting && !faceDetected && (
             <div className="absolute inset-0 pointer-events-none opacity-30">
               <div className="w-full h-full grid grid-cols-8 grid-rows-8">
@@ -275,7 +273,9 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
           </p>
 
           <p className="text-sm text-gray-400">
-            {autoStart 
+            {!isLoaded 
+              ? "Waiting for face recognition to load..."
+              : autoStart 
               ? "Detection will start automatically when camera is ready"
               : isDetecting 
               ? "Hold still and look directly at the camera"
@@ -286,14 +286,14 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
       </div>
 
       <div className="flex justify-center space-x-4">
-        {capturedImages.length === 0 && !isDetecting && !autoStart && (
+        {capturedImages.length === 0 && !isDetecting && !autoStart && isLoaded && (
           <Button 
             onClick={startFaceDetection}
             className="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
-            disabled={!webcamReady}
+            disabled={!webcamReady || !isLoaded}
           >
             <Scan className="mr-2 h-5 w-5" />
-            {webcamReady ? 'Start Scanning' : 'Loading Camera...'}
+            {webcamReady && isLoaded ? 'Start Scanning' : 'Loading...'}
           </Button>
         )}
 

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Square, ArrowLeft, CheckCircle, User, Loader2, AlertCircle } from "luci
 import { Link } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
-import { initializeFaceAPI } from "@/utils/faceRecognition";
+import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import { analyzeFaceQuality, base64ToBlob, calculateLearningWeight } from "@/utils/enhancedFaceRecognition";
 import { createUserProfile } from "@/services/userProfileService";
 import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
@@ -19,15 +20,17 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState(false);
+  const { isLoaded, error: faceAPIError } = useFaceAPI();
 
   const handleNameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (name && email) {
-      // Initialize face API when moving to step 2
-      console.log('Initializing face recognition models...');
-      const loaded = await initializeFaceAPI();
-      if (!loaded) {
-        toast.error("Failed to load face recognition models. Please try again.");
+      if (!isLoaded) {
+        toast.error("Face recognition is still loading. Please wait.");
+        return;
+      }
+      if (faceAPIError) {
+        toast.error("Face recognition failed to load. Please refresh the page.");
         return;
       }
       setStep(2);
@@ -141,6 +144,18 @@ const Register = () => {
             ))}
           </div>
 
+          {/* Face API Error State */}
+          {faceAPIError && (
+            <Card className="bg-red-900/20 border-red-800 mb-6">
+              <CardContent className="pt-6">
+                <div className="flex items-center space-x-3 text-red-400">
+                  <AlertCircle className="h-5 w-5" />
+                  <p>Face recognition failed to load. Please refresh the page to try again.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Step 1: Name and Email Input */}
           {step === 1 && (
             <Card className="bg-gray-900 border-gray-800">
@@ -182,9 +197,9 @@ const Register = () => {
                   <Button
                     type="submit"
                     className="w-full bg-white text-black hover:bg-gray-200"
-                    disabled={!name || !email}
+                    disabled={!name || !email || !isLoaded}
                   >
-                    Continue to Enhanced Face Capture
+                    {!isLoaded ? 'Loading Face Recognition...' : 'Continue to Enhanced Face Capture'}
                   </Button>
                 </form>
               </CardContent>
@@ -272,7 +287,6 @@ const Register = () => {
             </Card>
           )}
 
-          {/* Step 4: Success */}
           {step === 4 && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">

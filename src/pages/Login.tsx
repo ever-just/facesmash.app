@@ -5,7 +5,7 @@ import { Square, ArrowLeft, CheckCircle, AlertCircle, Loader2, LogOut } from "lu
 import { Link, useNavigate } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
-import { initializeFaceAPI } from "@/utils/faceRecognition";
+import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import { analyzeFaceQuality, enhancedFaceMatch, base64ToBlob, multiTemplateMatch, calculateLearningWeight } from "@/utils/enhancedFaceRecognition";
 import { getAllUserProfiles, updateUserProfile } from "@/services/userProfileService";
 import { createSignInLog } from "@/services/signInLogService";
@@ -25,49 +25,24 @@ const Login = () => {
   const [scanComplete, setScanComplete] = useState(false);
   const [loginResult, setLoginResult] = useState<'success' | 'failed' | null>(null);
   const [matchedUser, setMatchedUser] = useState<string | null>(null);
-  const [faceAPILoaded, setFaceAPILoaded] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [showLoginOptions, setShowLoginOptions] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const { isLoaded, isLoading, error: faceAPIError } = useFaceAPI();
 
   useEffect(() => {
-    const initializeLogin = async () => {
-      // Check if user is already logged in
-      const existingUser = localStorage.getItem('currentUserName');
-      if (existingUser) {
-        setCurrentUser(existingUser);
-        setShowLoginOptions(true);
-        setIsInitializing(false);
-      } else {
-        // Load face API if no user is logged in
-        const loaded = await initializeFaceAPI();
-        setFaceAPILoaded(loaded);
-        if (!loaded) {
-          toast.error("Failed to load face recognition models. Please refresh the page.");
-        }
-        setIsInitializing(false);
-      }
-    };
-
-    initializeLogin();
+    // Check if user is already logged in
+    const existingUser = localStorage.getItem('currentUserName');
+    if (existingUser) {
+      setCurrentUser(existingUser);
+      setShowLoginOptions(true);
+    }
   }, []);
 
   const handleSignOut = async () => {
     localStorage.removeItem('currentUserName');
     setCurrentUser(null);
     setShowLoginOptions(false);
-    setIsInitializing(true);
-    
     toast.success("Signed out successfully!");
-    
-    // Load face API after signing out
-    const loaded = await initializeFaceAPI();
-    setFaceAPILoaded(loaded);
-    setIsInitializing(false);
-    
-    if (!loaded) {
-      toast.error("Failed to load face recognition models. Please refresh the page.");
-    }
   };
 
   const goToDashboard = () => {
@@ -75,7 +50,7 @@ const Login = () => {
   };
 
   const handleImagesCapture = async (images: string[]) => {
-    if (!faceAPILoaded) {
+    if (!isLoaded) {
       toast.error("Face recognition is still loading. Please wait.");
       return;
     }
@@ -289,7 +264,8 @@ const Login = () => {
     setMatchedUser(null);
   };
 
-  if (isInitializing) {
+  // Show loading state only when Face API is loading
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white">
         <LoginHeader />
@@ -338,11 +314,19 @@ const Login = () => {
               </Card>
             )}
 
-            {!showLoginOptions && !faceAPILoaded && (
-              <LoadingSkeleton variant="webcam" />
+            {/* Face API Error State */}
+            {faceAPIError && !showLoginOptions && (
+              <Card className="bg-red-900/20 border-red-800 mb-6">
+                <CardContent className="pt-6">
+                  <div className="flex items-center space-x-3 text-red-400">
+                    <AlertCircle className="h-5 w-5" />
+                    <p>Face recognition failed to load. Please refresh the page to try again.</p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
-            {!showLoginOptions && !scanComplete && faceAPILoaded && (
+            {!showLoginOptions && !scanComplete && isLoaded && !faceAPIError && (
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader className="text-center">
                   <CardTitle className="text-3xl text-white flex items-center justify-center">
