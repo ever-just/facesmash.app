@@ -2,8 +2,9 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import { Button } from "@/components/ui/button";
-import { Camera, RotateCcw, CheckCircle } from "lucide-react";
+import { Square, RotateCcw, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import * as faceapi from 'face-api.js';
 
 interface WebcamCaptureProps {
   onImagesCapture: (images: string[]) => void;
@@ -13,9 +14,9 @@ interface WebcamCaptureProps {
 const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps) => {
   const webcamRef = useRef<Webcam>(null);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const targetCaptures = 1; // Changed to only take 1 photo
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const videoConstraints = {
     width: 640,
@@ -26,43 +27,81 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
-      const newImages = [imageSrc]; // Only one image now
+      const newImages = [imageSrc];
       setCapturedImages(newImages);
       onImagesCapture(newImages);
-      setIsCapturing(false);
+      setIsDetecting(false);
+      setFaceDetected(false);
+      
+      // Clear detection interval
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current);
+        detectionIntervalRef.current = null;
+      }
     }
   }, [onImagesCapture]);
 
-  const startAutoCapture = () => {
-    if (capturedImages.length >= targetCaptures) return;
+  const startFaceDetection = useCallback(async () => {
+    if (!webcamRef.current?.video || isDetecting) return;
     
-    setIsCapturing(true);
-    setCountdown(3);
+    setIsDetecting(true);
+    console.log('Starting automatic face detection...');
     
-    const countdownInterval = setInterval(() => {
-      setCountdown(prev => {
-        if (prev === 1) {
-          clearInterval(countdownInterval);
-          capture();
-          setCountdown(null);
-          return null;
+    detectionIntervalRef.current = setInterval(async () => {
+      const video = webcamRef.current?.video;
+      if (!video || video.readyState !== 4) return;
+      
+      try {
+        const detection = await faceapi
+          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }));
+        
+        if (detection) {
+          console.log('Face detected! Capturing image...');
+          setFaceDetected(true);
+          
+          // Small delay to show face detected state
+          setTimeout(() => {
+            capture();
+          }, 500);
+          
+          // Clear interval after detection
+          if (detectionIntervalRef.current) {
+            clearInterval(detectionIntervalRef.current);
+            detectionIntervalRef.current = null;
+          }
         }
-        return (prev || 0) - 1;
-      });
-    }, 1000);
-  };
+      } catch (error) {
+        console.error('Face detection error:', error);
+      }
+    }, 500);
+  }, [capture, isDetecting]);
 
   const reset = () => {
     setCapturedImages([]);
-    setIsCapturing(false);
-    setCountdown(null);
+    setIsDetecting(false);
+    setFaceDetected(false);
+    
+    // Clear any existing detection interval
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
   };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
       {/* Webcam Display */}
       <div className="relative">
-        <div className="relative mx-auto w-full max-w-md aspect-video bg-slate-900 rounded-xl overflow-hidden border-2 border-cyan-400/20">
+        <div className="relative mx-auto w-full max-w-md aspect-video bg-black rounded-xl overflow-hidden border-2 border-gray-600">
           <Webcam
             ref={webcamRef}
             audio={false}
@@ -71,31 +110,31 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
             className="w-full h-full object-cover"
           />
           
-          {/* Countdown Overlay */}
-          {countdown && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <div className="text-6xl font-bold text-cyan-400 animate-pulse">
-                {countdown}
+          {/* Face Detection Overlay */}
+          {faceDetected && (
+            <div className="absolute inset-0 bg-white/20 flex items-center justify-center">
+              <div className="text-4xl font-bold text-white animate-pulse">
+                Face Detected!
               </div>
             </div>
           )}
 
           {/* Face Detection Guide */}
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-4 border-2 border-cyan-400/50 rounded-full">
+            <div className="absolute inset-4 border-2 border-white/50 rounded-full">
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-6">
-                <span className="text-xs text-cyan-400 bg-slate-900/80 px-2 py-1 rounded">
+                <span className="text-xs text-white bg-black/80 px-2 py-1 rounded">
                   Position your face here
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Scanning Animation */}
-          {isCapturing && !countdown && (
+          {/* Detection Status */}
+          {isDetecting && !faceDetected && (
             <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/10 to-transparent animate-pulse"></div>
-              <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-400 animate-bounce"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/10 to-transparent animate-pulse"></div>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-white animate-pulse"></div>
             </div>
           )}
         </div>
@@ -106,37 +145,43 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
         <div className="flex items-center justify-center">
           <div className={`w-4 h-4 rounded-full ${
             capturedImages.length > 0 
-              ? 'bg-cyan-400' 
-              : isCapturing
-              ? 'bg-cyan-400/50 animate-pulse'
-              : 'bg-slate-600'
+              ? 'bg-white' 
+              : faceDetected
+              ? 'bg-white animate-pulse'
+              : isDetecting
+              ? 'bg-white/50 animate-pulse'
+              : 'bg-gray-600'
           }`} />
         </div>
         
         <p className="text-gray-300">
-          {capturedImages.length === 0 
-            ? `Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
-            : "Photo captured successfully!"
+          {capturedImages.length > 0 
+            ? "Photo captured successfully!"
+            : faceDetected
+            ? "Face detected - capturing..."
+            : isDetecting
+            ? "Looking for your face..."
+            : `Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
           }
         </p>
 
         <p className="text-sm text-gray-400">
           {isLogin 
-            ? "We'll take 1 photo to verify your identity"
-            : "We'll take 1 photo to create your face profile"
+            ? "Position your face in the circle for automatic capture"
+            : "Look at the camera - we'll automatically take your photo when ready"
           }
         </p>
       </div>
 
       {/* Controls */}
       <div className="flex justify-center space-x-4">
-        {capturedImages.length === 0 && !isCapturing && (
+        {capturedImages.length === 0 && !isDetecting && (
           <Button 
-            onClick={startAutoCapture}
-            className="bg-cyan-500 hover:bg-cyan-600 px-8 py-3"
+            onClick={startFaceDetection}
+            className="bg-white text-black hover:bg-gray-200 px-8 py-3"
           >
-            <Camera className="mr-2 h-4 w-4" />
-            Take Photo
+            <Square className="mr-2 h-4 w-4" />
+            Start Detection
           </Button>
         )}
 
@@ -145,12 +190,12 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
             <Button 
               onClick={reset}
               variant="outline"
-              className="border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-slate-900"
+              className="border-white text-white hover:bg-white hover:text-black"
             >
               <RotateCcw className="mr-2 h-4 w-4" />
               Retake
             </Button>
-            <div className="flex items-center space-x-2 text-green-400">
+            <div className="flex items-center space-x-2 text-white">
               <CheckCircle className="h-5 w-5" />
               <span>Photo Ready!</span>
             </div>
@@ -163,7 +208,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
         <div className="space-y-4">
           <h4 className="text-center text-white font-medium">Captured Photo</h4>
           <div className="flex justify-center">
-            <div className="w-24 h-24 rounded-lg overflow-hidden border border-cyan-400/20">
+            <div className="w-24 h-24 rounded-lg overflow-hidden border border-gray-600">
               <img
                 src={capturedImages[0]}
                 alt="Captured face"

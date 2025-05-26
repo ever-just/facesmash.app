@@ -2,29 +2,27 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Camera, LogOut, User, Shield, Clock } from "lucide-react";
+import { Square, LogOut, User, Shield, Clock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getUserProfileByEmail } from "@/services/userProfileService";
+import { getUserProfileByName } from "@/services/userProfileService";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
-    // Get user email from localStorage (set during login)
-    const email = localStorage.getItem('currentUserEmail');
-    if (!email) {
+    const name = localStorage.getItem('currentUserName');
+    if (!name) {
       navigate('/login');
       return;
     }
     
-    setUserEmail(email);
+    setUserName(name);
     
-    // Fetch user profile
     const fetchUserProfile = async () => {
-      const profile = await getUserProfileByEmail(email);
+      const profile = await getUserProfileByName(name);
       setUserProfile(profile);
     };
     
@@ -32,18 +30,16 @@ const Dashboard = () => {
   }, [navigate]);
 
   const handleSignOut = () => {
-    // Clear user session data
-    localStorage.removeItem('currentUserEmail');
-    
+    localStorage.removeItem('currentUserName');
     toast.success("Successfully signed out!");
     navigate('/');
   };
 
-  if (!userEmail) {
+  if (!userName) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
-          <Camera className="h-16 w-16 text-cyan-400 mx-auto mb-4 animate-spin" />
+          <Square className="h-16 w-16 text-white mx-auto mb-4 animate-spin" />
           <p className="text-gray-400">Loading dashboard...</p>
         </div>
       </div>
@@ -51,19 +47,25 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
+    <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex items-center justify-between p-6">
-        <div className="flex items-center space-x-2">
-          <Camera className="h-8 w-8 text-cyan-400" />
-          <span className="text-2xl font-bold">FaceAuth Dashboard</span>
+      <nav className="flex items-center justify-between p-6 border-b border-gray-800">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-white rounded border-2 border-white flex items-center justify-center">
+            <div className="w-4 h-4 border border-black rounded-full relative">
+              <div className="absolute top-1 left-1 w-1 h-1 bg-black rounded-full"></div>
+              <div className="absolute top-1 right-1 w-1 h-1 bg-black rounded-full"></div>
+              <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 border-t border-black rounded-t"></div>
+            </div>
+          </div>
+          <span className="text-2xl font-bold">Face Card Dashboard</span>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-gray-300">Welcome, {userEmail}</span>
+          <span className="text-gray-300">Welcome, {userName}</span>
           <Button 
             onClick={handleSignOut}
             variant="outline" 
-            className="border-red-400 text-red-400 hover:bg-red-400 hover:text-slate-900"
+            className="border-white text-white hover:bg-white hover:text-black"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
@@ -75,7 +77,7 @@ const Dashboard = () => {
         <div className="max-w-4xl mx-auto">
           {/* Welcome Section */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold mb-4 text-white">
               Welcome to Your Dashboard
             </h1>
             <p className="text-gray-300 text-lg">
@@ -85,29 +87,29 @@ const Dashboard = () => {
 
           {/* User Profile Card */}
           <div className="grid md:grid-cols-2 gap-8 mb-8">
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader>
                 <CardTitle className="text-white flex items-center">
-                  <User className="mr-3 h-6 w-6 text-cyan-400" />
+                  <User className="mr-3 h-6 w-6 text-white" />
                   Profile Information
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Your account details and face recognition data
+                  Your Face Card details and recognition data
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Email:</span>
-                  <span className="text-white">{userEmail}</span>
+                  <span className="text-gray-400">Name:</span>
+                  <span className="text-white">{userName}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Face Profile:</span>
-                  <span className="text-green-400">✓ Registered</span>
+                  <span className="text-white">✓ Registered</span>
                 </div>
                 {userProfile && (
                   <>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Account Created:</span>
+                      <span className="text-gray-400">Card Created:</span>
                       <span className="text-white">
                         {new Date(userProfile.created_at).toLocaleDateString()}
                       </span>
@@ -123,24 +125,24 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader>
                 <CardTitle className="text-white flex items-center">
-                  <Shield className="mr-3 h-6 w-6 text-cyan-400" />
+                  <Shield className="mr-3 h-6 w-6 text-white" />
                   Security Status
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Your account security information
+                  Your Face Card security information
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Authentication Method:</span>
-                  <span className="text-cyan-400">Face Recognition</span>
+                  <span className="text-white">Face Recognition</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Security Level:</span>
-                  <span className="text-green-400">High</span>
+                  <span className="text-white">High</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Last Login:</span>
@@ -148,17 +150,17 @@ const Dashboard = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Face Embedding:</span>
-                  <span className="text-green-400">128-dimensional</span>
+                  <span className="text-white">128-dimensional</span>
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Actions Section */}
-          <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+          <Card className="bg-gray-900 border-gray-800">
             <CardHeader>
               <CardTitle className="text-white flex items-center">
-                <Clock className="mr-3 h-6 w-6 text-cyan-400" />
+                <Clock className="mr-3 h-6 w-6 text-white" />
                 Quick Actions
               </CardTitle>
               <CardDescription className="text-gray-400">
@@ -174,7 +176,7 @@ const Dashboard = () => {
                   </p>
                   <Button 
                     onClick={handleSignOut}
-                    className="bg-cyan-500 hover:bg-cyan-600 w-full"
+                    className="bg-white text-black hover:bg-gray-200 w-full"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out & Test Login
@@ -184,22 +186,22 @@ const Dashboard = () => {
                 <div className="space-y-3">
                   <h4 className="text-white font-medium">Return to Home</h4>
                   <p className="text-gray-400 text-sm">
-                    Go back to the main page to learn more about FaceAuth.
+                    Go back to the main page to learn more about Face Card.
                   </p>
                   <Link to="/">
                     <Button 
                       variant="outline"
-                      className="border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-slate-900 w-full"
+                      className="border-white text-white hover:bg-white hover:text-black w-full"
                     >
-                      <Camera className="mr-2 h-4 w-4" />
+                      <Square className="mr-2 h-4 w-4" />
                       Back to Home
                     </Button>
                   </Link>
                 </div>
               </div>
               
-              <div className="bg-cyan-400/10 border border-cyan-400/20 rounded-lg p-6">
-                <h4 className="text-cyan-400 font-semibold mb-2">How Face Recognition Works</h4>
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                <h4 className="text-white font-semibold mb-2">How Face Recognition Works</h4>
                 <ul className="text-gray-300 text-sm space-y-1">
                   <li>• Your face is converted into a unique 128-dimensional vector</li>
                   <li>• The system compares similarity with a 0.6 threshold for matching</li>

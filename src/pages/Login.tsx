@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Camera, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Square, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
@@ -39,7 +39,6 @@ const Login = () => {
     setIsScanning(true);
     
     try {
-      // Extract face embedding from captured image
       const loginFaceEmbedding = await processMultipleImages(images);
       
       if (!loginFaceEmbedding) {
@@ -51,7 +50,6 @@ const Login = () => {
       }
 
       console.log('Face embedding extracted, comparing with registered users...');
-      // Get all registered user profiles
       const userProfiles = await getAllUserProfiles();
       
       if (userProfiles.length === 0) {
@@ -64,25 +62,20 @@ const Login = () => {
 
       console.log(`Checking against ${userProfiles.length} registered user(s)...`);
       
-      // Find matching user
       let foundMatch = false;
       for (const profile of userProfiles) {
-        console.log(`Comparing with user: ${profile.email}`);
+        console.log(`Comparing with user: ${profile.name}`);
         const storedEmbedding = new Float32Array(profile.face_embedding);
         
         if (facesMatch(loginFaceEmbedding, storedEmbedding, 0.6)) {
           foundMatch = true;
-          setMatchedUser(profile.email);
-          console.log(`Match found! User: ${profile.email}`);
+          setMatchedUser(profile.name);
+          console.log(`Match found! User: ${profile.name}`);
           
-          // Store user email for dashboard
-          localStorage.setItem('currentUserEmail', profile.email);
+          localStorage.setItem('currentUserName', profile.name);
           break;
         }
       }
-
-      // Simulate processing time for better UX
-      await new Promise(resolve => setTimeout(resolve, 2000));
 
       setIsScanning(false);
       setScanComplete(true);
@@ -91,14 +84,13 @@ const Login = () => {
         setLoginResult('success');
         toast.success(`Welcome back, ${matchedUser}!`);
         
-        // Navigate to dashboard after a short delay
         setTimeout(() => {
           navigate('/dashboard');
-        }, 2000);
+        }, 1500);
       } else {
         setLoginResult('failed');
         console.log('No matching face found');
-        toast.error("Face not recognized. Please try again or register a new account.");
+        toast.error("Face not recognized. Please try again or register a new Face Card.");
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -121,15 +113,21 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
+    <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
-      <nav className="flex items-center justify-between p-6">
-        <Link to="/" className="flex items-center space-x-2">
-          <Camera className="h-8 w-8 text-cyan-400" />
-          <span className="text-2xl font-bold">FaceAuth</span>
+      <nav className="flex items-center justify-between p-6 border-b border-gray-800">
+        <Link to="/" className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-white rounded border-2 border-white flex items-center justify-center">
+            <div className="w-4 h-4 border border-black rounded-full relative">
+              <div className="absolute top-1 left-1 w-1 h-1 bg-black rounded-full"></div>
+              <div className="absolute top-1 right-1 w-1 h-1 bg-black rounded-full"></div>
+              <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 border-t border-black rounded-t"></div>
+            </div>
+          </div>
+          <span className="text-2xl font-bold">Face Card</span>
         </Link>
         <Link to="/">
-          <Button variant="ghost" className="text-white hover:text-cyan-400">
+          <Button variant="ghost" className="text-white hover:text-gray-300 hover:bg-gray-900">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Home
           </Button>
@@ -140,9 +138,9 @@ const Login = () => {
         <div className="max-w-2xl mx-auto">
           {/* Loading State for Face API */}
           {!faceAPILoaded && (
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm mb-6">
+            <Card className="bg-gray-900 border-gray-800 mb-6">
               <CardContent className="text-center py-8">
-                <Loader2 className="h-8 w-8 text-cyan-400 mx-auto mb-4 animate-spin" />
+                <Loader2 className="h-8 w-8 text-white mx-auto mb-4 animate-spin" />
                 <p className="text-white">Loading face recognition models...</p>
                 <p className="text-gray-400 text-sm mt-2">This may take a moment on first load</p>
               </CardContent>
@@ -150,11 +148,11 @@ const Login = () => {
           )}
 
           {!scanComplete && faceAPILoaded && (
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-3xl text-white flex items-center justify-center">
-                  <Camera className="mr-3 h-8 w-8 text-cyan-400" />
-                  Face Recognition Login
+                  <Square className="mr-3 h-8 w-8 text-white" />
+                  Face Card Login
                 </CardTitle>
                 <CardDescription className="text-gray-400 text-lg">
                   Position your face in the camera frame to sign in
@@ -163,18 +161,9 @@ const Login = () => {
               <CardContent>
                 {isScanning ? (
                   <div className="text-center py-12">
-                    <Loader2 className="h-16 w-16 text-cyan-400 mx-auto mb-6 animate-spin" />
+                    <Loader2 className="h-16 w-16 text-white mx-auto mb-6 animate-spin" />
                     <h3 className="text-xl font-semibold text-white mb-2">Analyzing Your Face...</h3>
                     <p className="text-gray-400">Please hold still while we verify your identity</p>
-                    
-                    {/* Scanning Animation */}
-                    <div className="mt-8 relative">
-                      <div className="w-64 h-64 mx-auto border-2 border-cyan-400 rounded-lg relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/20 to-transparent animate-pulse"></div>
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-400 animate-bounce"></div>
-                      </div>
-                      <p className="text-sm text-gray-400 mt-4">Matching face patterns...</p>
-                    </div>
                   </div>
                 ) : (
                   <WebcamCapture onImagesCapture={handleImagesCapture} isLogin={true} />
@@ -183,19 +172,19 @@ const Login = () => {
             </Card>
           )}
 
-          {/* Login Result */}
+          {/* Login Result - Success */}
           {scanComplete && loginResult === 'success' && (
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
-                <CheckCircle className="h-20 w-20 text-green-400 mx-auto mb-4" />
+                <CheckCircle className="h-20 w-20 text-white mx-auto mb-4" />
                 <CardTitle className="text-3xl text-white">Welcome Back!</CardTitle>
                 <CardDescription className="text-gray-400 text-lg">
                   Face recognition successful
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center space-y-6">
-                <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-6">
-                  <p className="text-green-400 font-semibold">Authentication Successful</p>
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                  <p className="text-white font-semibold">Authentication Successful</p>
                   <p className="text-gray-300 mt-2">Welcome back, {matchedUser}!</p>
                   <p className="text-gray-400 text-sm mt-1">You have been securely logged in</p>
                 </div>
@@ -203,14 +192,14 @@ const Login = () => {
                 <div className="space-y-4">
                   <Button 
                     onClick={goToDashboard}
-                    className="w-full bg-cyan-500 hover:bg-cyan-600"
+                    className="w-full bg-white text-black hover:bg-gray-200"
                   >
                     Continue to Dashboard
                   </Button>
                   <Button 
                     variant="outline" 
                     onClick={resetLogin}
-                    className="w-full border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-slate-900"
+                    className="w-full border-white text-white hover:bg-white hover:text-black"
                   >
                     Sign In Again
                   </Button>
@@ -219,34 +208,35 @@ const Login = () => {
             </Card>
           )}
 
+          {/* Login Result - Failed */}
           {scanComplete && loginResult === 'failed' && (
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+            <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
-                <AlertCircle className="h-20 w-20 text-red-400 mx-auto mb-4" />
+                <AlertCircle className="h-20 w-20 text-white mx-auto mb-4" />
                 <CardTitle className="text-3xl text-white">Access Denied</CardTitle>
                 <CardDescription className="text-gray-400 text-lg">
                   Face not recognized
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center space-y-6">
-                <div className="bg-red-400/10 border border-red-400/20 rounded-lg p-6">
-                  <p className="text-red-400 font-semibold">Authentication Failed</p>
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                  <p className="text-white font-semibold">Authentication Failed</p>
                   <p className="text-gray-300 mt-2">Your face could not be verified</p>
                 </div>
                 
                 <div className="space-y-4">
                   <Button 
                     onClick={resetLogin}
-                    className="w-full bg-cyan-500 hover:bg-cyan-600"
+                    className="w-full bg-white text-black hover:bg-gray-200"
                   >
                     Try Again
                   </Button>
                   <Link to="/register">
                     <Button 
                       variant="outline"
-                      className="w-full border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-slate-900"
+                      className="w-full border-white text-white hover:bg-white hover:text-black"
                     >
-                      Create New Account
+                      Create New Face Card
                     </Button>
                   </Link>
                 </div>
@@ -259,8 +249,8 @@ const Login = () => {
             <p className="text-gray-400 mb-4">Need help?</p>
             <div className="flex justify-center space-x-4">
               <Link to="/register">
-                <Button variant="ghost" className="text-cyan-400 hover:text-cyan-300">
-                  Don't have an account?
+                <Button variant="ghost" className="text-white hover:text-gray-300 hover:bg-gray-900">
+                  Don't have a Face Card?
                 </Button>
               </Link>
             </div>
