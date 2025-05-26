@@ -11,6 +11,8 @@ export interface UserProfile {
 
 export const createUserProfile = async (email: string, faceEmbedding: Float32Array): Promise<UserProfile | null> => {
   try {
+    // For registration, we need to temporarily use the service role or allow anon access
+    // Since this is registration, we'll insert directly and let the RLS policy handle it
     const { data, error } = await supabase
       .from('user_profiles')
       .insert({
