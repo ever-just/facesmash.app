@@ -124,6 +124,19 @@ const Register = () => {
       }
 
       console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
+
+      // Check for duplicate users
+      console.log('Checking for duplicate users...');
+      const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.75);
+      
+      if (duplicates && duplicates.length > 0) {
+        console.log('Duplicate users found:', duplicates);
+        toast.error(`A Face Card already exists for this face. Found similar user: ${duplicates[0].existing_email}`);
+        setIsRegistering(false);
+        return;
+      }
+
+      console.log('No duplicates found, proceeding with registration...');
       console.log('Creating user profile with enhanced face data...');
 
       // Create user profile using email
