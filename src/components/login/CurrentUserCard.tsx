@@ -32,7 +32,7 @@ const CurrentUserCard = ({ currentUser, onSignOut, onGoToDashboard }: CurrentUse
           </Button>
           <Button onClick={onSignOut} variant="outline" className="w-full border-white hover:bg-white text-gray-900">
             <LogOut className="mr-2 h-4 w-4" />
-            Sign Out & Login as Different User
+            Sign-Out
           </Button>
         </div>
       </CardContent>
