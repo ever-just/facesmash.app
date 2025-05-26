@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Square, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -8,6 +7,9 @@ import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
 import { initializeFaceAPI, processMultipleImages, facesMatch } from "@/utils/faceRecognition";
 import { getAllUserProfiles } from "@/services/userProfileService";
+import LoginHeader from "@/components/LoginHeader";
+import LoginSuccess from "@/components/LoginSuccess";
+import LoginFailed from "@/components/LoginFailed";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -114,29 +116,10 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Navigation */}
-      <nav className="flex items-center justify-between p-6 border-b border-gray-800">
-        <Link to="/" className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-white rounded border-2 border-white flex items-center justify-center">
-            <div className="w-4 h-4 border border-black rounded-full relative">
-              <div className="absolute top-1 left-1 w-1 h-1 bg-black rounded-full"></div>
-              <div className="absolute top-1 right-1 w-1 h-1 bg-black rounded-full"></div>
-              <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 border-t border-black rounded-t"></div>
-            </div>
-          </div>
-          <span className="text-2xl font-bold">Face Card</span>
-        </Link>
-        <Link to="/">
-          <Button variant="ghost" className="text-white hover:text-gray-300 hover:bg-gray-900">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
-          </Button>
-        </Link>
-      </nav>
+      <LoginHeader />
 
       <div className="container mx-auto px-6 py-12">
         <div className="max-w-2xl mx-auto">
-          {/* Loading State for Face API */}
           {!faceAPILoaded && (
             <Card className="bg-gray-900 border-gray-800 mb-6">
               <CardContent className="text-center py-8">
@@ -166,92 +149,35 @@ const Login = () => {
                     <p className="text-gray-400">Please hold still while we verify your identity</p>
                   </div>
                 ) : (
-                  <WebcamCapture onImagesCapture={handleImagesCapture} isLogin={true} />
+                  <WebcamCapture 
+                    onImagesCapture={handleImagesCapture} 
+                    isLogin={true} 
+                    autoStart={true}
+                  />
                 )}
               </CardContent>
             </Card>
           )}
 
-          {/* Login Result - Success */}
           {scanComplete && loginResult === 'success' && (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader className="text-center">
-                <CheckCircle className="h-20 w-20 text-white mx-auto mb-4" />
-                <CardTitle className="text-3xl text-white">Welcome Back!</CardTitle>
-                <CardDescription className="text-gray-400 text-lg">
-                  Face recognition successful
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center space-y-6">
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                  <p className="text-white font-semibold">Authentication Successful</p>
-                  <p className="text-gray-300 mt-2">Welcome back, {matchedUser}!</p>
-                  <p className="text-gray-400 text-sm mt-1">You have been securely logged in</p>
-                </div>
-                
-                <div className="space-y-4">
-                  <Button 
-                    onClick={goToDashboard}
-                    className="w-full bg-white text-black hover:bg-gray-200"
-                  >
-                    Continue to Dashboard
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={resetLogin}
-                    className="w-full border-white text-white hover:bg-white hover:text-black"
-                  >
-                    Sign In Again
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <LoginSuccess 
+              matchedUser={matchedUser}
+              onContinue={goToDashboard}
+              onSignInAgain={resetLogin}
+            />
           )}
 
-          {/* Login Result - Failed */}
           {scanComplete && loginResult === 'failed' && (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader className="text-center">
-                <AlertCircle className="h-20 w-20 text-white mx-auto mb-4" />
-                <CardTitle className="text-3xl text-white">Access Denied</CardTitle>
-                <CardDescription className="text-gray-400 text-lg">
-                  Face not recognized
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center space-y-6">
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-                  <p className="text-white font-semibold">Authentication Failed</p>
-                  <p className="text-gray-300 mt-2">Your face could not be verified</p>
-                </div>
-                
-                <div className="space-y-4">
-                  <Button 
-                    onClick={resetLogin}
-                    className="w-full bg-white text-black hover:bg-gray-200"
-                  >
-                    Try Again
-                  </Button>
-                  <Link to="/register">
-                    <Button 
-                      variant="outline"
-                      className="w-full border-white text-white hover:bg-white hover:text-black"
-                    >
-                      Create New Face Card
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+            <LoginFailed onTryAgain={resetLogin} />
           )}
 
-          {/* Help Section */}
           <div className="mt-8 text-center">
             <p className="text-gray-400 mb-4">Need help?</p>
             <div className="flex justify-center space-x-4">
               <Link to="/register">
-                <Button variant="ghost" className="text-white hover:text-gray-300 hover:bg-gray-900">
+                <button className="text-white hover:text-gray-300 hover:bg-gray-900 px-4 py-2 rounded">
                   Don't have a Face Card?
-                </Button>
+                </button>
               </Link>
             </div>
           </div>
