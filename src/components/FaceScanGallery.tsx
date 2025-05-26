@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -5,9 +6,11 @@ import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { getFaceScansByUser } from "@/services/faceScanService";
 import type { FaceScan } from "@/types";
+
 interface FaceScanGalleryProps {
   userEmail: string;
 }
+
 const FaceScanGallery = ({
   userEmail
 }: FaceScanGalleryProps) => {
@@ -15,6 +18,7 @@ const FaceScanGallery = ({
   const [loading, setLoading] = useState(true);
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
+
   const fetchFaceScans = async () => {
     try {
       console.log('Fetching face scans for user:', userEmail);
@@ -31,9 +35,11 @@ const FaceScanGallery = ({
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchFaceScans();
   }, [userEmail]);
+
   const getScanTypeColor = (scanType: string) => {
     switch (scanType) {
       case 'registration':
@@ -46,6 +52,7 @@ const FaceScanGallery = ({
         return 'bg-gray-500';
     }
   };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -55,9 +62,9 @@ const FaceScanGallery = ({
       minute: '2-digit'
     });
   };
+
   const handleImageError = (scanId: string, imageUrl: string) => {
-    console.error('Failed to load image for scan:', scanId);
-    console.error('Image URL:', imageUrl);
+    console.error('Image load failed for scan:', scanId, 'URL:', imageUrl);
     setImageLoadErrors(prev => new Set(prev).add(scanId));
     setRetryingImages(prev => {
       const newSet = new Set(prev);
@@ -65,9 +72,9 @@ const FaceScanGallery = ({
       return newSet;
     });
   };
+
   const handleImageLoad = (scanId: string, imageUrl: string) => {
-    console.log('Successfully loaded image for scan:', scanId);
-    console.log('Image URL:', imageUrl);
+    console.log('Image loaded successfully for scan:', scanId);
     setImageLoadErrors(prev => {
       const newSet = new Set(prev);
       newSet.delete(scanId);
@@ -79,6 +86,7 @@ const FaceScanGallery = ({
       return newSet;
     });
   };
+
   const retryImageLoad = (scanId: string) => {
     console.log('Retrying image load for scan:', scanId);
     setRetryingImages(prev => new Set(prev).add(scanId));
@@ -88,15 +96,16 @@ const FaceScanGallery = ({
       return newSet;
     });
 
-    // Force reload by adding timestamp to URL
+    // Force reload by adding timestamp to URL only during retry
     const scan = faceScans.find(s => s.id === scanId);
     if (scan) {
       const img = new Image();
       img.onload = () => handleImageLoad(scanId, scan.image_url);
       img.onerror = () => handleImageError(scanId, scan.image_url);
-      img.src = `${scan.image_url}?t=${Date.now()}`;
+      img.src = `${scan.image_url}?retry=${Date.now()}`;
     }
   };
+
   if (loading) {
     return <Card className="bg-gray-900 border-gray-800">
         <CardContent className="text-center py-8">
@@ -105,6 +114,7 @@ const FaceScanGallery = ({
         </CardContent>
       </Card>;
   }
+
   return <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
         <CardTitle className="text-white flex items-center justify-between">
@@ -138,7 +148,7 @@ const FaceScanGallery = ({
                       </Button>
                     </div> : retryingImages.has(scan.id) ? <div className="w-full h-full bg-gray-700 flex items-center justify-center">
                       <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
-                    </div> : <img src={`${scan.image_url}?t=${Date.now()}`} alt={`Face scan - ${scan.scan_type}`} className="w-full h-full object-cover" onError={() => handleImageError(scan.id, scan.image_url)} onLoad={() => handleImageLoad(scan.id, scan.image_url)} />}
+                    </div> : <img src={scan.image_url} alt={`Face scan - ${scan.scan_type}`} className="w-full h-full object-cover" onError={() => handleImageError(scan.id, scan.image_url)} onLoad={() => handleImageLoad(scan.id, scan.image_url)} />}
                   <div className="absolute top-2 right-2">
                     <Badge className={`${getScanTypeColor(scan.scan_type)} text-white text-xs`}>
                       {scan.scan_type}
@@ -189,4 +199,5 @@ const FaceScanGallery = ({
       </CardContent>
     </Card>;
 };
+
 export default FaceScanGallery;
