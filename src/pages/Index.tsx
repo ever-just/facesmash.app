@@ -31,7 +31,7 @@ const Index = () => {
       </nav>
 
       {/* Hero Section */}
-      <div className="container mx-auto px-6 py-20">
+      <div className="container mx-auto px-6 py-20 my-[50px]">
         <div className="max-w-4xl mx-auto text-center">
           <div className="mb-8">
             <div className="w-32 h-32 bg-white rounded-2xl border-4 border-white flex items-center justify-center mx-auto mb-8 shadow-2xl transform hover:scale-105 transition-transform duration-300">
@@ -57,9 +57,7 @@ const Index = () => {
                 Create Face Card
               </Button>
             </Link>
-            <div className="text-gray-500 text-sm">
-              Already have an account? <Link to="/login" className="text-white hover:underline">Sign in</Link>
-            </div>
+            
           </div>
         </div>
       </div>
