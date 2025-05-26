@@ -1,3 +1,4 @@
+
 import { useCallback, useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import { Button } from "@/components/ui/button";
@@ -11,12 +12,14 @@ interface ContinuousQualityCaptureProps {
   onImageCapture: (image: string, quality: number) => void;
   qualityThreshold?: number;
   maxAttempts?: number;
+  autoStart?: boolean;
 }
 
 const ContinuousQualityCapture = ({ 
   onImageCapture, 
-  qualityThreshold = 0.75,
-  maxAttempts = 10 
+  qualityThreshold = 0.5,
+  maxAttempts = 10,
+  autoStart = false
 }: ContinuousQualityCaptureProps) => {
   const webcamRef = useRef<Webcam>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -53,7 +56,7 @@ const ContinuousQualityCapture = ({
           setBestQuality(quality);
         }
 
-        console.log(`Capture attempt ${attempts + 1}: Quality ${(quality * 100).toFixed(1)}%`);
+        console.log(`Quality ${(quality * 100).toFixed(1)}%`);
 
         // Check if quality meets threshold
         if (quality >= qualityThreshold) {
@@ -84,7 +87,7 @@ const ContinuousQualityCapture = ({
           captureIntervalRef.current = null;
         }
         
-        if (bestImage && bestQuality > 0.4) {
+        if (bestImage && bestQuality > 0.3) {
           onImageCapture(bestImage, bestQuality);
           toast.warning(`Used best available photo after ${maxAttempts} attempts. Quality: ${(bestQuality * 100).toFixed(1)}%`);
         } else {
@@ -133,6 +136,13 @@ const ContinuousQualityCapture = ({
     setWebcamReady(true);
   }, []);
 
+  // Auto-start capture when webcam is ready and autoStart is enabled
+  useEffect(() => {
+    if (autoStart && webcamReady && isLoaded && !isCapturing) {
+      startContinuousCapture();
+    }
+  }, [autoStart, webcamReady, isLoaded, isCapturing, startContinuousCapture]);
+
   useEffect(() => {
     return () => {
       if (captureIntervalRef.current) {
@@ -178,7 +188,7 @@ const ContinuousQualityCapture = ({
           {/* Status indicators */}
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
             <div className="bg-black/80 text-white text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-              {isCapturing ? `Capturing... ${attempts}/${maxAttempts}` : 'Ready to capture'}
+              {isCapturing ? 'Capturing...' : 'Ready to capture'}
             </div>
           </div>
 
@@ -245,27 +255,29 @@ const ContinuousQualityCapture = ({
       </div>
 
       {/* Controls */}
-      <div className="flex justify-center space-x-4">
-        {!isCapturing ? (
-          <Button 
-            onClick={startContinuousCapture}
-            className="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-xl font-semibold"
-            disabled={!webcamReady || !isLoaded}
-          >
-            <Camera className="mr-2 h-5 w-5" />
-            Start Quality Capture
-          </Button>
-        ) : (
-          <Button 
-            onClick={reset}
-            variant="outline"
-            className="border-2 border-white text-white hover:bg-white hover:text-black px-6 py-3 rounded-xl font-semibold"
-          >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Stop & Reset
-          </Button>
-        )}
-      </div>
+      {!autoStart && (
+        <div className="flex justify-center space-x-4">
+          {!isCapturing ? (
+            <Button 
+              onClick={startContinuousCapture}
+              className="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-xl font-semibold"
+              disabled={!webcamReady || !isLoaded}
+            >
+              <Camera className="mr-2 h-5 w-5" />
+              Start Quality Capture
+            </Button>
+          ) : (
+            <Button 
+              onClick={reset}
+              variant="outline"
+              className="border-2 border-white text-white hover:bg-white hover:text-black px-6 py-3 rounded-xl font-semibold"
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Stop & Reset
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Best quality indicator */}
       {bestQuality > 0 && isCapturing && (

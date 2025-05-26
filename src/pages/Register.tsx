@@ -55,20 +55,18 @@ const Register = () => {
     // Set quality info immediately
     setPhotoQuality({
       score: Math.round(quality * 100),
-      isGoodQuality: quality >= 0.75,
-      feedback: quality >= 0.75 
-        ? "Excellent photo quality! Ready for registration." 
-        : "Good photo quality captured. Ready for registration."
+      isGoodQuality: quality >= 0.5,
+      feedback: quality >= 0.5 
+        ? "Good photo quality! Ready for registration." 
+        : "Photo quality captured. Ready for registration."
     });
     
     setStep(3);
     
-    // Auto-proceed with registration for high-quality photos
-    if (quality >= 0.75) {
-      setTimeout(() => {
-        handleRegister();
-      }, 1000);
-    }
+    // Auto-proceed with registration for quality photos
+    setTimeout(() => {
+      handleRegister();
+    }, 1000);
   };
 
   const analyzePhotoQuality = async (imageData: string) => {
@@ -322,14 +320,15 @@ const Register = () => {
                   Capture Your High-Quality Face
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  We'll automatically capture multiple photos until we get the perfect quality for your Face Card
+                  Face capture will start automatically and stop when we get a good quality photo
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ContinuousQualityCapture 
                   onImageCapture={handleQualityImageCapture}
-                  qualityThreshold={0.75}
+                  qualityThreshold={0.5}
                   maxAttempts={8}
+                  autoStart={true}
                 />
               </CardContent>
             </Card>
