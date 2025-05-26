@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,7 @@ import { analyzeFaceQuality, base64ToBlob, calculateLearningWeight } from "@/uti
 import { createUserProfile } from "@/services/userProfileService";
 import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
 import { manageFaceTemplates, checkDuplicateUsers } from "@/services/faceTemplateService";
+import ContinuousQualityCapture from "@/components/ContinuousQualityCapture";
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -45,10 +45,30 @@ const Register = () => {
   const handleImagesCapture = async (images: string[]) => {
     console.log('Images captured for registration:', images.length);
     setCapturedImages(images);
-    
-    // Immediately analyze the photo quality
-    await analyzePhotoQuality(images[0]);
     setStep(3);
+  };
+
+  const handleQualityImageCapture = async (imageData: string, quality: number) => {
+    console.log('High-quality image captured with quality:', quality);
+    setCapturedImages([imageData]);
+    
+    // Set quality info immediately
+    setPhotoQuality({
+      score: Math.round(quality * 100),
+      isGoodQuality: quality >= 0.75,
+      feedback: quality >= 0.75 
+        ? "Excellent photo quality! Ready for registration." 
+        : "Good photo quality captured. Ready for registration."
+    });
+    
+    setStep(3);
+    
+    // Auto-proceed with registration for high-quality photos
+    if (quality >= 0.75) {
+      setTimeout(() => {
+        handleRegister();
+      }, 1000);
+    }
   };
 
   const analyzePhotoQuality = async (imageData: string) => {
@@ -106,8 +126,18 @@ const Register = () => {
     try {
       console.log('Starting enhanced registration process...');
 
-      // Analyze face quality
-      const faceAnalysis = await analyzeFaceQuality(capturedImages[0]);
+      // Analyze face quality with better error handling
+      let faceAnalysis;
+      try {
+        faceAnalysis = await analyzeFaceQuality(capturedImages[0]);
+      } catch (analysisError) {
+        console.error('Face analysis failed:', analysisError);
+        toast.error("Face analysis failed. Please try capturing again.");
+        setStep(2);
+        setIsRegistering(false);
+        return;
+      }
+
       if (!faceAnalysis) {
         toast.error("No face detected in the captured image. Please try again.");
         setStep(2);
@@ -116,7 +146,7 @@ const Register = () => {
       }
 
       // Check quality threshold for registration
-      if (faceAnalysis.qualityScore < 0.5) {
+      if (faceAnalysis.qualityScore < 0.4) {
         toast.error("Face quality is too low for registration. Please ensure good lighting and face the camera directly.");
         setStep(2);
         setIsRegistering(false);
@@ -125,15 +155,21 @@ const Register = () => {
 
       console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
 
-      // Check for duplicate users
+      // Check for duplicate users with better error handling
       console.log('Checking for duplicate users...');
-      const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.75);
-      
-      if (duplicates && duplicates.length > 0) {
-        console.log('Duplicate users found:', duplicates);
-        toast.error(`A Face Card already exists for this face. Found similar user: ${duplicates[0].existing_email}`);
-        setIsRegistering(false);
-        return;
+      try {
+        const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.75);
+        
+        if (duplicates && duplicates.length > 0) {
+          console.log('Duplicate users found:', duplicates);
+          const duplicateEmail = duplicates[0]?.existing_email || 'unknown user';
+          toast.error(`A Face Card already exists for this face. Found similar user: ${duplicateEmail}`);
+          setIsRegistering(false);
+          return;
+        }
+      } catch (duplicateError) {
+        console.error('Duplicate check failed:', duplicateError);
+        toast.warning("Could not verify if face already exists. Proceeding with registration.");
       }
 
       console.log('No duplicates found, proceeding with registration...');
@@ -277,7 +313,7 @@ const Register = () => {
             </Card>
           )}
 
-          {/* Step 2: Face Capture */}
+          {/* Step 2: Enhanced Face Capture */}
           {step === 2 && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
@@ -286,11 +322,15 @@ const Register = () => {
                   Capture Your High-Quality Face
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  We'll automatically take your photo when we detect a high-quality face. Good lighting is important!
+                  We'll automatically capture multiple photos until we get the perfect quality for your Face Card
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <WebcamCapture onImagesCapture={handleImagesCapture} autoStart={true} />
+                <ContinuousQualityCapture 
+                  onImageCapture={handleQualityImageCapture}
+                  qualityThreshold={0.75}
+                  maxAttempts={8}
+                />
               </CardContent>
             </Card>
           )}

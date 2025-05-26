@@ -1,4 +1,3 @@
-
 import * as faceapi from 'face-api.js';
 import { calculateSimilarity } from './faceRecognition';
 
@@ -120,23 +119,46 @@ export const analyzeLightingConditions = (
   }
 };
 
-// Enhanced face analysis with lighting detection
+// Enhanced face analysis with better error handling and reliability
 export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysis | null> => {
   try {
-    console.log('Analyzing face quality with lighting detection...');
+    console.log('Analyzing face quality with enhanced detection...');
     const img = await faceapi.fetchImage(imageData);
-    const detection = await faceapi
-      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+    
+    // Try multiple detection options for better reliability
+    let detection = await faceapi
+      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 }))
       .withFaceLandmarks()
       .withFaceDescriptor();
     
+    // Fallback to more sensitive detection if first attempt fails
     if (!detection) {
-      console.log('No face detected in image');
+      console.log('Retrying with more sensitive detection...');
+      detection = await faceapi
+        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.2 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    }
+    
+    if (!detection) {
+      console.log('No face detected in image after retries');
       return null;
     }
 
-    // Analyze lighting conditions
-    const lightingAnalysis = analyzeLightingConditions(detection, img);
+    // Analyze lighting conditions with better error handling
+    let lightingAnalysis;
+    try {
+      lightingAnalysis = analyzeLightingConditions(detection, img);
+    } catch (lightingError) {
+      console.warn('Lighting analysis failed, using default values:', lightingError);
+      lightingAnalysis = {
+        score: 0.5,
+        brightness: 0.5,
+        contrast: 0.5,
+        evenness: 0.5,
+        conditions: { tooDark: false, tooBright: false, uneven: false, optimal: false }
+      };
+    }
 
     // Calculate enhanced quality score
     let qualityScore = Math.min(detection.detection.score, 1.0);
@@ -147,8 +169,11 @@ export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysi
     // Face size factor (larger faces generally better)
     const faceArea = detection.detection.box.width * detection.detection.box.height;
     const imageArea = 640 * 640;
-    const sizeRatio = Math.min(faceArea / imageArea, 0.3) / 0.3; // Optimal around 30% of image
+    const sizeRatio = Math.min(faceArea / imageArea, 0.3) / 0.3;
     qualityScore = qualityScore * (0.8 + sizeRatio * 0.2);
+
+    // Ensure quality score is in valid range
+    qualityScore = Math.max(0, Math.min(1, qualityScore));
 
     console.log(`Enhanced face quality: ${qualityScore.toFixed(3)}, lighting: ${lightingAnalysis.score.toFixed(3)}`);
 
