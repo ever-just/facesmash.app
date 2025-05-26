@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,48 +5,37 @@ import { Square, LogOut, User, Shield, Clock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getUserProfileByName } from "@/services/userProfileService";
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
-
   useEffect(() => {
     const name = localStorage.getItem('currentUserName');
     if (!name) {
       navigate('/login');
       return;
     }
-    
     setUserName(name);
-    
     const fetchUserProfile = async () => {
       const profile = await getUserProfileByName(name);
       setUserProfile(profile);
     };
-    
     fetchUserProfile();
   }, [navigate]);
-
   const handleSignOut = () => {
     localStorage.removeItem('currentUserName');
     toast.success("Successfully signed out!");
     navigate('/');
   };
-
   if (!userName) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+    return <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <Square className="h-16 w-16 text-white mx-auto mb-4 animate-spin" />
           <p className="text-gray-400">Loading dashboard...</p>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-black text-white">
+  return <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
       <nav className="flex items-center justify-between p-6 border-b border-gray-800">
         <div className="flex items-center space-x-3">
@@ -62,11 +50,7 @@ const Dashboard = () => {
         </div>
         <div className="flex items-center space-x-4">
           <span className="text-gray-300">Welcome, {userName}</span>
-          <Button 
-            onClick={handleSignOut}
-            variant="outline" 
-            className="border-white text-white hover:bg-white hover:text-black"
-          >
+          <Button onClick={handleSignOut} variant="outline" className="border-white text-white hover:bg-white hover:text-black">
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </Button>
@@ -106,8 +90,7 @@ const Dashboard = () => {
                   <span className="text-gray-400">Face Profile:</span>
                   <span className="text-white">✓ Registered</span>
                 </div>
-                {userProfile && (
-                  <>
+                {userProfile && <>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">Card Created:</span>
                       <span className="text-white">
@@ -120,8 +103,7 @@ const Dashboard = () => {
                         {new Date(userProfile.updated_at).toLocaleDateString()}
                       </span>
                     </div>
-                  </>
-                )}
+                  </>}
               </CardContent>
             </Card>
 
@@ -174,10 +156,7 @@ const Dashboard = () => {
                   <p className="text-gray-400 text-sm">
                     Sign out and try logging back in with your face to test the recognition system.
                   </p>
-                  <Button 
-                    onClick={handleSignOut}
-                    className="bg-white text-black hover:bg-gray-200 w-full"
-                  >
+                  <Button onClick={handleSignOut} className="bg-white text-black hover:bg-gray-200 w-full">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out & Test Login
                   </Button>
@@ -189,10 +168,7 @@ const Dashboard = () => {
                     Go back to the main page to learn more about Face Card.
                   </p>
                   <Link to="/">
-                    <Button 
-                      variant="outline"
-                      className="border-white text-white hover:bg-white hover:text-black w-full"
-                    >
+                    <Button variant="outline" className="border-white hover:bg-white w-full text-gray-900">
                       <Square className="mr-2 h-4 w-4" />
                       Back to Home
                     </Button>
@@ -213,8 +189,6 @@ const Dashboard = () => {
           </Card>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Dashboard;
