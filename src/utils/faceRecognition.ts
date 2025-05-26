@@ -3,7 +3,8 @@ import * as faceapi from 'face-api.js';
 
 // Initialize face-api.js models
 export const initializeFaceAPI = async () => {
-  const MODEL_URL = '/models';
+  // Use CDN for easier setup - change back to '/models' when you have local models
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
   
   try {
     await Promise.all([
