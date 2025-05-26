@@ -168,20 +168,7 @@ const FaceScanGallery = ({
               </div>)}
           </div>}
         
-        {faceScans.length > 0 && <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
-            <div className="flex items-center text-sm text-gray-300 flex-wrap gap-2">
-              <TrendingUp className="h-4 w-4 mr-2 text-green-400" />
-              <span>Total Scans: {faceScans.length}</span>
-              <span>•</span>
-              <span>Registration: {faceScans.filter(s => s.scan_type === 'registration').length}</span>
-              <span>•</span>
-              <span>Login: {faceScans.filter(s => s.scan_type === 'login').length}</span>
-              {imageLoadErrors.size > 0 && <>
-                  <span>•</span>
-                  <span className="text-red-400">Failed Images: {imageLoadErrors.size}</span>
-                </>}
-            </div>
-          </div>}
+        {faceScans.length > 0}
       </CardContent>
     </Card>;
 };

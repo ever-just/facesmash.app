@@ -34,15 +34,7 @@ const SignInHistory = ({
       </Card>;
   }
   return <Card className="bg-gray-900 border-gray-800">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <Clock className="mr-3 h-6 w-6 text-white" />
-          Recent Sign-Ins
-        </CardTitle>
-        <CardDescription className="text-gray-400">
-          Your recent Face Card authentication history
-        </CardDescription>
-      </CardHeader>
+      
       
     </Card>;
 };
