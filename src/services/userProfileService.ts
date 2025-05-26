@@ -1,31 +1,18 @@
 
 import { supabase } from "@/integrations/supabase/client";
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  face_embedding: number[];
-  created_at: string;
-  updated_at: string;
-  embedding_count?: number;
-  last_updated?: string;
-  recognition_threshold?: number;
-  total_logins?: number;
-  successful_logins?: number;
-}
+import { UserProfile } from "@/types";
 
 export const createUserProfile = async (name: string, faceEmbedding: Float32Array): Promise<UserProfile | null> => {
   try {
     console.log('Creating user profile with name:', name);
     
-    // Convert Float32Array to regular array for storage
     const embeddingArray = Array.from(faceEmbedding);
     
     const { data, error } = await supabase
       .from('user_profiles')
       .insert([
         {
-          email: name, // Using name as email for now since schema expects email
+          email: name,
           face_embedding: embeddingArray
         }
       ])
@@ -50,7 +37,7 @@ export const getUserProfileByName = async (name: string): Promise<UserProfile | 
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('email', name) // Using email field to search by name
+      .eq('email', name)
       .single();
 
     if (error) {
