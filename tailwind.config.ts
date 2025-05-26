@@ -84,51 +84,11 @@ export default {
 					to: {
 						height: '0'
 					}
-				},
-				'logo-pulse': {
-					'0%, 100%': {
-						opacity: '1',
-						transform: 'scale(1)'
-					},
-					'50%': {
-						opacity: '0.8',
-						transform: 'scale(1.05)'
-					}
-				},
-				'logo-to-camera': {
-					'0%': {
-						transform: 'scale(1)',
-						borderRadius: '0.75rem',
-						opacity: '1'
-					},
-					'50%': {
-						transform: 'scale(1.1)',
-						borderRadius: '1.5rem',
-						opacity: '0.7'
-					},
-					'100%': {
-						transform: 'scale(1)',
-						borderRadius: '0.75rem',
-						opacity: '0'
-					}
-				},
-				'camera-fade-in': {
-					'0%': {
-						opacity: '0',
-						transform: 'scale(0.8)'
-					},
-					'100%': {
-						opacity: '1',
-						transform: 'scale(1)'
-					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out',
-				'logo-pulse': 'logo-pulse 2s ease-in-out infinite',
-				'logo-to-camera': 'logo-to-camera 0.8s ease-out forwards',
-				'camera-fade-in': 'camera-fade-in 0.5s ease-out forwards'
+				'accordion-up': 'accordion-up 0.2s ease-out'
 			}
 		}
 	},
