@@ -10,11 +10,11 @@ const Index = () => {
       {/* Navigation */}
       <nav className="flex items-center justify-between p-6 border-b border-gray-800">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-white rounded border-2 border-white flex items-center justify-center">
-            <div className="w-4 h-4 border border-black rounded-full relative">
-              <div className="absolute top-1 left-1 w-1 h-1 bg-black rounded-full"></div>
-              <div className="absolute top-1 right-1 w-1 h-1 bg-black rounded-full"></div>
-              <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 border-t border-black rounded-t"></div>
+          <div className="w-12 h-12 bg-white rounded-lg border-3 border-white flex items-center justify-center shadow-lg">
+            <div className="w-8 h-8 border-2 border-black rounded-full relative">
+              <div className="absolute top-1.5 left-1.5 w-1.5 h-1.5 bg-black rounded-full"></div>
+              <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-black rounded-full"></div>
+              <div className="absolute bottom-1.5 left-1/2 transform -translate-x-1/2 w-3 h-1.5 border-t-2 border-black rounded-t-lg"></div>
             </div>
           </div>
           <span className="text-2xl font-bold">Face Card</span>
@@ -37,11 +37,12 @@ const Index = () => {
       <div className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
           <div className="mb-8">
-            <div className="w-20 h-20 bg-white rounded-lg border-4 border-white flex items-center justify-center mx-auto mb-6">
-              <div className="w-12 h-12 border-2 border-black rounded-full relative">
-                <div className="absolute top-2 left-2 w-2 h-2 bg-black rounded-full"></div>
-                <div className="absolute top-2 right-2 w-2 h-2 bg-black rounded-full"></div>
-                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-2 border-t-2 border-black rounded-t"></div>
+            <div className="w-32 h-32 bg-white rounded-2xl border-4 border-white flex items-center justify-center mx-auto mb-8 shadow-2xl transform hover:scale-105 transition-transform duration-300">
+              <div className="w-24 h-24 border-4 border-black rounded-full relative">
+                <div className="absolute top-4 left-4 w-3 h-3 bg-black rounded-full"></div>
+                <div className="absolute top-4 right-4 w-3 h-3 bg-black rounded-full"></div>
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-8 h-4 border-t-4 border-black rounded-t-xl"></div>
+                <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-1 h-2 bg-black rounded-full"></div>
               </div>
             </div>
             <h1 className="text-6xl font-bold mb-6">
