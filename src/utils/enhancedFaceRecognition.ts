@@ -14,7 +14,7 @@ export interface FaceAnalysis {
 export const calculateFaceQuality = (
   detection: faceapi.WithFaceLandmarks<faceapi.WithFaceDescriptor<faceapi.FaceDetection>>
 ): number => {
-  const faceDetection = detection.detection;
+  const faceDetection = detection as any; // The detection itself contains the box and score
   const landmarks = detection.landmarks;
   let qualityScore = 0;
 
@@ -91,9 +91,9 @@ export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysi
 
     return {
       descriptor: detection.descriptor,
-      confidence: detection.detection.score,
+      confidence: (detection as any).score,
       qualityScore,
-      boundingBox: detection.detection.box,
+      boundingBox: (detection as any).box,
       landmarks: detection.landmarks
     };
   } catch (error) {
