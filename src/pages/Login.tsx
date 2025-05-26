@@ -64,15 +64,15 @@ const Login = () => {
       
       let foundMatch = false;
       for (const profile of userProfiles) {
-        console.log(`Comparing with user: ${profile.name}`);
+        console.log(`Comparing with user: ${profile.email}`);
         const storedEmbedding = new Float32Array(profile.face_embedding);
         
         if (facesMatch(loginFaceEmbedding, storedEmbedding, 0.6)) {
           foundMatch = true;
-          setMatchedUser(profile.name);
-          console.log(`Match found! User: ${profile.name}`);
+          setMatchedUser(profile.email);
+          console.log(`Match found! User: ${profile.email}`);
           
-          localStorage.setItem('currentUserName', profile.name);
+          localStorage.setItem('currentUserName', profile.email);
           break;
         }
       }
