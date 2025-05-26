@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Square, ArrowLeft, CheckCircle, AlertCircle, Loader2, LogOut } from "lucide-react";
@@ -7,6 +6,7 @@ import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
 import { initializeFaceAPI, processMultipleImages, facesMatch } from "@/utils/faceRecognition";
 import { getAllUserProfiles } from "@/services/userProfileService";
+import { createSignInLog } from "@/services/signInLogService";
 import LoginHeader from "@/components/LoginHeader";
 import LoginSuccess from "@/components/LoginSuccess";
 import LoginFailed from "@/components/LoginFailed";
@@ -108,6 +108,10 @@ const Login = () => {
           console.log(`Match found! User: ${profile.email}`);
           
           localStorage.setItem('currentUserName', profile.email);
+          
+          // Log the successful sign-in
+          await createSignInLog(profile.email);
+          
           break;
         }
       }
