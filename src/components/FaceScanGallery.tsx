@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { getFaceScansByUser } from "@/services/faceScanService";
 import type { FaceScan } from "@/types";
 
@@ -20,6 +19,7 @@ const FaceScanGallery = ({
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [api, setApi] = useState<CarouselApi>();
 
   const fetchFaceScans = async () => {
     try {
@@ -42,6 +42,23 @@ const FaceScanGallery = ({
   useEffect(() => {
     fetchFaceScans();
   }, [userEmail]);
+
+  useEffect(() => {
+    if (!api) {
+      return;
+    }
+
+    const onSelect = () => {
+      setCurrentIndex(api.selectedScrollSnap());
+    };
+
+    api.on("select", onSelect);
+    onSelect(); // Set initial index
+
+    return () => {
+      api.off("select", onSelect);
+    };
+  }, [api]);
 
   const getScanTypeColor = (scanType: string) => {
     switch (scanType) {
@@ -158,11 +175,7 @@ const FaceScanGallery = ({
             {/* Carousel Container */}
             <Carousel 
               className="w-full max-w-md mx-auto"
-              onSelect={(emblaApi) => {
-                if (emblaApi) {
-                  setCurrentIndex(emblaApi.selectedScrollSnap());
-                }
-              }}
+              setApi={setApi}
             >
               <CarouselContent>
                 {faceScans.map((scan, index) => (
