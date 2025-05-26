@@ -15,8 +15,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [currentCapture, setCurrentCapture] = useState(0);
-  const targetCaptures = isLogin ? 3 : 5;
+  const targetCaptures = 1; // Changed to only take 1 photo
 
   const videoConstraints = {
     width: 640,
@@ -27,15 +26,12 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
-      const newImages = [...capturedImages, imageSrc];
+      const newImages = [imageSrc]; // Only one image now
       setCapturedImages(newImages);
-      setCurrentCapture(prev => prev + 1);
-      
-      if (newImages.length >= targetCaptures) {
-        onImagesCapture(newImages);
-      }
+      onImagesCapture(newImages);
+      setIsCapturing(false);
     }
-  }, [capturedImages, onImagesCapture, targetCaptures]);
+  }, [onImagesCapture]);
 
   const startAutoCapture = () => {
     if (capturedImages.length >= targetCaptures) return;
@@ -49,13 +45,6 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
           clearInterval(countdownInterval);
           capture();
           setCountdown(null);
-          
-          // Continue capturing if we need more images
-          if (capturedImages.length + 1 < targetCaptures) {
-            setTimeout(() => startAutoCapture(), 1500);
-          } else {
-            setIsCapturing(false);
-          }
           return null;
         }
         return (prev || 0) - 1;
@@ -65,21 +54,9 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
 
   const reset = () => {
     setCapturedImages([]);
-    setCurrentCapture(0);
     setIsCapturing(false);
     setCountdown(null);
   };
-
-  useEffect(() => {
-    if (capturedImages.length > 0 && capturedImages.length < targetCaptures) {
-      const timer = setTimeout(() => {
-        if (!isCapturing) {
-          startAutoCapture();
-        }
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [capturedImages.length, targetCaptures, isCapturing]);
 
   return (
     <div className="space-y-6">
@@ -124,38 +101,31 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
         </div>
       </div>
 
-      {/* Progress Indicator */}
+      {/* Status Indicator */}
       <div className="text-center space-y-4">
-        <div className="flex items-center justify-center space-x-2">
-          {Array.from({ length: targetCaptures }, (_, i) => (
-            <div
-              key={i}
-              className={`w-3 h-3 rounded-full ${
-                i < capturedImages.length 
-                  ? 'bg-cyan-400' 
-                  : i === capturedImages.length && isCapturing
-                  ? 'bg-cyan-400/50 animate-pulse'
-                  : 'bg-slate-600'
-              }`}
-            />
-          ))}
+        <div className="flex items-center justify-center">
+          <div className={`w-4 h-4 rounded-full ${
+            capturedImages.length > 0 
+              ? 'bg-cyan-400' 
+              : isCapturing
+              ? 'bg-cyan-400/50 animate-pulse'
+              : 'bg-slate-600'
+          }`} />
         </div>
         
         <p className="text-gray-300">
-          {capturedImages.length < targetCaptures 
-            ? `${capturedImages.length}/${targetCaptures} photos captured`
-            : "All photos captured!"
+          {capturedImages.length === 0 
+            ? `Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
+            : "Photo captured successfully!"
           }
         </p>
 
-        {capturedImages.length < targetCaptures && (
-          <p className="text-sm text-gray-400">
-            {isLogin 
-              ? "We'll take 3 quick photos for verification"
-              : "We'll take 5 photos to create your secure face profile"
-            }
-          </p>
-        )}
+        <p className="text-sm text-gray-400">
+          {isLogin 
+            ? "We'll take 1 photo to verify your identity"
+            : "We'll take 1 photo to create your face profile"
+          }
+        </p>
       </div>
 
       {/* Controls */}
@@ -166,43 +136,40 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false }: WebcamCaptureProps)
             className="bg-cyan-500 hover:bg-cyan-600 px-8 py-3"
           >
             <Camera className="mr-2 h-4 w-4" />
-            Start Capture
+            Take Photo
           </Button>
         )}
 
-        {capturedImages.length > 0 && capturedImages.length < targetCaptures && (
-          <Button 
-            onClick={reset}
-            variant="outline"
-            className="border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-slate-900"
-          >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Restart
-          </Button>
-        )}
-
-        {capturedImages.length >= targetCaptures && (
-          <div className="flex items-center space-x-2 text-green-400">
-            <CheckCircle className="h-5 w-5" />
-            <span>Capture Complete!</span>
-          </div>
+        {capturedImages.length > 0 && (
+          <>
+            <Button 
+              onClick={reset}
+              variant="outline"
+              className="border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-slate-900"
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Retake
+            </Button>
+            <div className="flex items-center space-x-2 text-green-400">
+              <CheckCircle className="h-5 w-5" />
+              <span>Photo Ready!</span>
+            </div>
+          </>
         )}
       </div>
 
-      {/* Captured Images Preview */}
+      {/* Captured Image Preview */}
       {capturedImages.length > 0 && (
         <div className="space-y-4">
-          <h4 className="text-center text-white font-medium">Captured Photos</h4>
-          <div className="flex justify-center space-x-2 overflow-x-auto">
-            {capturedImages.map((image, index) => (
-              <div key={index} className="flex-shrink-0">
-                <img
-                  src={image}
-                  alt={`Captured ${index + 1}`}
-                  className="w-16 h-16 object-cover rounded-lg border border-cyan-400/20"
-                />
-              </div>
-            ))}
+          <h4 className="text-center text-white font-medium">Captured Photo</h4>
+          <div className="flex justify-center">
+            <div className="w-24 h-24 rounded-lg overflow-hidden border border-cyan-400/20">
+              <img
+                src={capturedImages[0]}
+                alt="Captured face"
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
         </div>
       )}

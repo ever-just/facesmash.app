@@ -18,6 +18,7 @@ const Login = () => {
 
   useEffect(() => {
     const loadFaceAPI = async () => {
+      console.log('Initializing face recognition models for login...');
       const loaded = await initializeFaceAPI();
       setFaceAPILoaded(loaded);
       if (!loaded) {
@@ -33,20 +34,22 @@ const Login = () => {
       return;
     }
 
+    console.log('Starting face verification process...');
     setIsScanning(true);
     
     try {
-      // Extract face embedding from captured images
+      // Extract face embedding from captured image
       const loginFaceEmbedding = await processMultipleImages(images);
       
       if (!loginFaceEmbedding) {
         setIsScanning(false);
         setScanComplete(true);
         setLoginResult('failed');
-        toast.error("No face detected in the captured images. Please try again.");
+        toast.error("No face detected in the captured image. Please try again.");
         return;
       }
 
+      console.log('Face embedding extracted, comparing with registered users...');
       // Get all registered user profiles
       const userProfiles = await getAllUserProfiles();
       
@@ -58,14 +61,18 @@ const Login = () => {
         return;
       }
 
+      console.log(`Checking against ${userProfiles.length} registered user(s)...`);
+      
       // Find matching user
       let foundMatch = false;
       for (const profile of userProfiles) {
+        console.log(`Comparing with user: ${profile.email}`);
         const storedEmbedding = new Float32Array(profile.face_embedding);
         
         if (facesMatch(loginFaceEmbedding, storedEmbedding, 0.6)) {
           foundMatch = true;
           setMatchedUser(profile.email);
+          console.log(`Match found! User: ${profile.email}`);
           break;
         }
       }
@@ -81,6 +88,7 @@ const Login = () => {
         toast.success(`Welcome back, ${matchedUser}!`);
       } else {
         setLoginResult('failed');
+        console.log('No matching face found');
         toast.error("Face not recognized. Please try again or register a new account.");
       }
     } catch (error) {

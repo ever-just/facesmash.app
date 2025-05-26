@@ -20,6 +20,7 @@ const Register = () => {
 
   useEffect(() => {
     const loadFaceAPI = async () => {
+      console.log('Initializing face recognition models...');
       const loaded = await initializeFaceAPI();
       setFaceAPILoaded(loaded);
       if (!loaded) {
@@ -39,6 +40,7 @@ const Register = () => {
   };
 
   const handleImagesCapture = (images: string[]) => {
+    console.log('Images captured for registration:', images.length);
     setCapturedImages(images);
     setStep(3);
   };
@@ -47,20 +49,23 @@ const Register = () => {
     setIsRegistering(true);
     
     try {
-      // Process captured images to extract face embedding
+      console.log('Starting registration process...');
+      // Process captured image to extract face embedding
       const faceEmbedding = await processMultipleImages(capturedImages);
       
       if (!faceEmbedding) {
-        toast.error("No face detected in the captured images. Please try again.");
+        toast.error("No face detected in the captured image. Please try again.");
         setStep(2);
         setIsRegistering(false);
         return;
       }
 
+      console.log('Face embedding extracted, creating user profile...');
       // Save user profile with face embedding
       const profile = await createUserProfile(email, faceEmbedding);
       
       if (profile) {
+        console.log('User profile created successfully:', profile.id);
         setStep(4);
         toast.success("Registration completed successfully!");
       } else {
@@ -170,7 +175,7 @@ const Register = () => {
                   Capture Your Face
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  We'll take multiple photos to create your unique face profile
+                  We'll take one photo to create your unique face profile
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -189,16 +194,14 @@ const Register = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-3 gap-4">
-                  {capturedImages.slice(0, 3).map((image, index) => (
-                    <div key={index} className="aspect-square rounded-lg overflow-hidden border border-cyan-400/20">
-                      <img 
-                        src={image} 
-                        alt={`Captured face ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
+                <div className="flex justify-center">
+                  <div className="w-48 h-48 rounded-lg overflow-hidden border border-cyan-400/20">
+                    <img 
+                      src={capturedImages[0]} 
+                      alt="Captured face"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 </div>
                 
                 <div className="text-center space-y-4">
@@ -206,7 +209,7 @@ const Register = () => {
                     <strong>Email:</strong> {email}
                   </p>
                   <p className="text-gray-300">
-                    <strong>Images Captured:</strong> {capturedImages.length}
+                    <strong>Face Photo:</strong> Ready for processing
                   </p>
                   
                   <div className="flex space-x-4">
@@ -216,7 +219,7 @@ const Register = () => {
                       className="flex-1 border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-slate-900"
                       disabled={isRegistering}
                     >
-                      Retake Photos
+                      Retake Photo
                     </Button>
                     <Button
                       onClick={handleRegister}
