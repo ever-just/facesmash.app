@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFaceScansByUser } from "@/services/faceScanService";
-import type { FaceScan } from "@/services/faceScanService";
+import type { FaceScan } from "@/types";
 
 interface FaceScanGalleryProps {
   userEmail: string;
