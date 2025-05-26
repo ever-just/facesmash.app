@@ -1,17 +1,17 @@
-
 import { CheckCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
 interface LoginSuccessProps {
   matchedUser: string | null;
   onContinue: () => void;
   onSignInAgain: () => void;
 }
-
-const LoginSuccess = ({ matchedUser, onContinue, onSignInAgain }: LoginSuccessProps) => {
-  return (
-    <Card className="bg-gray-900 border-gray-800">
+const LoginSuccess = ({
+  matchedUser,
+  onContinue,
+  onSignInAgain
+}: LoginSuccessProps) => {
+  return <Card className="bg-gray-900 border-gray-800">
       <CardHeader className="text-center">
         <CheckCircle className="h-20 w-20 text-white mx-auto mb-4" />
         <CardTitle className="text-3xl text-white">Welcome Back!</CardTitle>
@@ -27,23 +27,14 @@ const LoginSuccess = ({ matchedUser, onContinue, onSignInAgain }: LoginSuccessPr
         </div>
         
         <div className="space-y-4">
-          <Button 
-            onClick={onContinue}
-            className="w-full bg-white text-black hover:bg-gray-200"
-          >
+          <Button onClick={onContinue} className="w-full bg-white text-black hover:bg-gray-200">
             Continue to Dashboard
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={onSignInAgain}
-            className="w-full border-white text-white hover:bg-white hover:text-black"
-          >
+          <Button variant="outline" onClick={onSignInAgain} className="w-full border-white hover:bg-white text-slate-900">
             Sign In Again
           </Button>
         </div>
       </CardContent>
-    </Card>
-  );
+    </Card>;
 };
-
 export default LoginSuccess;
