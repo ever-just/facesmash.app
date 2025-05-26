@@ -83,7 +83,7 @@ export const createFaceScan = async (
     }
 
     console.log('Face scan created successfully:', data);
-    return data;
+    return data as FaceScan;
   } catch (error) {
     console.error('Unexpected error creating face scan:', error);
     return null;
@@ -103,7 +103,7 @@ export const getFaceScansByUser = async (userEmail: string): Promise<FaceScan[]>
       return [];
     }
 
-    return data || [];
+    return (data || []) as FaceScan[];
   } catch (error) {
     console.error('Unexpected error fetching face scans:', error);
     return [];

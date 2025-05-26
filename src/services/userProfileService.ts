@@ -7,6 +7,11 @@ export interface UserProfile {
   face_embedding: number[];
   created_at: string;
   updated_at: string;
+  embedding_count?: number;
+  last_updated?: string;
+  recognition_threshold?: number;
+  total_logins?: number;
+  successful_logins?: number;
 }
 
 export const createUserProfile = async (name: string, faceEmbedding: Float32Array): Promise<UserProfile | null> => {

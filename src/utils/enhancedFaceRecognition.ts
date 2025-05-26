@@ -14,7 +14,8 @@ export interface FaceAnalysis {
 export const calculateFaceQuality = (
   detection: faceapi.WithFaceLandmarks<faceapi.WithFaceDescriptor<faceapi.FaceDetection>>
 ): number => {
-  const { detection: faceDetection, landmarks } = detection;
+  const faceDetection = detection.detection;
+  const landmarks = detection.landmarks;
   let qualityScore = 0;
 
   // Factor 1: Detection confidence (0-40 points)
