@@ -43,13 +43,9 @@ const LoginSuccess = ({
           </div>
         </div>
         
-        <CardTitle className={`text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent transform transition-all duration-1000 delay-300 ${showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-          Welcome Back!
-        </CardTitle>
+        <CardTitle className={`text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent transform transition-all duration-1000 delay-300 ${showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>FACE CARD</CardTitle>
         
-        <CardDescription className={`text-gray-300 text-xl transform transition-all duration-1000 delay-500 ${showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-          Face recognition successful
-        </CardDescription>
+        
       </CardHeader>
 
       <CardContent className="text-center space-y-8 relative z-10">
@@ -64,24 +60,9 @@ const LoginSuccess = ({
               <p className="text-white text-xl font-semibold">
                 Welcome back, <span className="text-blue-400">{matchedUser}</span>!
               </p>
-              <p className="text-gray-400">You have been securely logged in with Face Card technology</p>
               
-              <div className="flex items-center justify-center space-x-4 mt-6 text-sm text-gray-500">
-                <div className="flex items-center">
-                  <Shield className="h-4 w-4 mr-1 text-green-400" />
-                  Verified
-                </div>
-                <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
-                <div className="flex items-center">
-                  <CheckCircle className="h-4 w-4 mr-1 text-blue-400" />
-                  Encrypted
-                </div>
-                <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
-                <div className="flex items-center">
-                  <Sparkles className="h-4 w-4 mr-1 text-yellow-400" />
-                  Instant
-                </div>
-              </div>
+              
+              
             </div>
           </div>
         </div>
