@@ -6,10 +6,12 @@ import { Link, useNavigate } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
 import { initializeFaceAPI } from "@/utils/faceRecognition";
-import { analyzeFaceQuality, enhancedFaceMatch, base64ToBlob } from "@/utils/enhancedFaceRecognition";
+import { analyzeFaceQuality, enhancedFaceMatch, base64ToBlob, multiTemplateMatch, calculateLearningWeight } from "@/utils/enhancedFaceRecognition";
 import { getAllUserProfiles, updateUserProfile } from "@/services/userProfileService";
 import { createSignInLog } from "@/services/signInLogService";
 import { uploadFaceImage, createFaceScan, updateUserEmbeddingWithScan } from "@/services/faceScanService";
+import { getFaceTemplates, manageFaceTemplates } from "@/services/faceTemplateService";
+import { updateUserLearningMetrics, getUserLearningStats, getConfidenceBoost } from "@/services/learningService";
 import LoginHeader from "@/components/LoginHeader";
 import LoginSuccess from "@/components/LoginSuccess";
 import LoginFailed from "@/components/LoginFailed";
@@ -81,21 +83,29 @@ const Login = () => {
     setIsScanning(true);
     
     try {
-      // Analyze face quality first
+      // Enhanced face analysis with lighting detection
       const faceAnalysis = await analyzeFaceQuality(images[0]);
       
       if (!faceAnalysis) {
         setIsScanning(false);
         setScanComplete(true);
         setLoginResult('failed');
-        toast.error("No face detected in the captured image. Please try again.");
+        toast.error("No face detected. Please try again.");
         return;
       }
 
-      // Check quality threshold
-      if (faceAnalysis.qualityScore < 0.4) {
-        toast.warning("Face quality is low. Please ensure good lighting and face the camera directly.");
+      // Provide lighting feedback
+      if (faceAnalysis.lightingScore < 0.4) {
+        const conditions = faceAnalysis.environmentalConditions.lighting;
+        let lightingTip = "Poor lighting detected. ";
+        if (conditions.tooDark) lightingTip += "Try moving to a brighter area.";
+        else if (conditions.tooBright) lightingTip += "Try reducing the light or moving away from direct light.";
+        else if (conditions.uneven) lightingTip += "Try to get more even lighting on your face.";
+        
+        toast.warning(lightingTip);
       }
+
+      console.log(`Enhanced login analysis - Quality: ${faceAnalysis.qualityScore.toFixed(3)}, Lighting: ${faceAnalysis.lightingScore.toFixed(3)}`);
 
       const userProfiles = await getAllUserProfiles();
       
@@ -111,14 +121,53 @@ const Login = () => {
       let bestMatch = { user: '', similarity: 0, profile: null as any };
       
       for (const profile of userProfiles) {
-        const storedEmbedding = new Float32Array(profile.face_embedding);
+        // Get user's face templates for multi-template matching
+        const templates = await getFaceTemplates(profile.email);
+        const learningStats = await getUserLearningStats(profile.email);
         
-        const matchResult = enhancedFaceMatch(
-          faceAnalysis.descriptor, 
-          storedEmbedding, 
-          profile.recognition_threshold || 0.6,
-          faceAnalysis.qualityScore
-        );
+        let matchResult;
+        
+        if (templates.length > 0) {
+          // Use multi-template matching for better accuracy
+          const templateData = templates.map(t => ({
+            descriptor: new Float32Array(t.face_embedding),
+            quality: t.quality_score,
+            weight: learningStats ? getConfidenceBoost(
+              learningStats.successfulLogins,
+              learningStats.successRate,
+              learningStats.avgQualityScore
+            ) + 1 : 1
+          }));
+          
+          const multiMatch = multiTemplateMatch(
+            faceAnalysis.descriptor,
+            templateData,
+            learningStats?.currentThreshold || 0.6,
+            faceAnalysis.lightingScore
+          );
+          
+          matchResult = {
+            isMatch: multiMatch.isMatch,
+            similarity: multiMatch.bestSimilarity,
+            adaptedThreshold: learningStats?.currentThreshold || 0.6
+          };
+        } else {
+          // Fallback to single embedding matching
+          const storedEmbedding = new Float32Array(profile.face_embedding);
+          const confidenceBoost = learningStats ? getConfidenceBoost(
+            learningStats.successfulLogins,
+            learningStats.successRate,
+            learningStats.avgQualityScore
+          ) : 0;
+          
+          matchResult = enhancedFaceMatch(
+            faceAnalysis.descriptor, 
+            storedEmbedding, 
+            learningStats?.currentThreshold || 0.6,
+            confidenceBoost,
+            faceAnalysis.lightingScore
+          );
+        }
         
         if (matchResult.similarity > bestMatch.similarity) {
           bestMatch = { user: profile.email, similarity: matchResult.similarity, profile };
@@ -128,7 +177,14 @@ const Login = () => {
           foundMatch = true;
           setMatchedUser(profile.email);
           
-          // Store the login scan
+          // Calculate learning weight for this login
+          const learningWeight = calculateLearningWeight(
+            faceAnalysis.qualityScore,
+            faceAnalysis.lightingScore,
+            faceAnalysis.confidence
+          );
+          
+          // Store the enhanced login scan
           try {
             const imageBlob = base64ToBlob(images[0]);
             const imageUrl = await uploadFaceImage(imageBlob, profile.email, 'login');
@@ -143,28 +199,39 @@ const Login = () => {
                 faceAnalysis.qualityScore
               );
               
-              // Update user embedding with new scan (learning)
+              // Enhanced learning: Update user embedding and templates
               await updateUserEmbeddingWithScan(
                 profile.email,
                 faceAnalysis.descriptor,
+                learningWeight
+              );
+              
+              // Store new face template if quality is good
+              if (faceAnalysis.qualityScore > 0.6) {
+                await manageFaceTemplates(
+                  profile.email,
+                  faceAnalysis.descriptor,
+                  faceAnalysis.qualityScore,
+                  faceAnalysis.confidence,
+                  faceAnalysis.environmentalConditions
+                );
+              }
+              
+              // Update learning metrics
+              await updateUserLearningMetrics(
+                profile.email,
+                true,
+                faceAnalysis.confidence,
                 faceAnalysis.qualityScore
               );
               
-              // Update login statistics
-              await updateUserProfile(profile.id, {
-                total_logins: (profile.total_logins || 0) + 1,
-                successful_logins: (profile.successful_logins || 0) + 1,
-                last_updated: new Date().toISOString()
-              });
+              console.log(`Enhanced learning applied - Weight: ${learningWeight.toFixed(2)}, Quality: ${faceAnalysis.qualityScore.toFixed(3)}`);
             }
           } catch (storageError) {
             console.error('Error storing login scan:', storageError);
-            // Don't fail login if storage fails
           }
           
           localStorage.setItem('currentUserName', profile.email);
-          
-          // Log the successful sign-in
           await createSignInLog(profile.email);
           
           break;
@@ -176,7 +243,8 @@ const Login = () => {
       
       if (foundMatch) {
         setLoginResult('success');
-        toast.success(`Welcome back, ${matchedUser}! Face recognition improved with this login.`);
+        const qualityMsg = faceAnalysis.qualityScore > 0.7 ? " (High quality scan - learning enhanced!)" : "";
+        toast.success(`Welcome back, ${matchedUser}!${qualityMsg}`);
         
         setTimeout(() => {
           navigate('/dashboard');
@@ -184,18 +252,26 @@ const Login = () => {
       } else {
         setLoginResult('failed');
         
-        // Update failed login statistics for best match if similarity is reasonable
-        if (bestMatch.similarity > 0.4 && bestMatch.profile) {
-          try {
-            await updateUserProfile(bestMatch.profile.id, {
-              total_logins: (bestMatch.profile.total_logins || 0) + 1
-            });
-          } catch (error) {
-            console.error('Error updating failed login stats:', error);
+        // Update failed login statistics with enhanced feedback
+        if (bestMatch.similarity > 0.3 && bestMatch.profile) {
+          await updateUserLearningMetrics(
+            bestMatch.profile.email,
+            false,
+            faceAnalysis.confidence,
+            faceAnalysis.qualityScore
+          );
+          
+          // Provide helpful feedback
+          if (bestMatch.similarity > 0.5) {
+            toast.error(`Close match found (${(bestMatch.similarity * 100).toFixed(0)}% similar). Try improving lighting or face positioning.`);
+          } else if (faceAnalysis.lightingScore < 0.4) {
+            toast.error("Face not recognized. Poor lighting may be affecting recognition quality.");
+          } else {
+            toast.error("Face not recognized. Please try again or register a new Face Card.");
           }
+        } else {
+          toast.error("Face not recognized. Please try again or register a new Face Card.");
         }
-        
-        toast.error("Face not recognized. Please try again or register a new Face Card.");
       }
     } catch (error) {
       console.error('Enhanced login error:', error);
@@ -271,18 +347,18 @@ const Login = () => {
                 <CardHeader className="text-center">
                   <CardTitle className="text-3xl text-white flex items-center justify-center">
                     <Square className="mr-3 h-8 w-8 text-white" />
-                    Enhanced Face Card Login
+                    Enhanced Adaptive Face Login
                   </CardTitle>
                   <CardDescription className="text-gray-400 text-lg">
-                    Position your face in the camera frame to sign in. Your face data will be improved with each login.
+                    Advanced recognition that learns from each login and adapts to lighting conditions
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isScanning ? (
                     <div className="text-center py-12">
                       <Loader2 className="h-16 w-16 text-white mx-auto mb-6 animate-spin" />
-                      <h3 className="text-xl font-semibold text-white mb-2">Analyzing Your Face...</h3>
-                      <p className="text-gray-400">Please hold still while we verify your identity and improve recognition</p>
+                      <h3 className="text-xl font-semibold text-white mb-2">Analyzing with Enhanced AI...</h3>
+                      <p className="text-gray-400">Checking face quality, lighting conditions, and matching against learned patterns</p>
                     </div>
                   ) : (
                     <WebcamCapture 

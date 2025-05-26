@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { FaceScan } from "@/types";
 
@@ -65,7 +64,10 @@ export const createFaceScan = async (
   faceEmbedding: Float32Array,
   scanType: 'registration' | 'login' | 'verification',
   confidenceScore: number = 0.8,
-  qualityScore: number = 0.8
+  qualityScore: number = 0.8,
+  lightingScore: number = 0.5,
+  environmentalConditions: any = {},
+  learningWeight: number = 1.0
 ): Promise<FaceScan | null> => {
   try {
     const embeddingArray = Array.from(faceEmbedding);
@@ -79,20 +81,23 @@ export const createFaceScan = async (
           face_embedding: embeddingArray,
           confidence_score: confidenceScore,
           scan_type: scanType,
-          quality_score: qualityScore
+          quality_score: qualityScore,
+          lighting_score: lightingScore,
+          environmental_conditions: environmentalConditions,
+          learning_weight: learningWeight
         }
       ])
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating face scan:', error);
+      console.error('Error creating enhanced face scan:', error);
       return null;
     }
 
     return data as FaceScan;
   } catch (error) {
-    console.error('Unexpected error creating face scan:', error);
+    console.error('Unexpected error creating enhanced face scan:', error);
     return null;
   }
 };
@@ -120,7 +125,7 @@ export const getFaceScansByUser = async (userEmail: string): Promise<FaceScan[]>
 export const updateUserEmbeddingWithScan = async (
   userEmail: string,
   newEmbedding: Float32Array,
-  confidence: number
+  learningWeight: number = 1.0
 ): Promise<boolean> => {
   try {
     const embeddingArray = Array.from(newEmbedding);
@@ -128,17 +133,45 @@ export const updateUserEmbeddingWithScan = async (
     const { error } = await supabase.rpc('update_user_embedding_with_scan', {
       p_user_email: userEmail,
       p_new_embedding: embeddingArray,
-      p_confidence: confidence
+      p_confidence: learningWeight
     });
 
     if (error) {
-      console.error('Error updating user embedding:', error);
+      console.error('Error updating user embedding with enhanced learning:', error);
       return false;
     }
 
+    console.log(`Enhanced embedding update completed for ${userEmail} with weight ${learningWeight.toFixed(2)}`);
     return true;
   } catch (error) {
     console.error('Unexpected error updating user embedding:', error);
     return false;
+  }
+};
+
+export const getHighQualityScans = async (
+  userEmail: string,
+  minQuality: number = 0.7,
+  limit: number = 10
+): Promise<FaceScan[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('face_scans')
+      .select('*')
+      .eq('user_email', userEmail)
+      .gte('quality_score', minQuality)
+      .order('quality_score', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching high quality scans:', error);
+      return [];
+    }
+
+    return (data || []) as FaceScan[];
+  } catch (error) {
+    console.error('Unexpected error fetching high quality scans:', error);
+    return [];
   }
 };

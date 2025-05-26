@@ -1,17 +1,17 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Square, ArrowLeft, CheckCircle, User, Loader2 } from "lucide-react";
+import { Square, ArrowLeft, CheckCircle, User, Loader2, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
 import { initializeFaceAPI } from "@/utils/faceRecognition";
-import { analyzeFaceQuality, base64ToBlob } from "@/utils/enhancedFaceRecognition";
+import { analyzeFaceQuality, base64ToBlob, calculateLearningWeight } from "@/utils/enhancedFaceRecognition";
 import { createUserProfile } from "@/services/userProfileService";
 import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
+import { manageFaceTemplates, checkDuplicateUsers } from "@/services/faceTemplateService";
 
 const Register = () => {
   const [step, setStep] = useState(1);

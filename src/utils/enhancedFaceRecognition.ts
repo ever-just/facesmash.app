@@ -8,73 +8,122 @@ export interface FaceAnalysis {
   qualityScore: number;
   boundingBox: faceapi.Box;
   landmarks: faceapi.FaceLandmarks68;
+  lightingScore: number;
+  environmentalConditions: any;
 }
 
-// Calculate face quality score based on various factors
-export const calculateFaceQuality = (
-  detection: faceapi.WithFaceLandmarks<faceapi.WithFaceDescriptor<faceapi.WithFaceDetection<{ detection: faceapi.FaceDetection }>>>
-): number => {
-  const faceDetection = detection.detection;
-  const landmarks = detection.landmarks;
-  let qualityScore = 0;
+export interface LightingAnalysis {
+  score: number;
+  brightness: number;
+  contrast: number;
+  evenness: number;
+  conditions: {
+    tooDark: boolean;
+    tooBright: boolean;
+    uneven: boolean;
+    optimal: boolean;
+  };
+}
 
-  // Factor 1: Detection confidence (0-40 points)
-  const detectionScore = Math.min(faceDetection.score * 40, 40);
-  qualityScore += detectionScore;
+// Analyze lighting conditions from face detection
+export const analyzeLightingConditions = (
+  detection: faceapi.WithFaceLandmarks<faceapi.WithFaceDescriptor<faceapi.WithFaceDetection<{ detection: faceapi.FaceDetection }>>>,
+  imageElement: HTMLImageElement | HTMLCanvasElement
+): LightingAnalysis => {
+  try {
+    // Create canvas to analyze pixel data
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Cannot get canvas context');
 
-  // Factor 2: Face size relative to image (0-20 points)
-  const faceArea = faceDetection.box.width * faceDetection.box.height;
-  const imageArea = 640 * 640; // Assuming 640x640 capture
-  const sizeRatio = faceArea / imageArea;
-  const sizeScore = Math.min(sizeRatio * 100, 20); // Optimal around 20% of image
-  qualityScore += sizeScore;
-
-  // Factor 3: Face centering (0-15 points)
-  const centerX = faceDetection.box.x + faceDetection.box.width / 2;
-  const centerY = faceDetection.box.y + faceDetection.box.height / 2;
-  const imageCenterX = 320;
-  const imageCenterY = 320;
-  const centerDistance = Math.sqrt(
-    Math.pow(centerX - imageCenterX, 2) + Math.pow(centerY - imageCenterY, 2)
-  );
-  const maxDistance = Math.sqrt(Math.pow(320, 2) + Math.pow(320, 2));
-  const centerScore = 15 * (1 - centerDistance / maxDistance);
-  qualityScore += centerScore;
-
-  // Factor 4: Landmark consistency (0-15 points)
-  if (landmarks) {
-    const leftEye = landmarks.getLeftEye();
-    const rightEye = landmarks.getRightEye();
-    const nose = landmarks.getNose();
-    const mouth = landmarks.getMouth();
-
-    // Check if all key landmarks are detected
-    if (leftEye.length > 0 && rightEye.length > 0 && nose.length > 0 && mouth.length > 0) {
-      qualityScore += 15;
-    }
-  }
-
-  // Factor 5: Head pose estimation (0-10 points)
-  // Simple pose check based on eye positions
-  if (landmarks) {
-    const leftEye = landmarks.getLeftEye();
-    const rightEye = landmarks.getRightEye();
+    canvas.width = imageElement.width || 640;
+    canvas.height = imageElement.height || 640;
     
-    if (leftEye.length > 0 && rightEye.length > 0) {
-      const eyeDistance = Math.abs(leftEye[0].y - rightEye[3].y);
-      const maxEyeDeviation = 20; // pixels
-      const poseScore = 10 * Math.max(0, 1 - eyeDistance / maxEyeDeviation);
-      qualityScore += poseScore;
+    if (imageElement instanceof HTMLImageElement) {
+      ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.drawImage(imageElement, 0, 0);
     }
-  }
 
-  return Math.min(qualityScore, 100) / 100; // Normalize to 0-1
+    // Get face region
+    const faceBox = detection.detection.box;
+    const faceImageData = ctx.getImageData(
+      Math.max(0, faceBox.x - 20),
+      Math.max(0, faceBox.y - 20),
+      Math.min(canvas.width - faceBox.x, faceBox.width + 40),
+      Math.min(canvas.height - faceBox.y, faceBox.height + 40)
+    );
+
+    // Calculate brightness and contrast
+    const pixels = faceImageData.data;
+    let totalBrightness = 0;
+    let brightnessValues = [];
+
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      const brightness = (r + g + b) / 3;
+      totalBrightness += brightness;
+      brightnessValues.push(brightness);
+    }
+
+    const avgBrightness = totalBrightness / (pixels.length / 4);
+    
+    // Calculate contrast (standard deviation of brightness)
+    const variance = brightnessValues.reduce((acc, val) => acc + Math.pow(val - avgBrightness, 2), 0) / brightnessValues.length;
+    const contrast = Math.sqrt(variance);
+
+    // Calculate evenness (how uniform the lighting is)
+    const evenness = Math.max(0, 1 - (contrast / 128)); // Normalize to 0-1
+
+    // Determine lighting conditions
+    const tooDark = avgBrightness < 80;
+    const tooBright = avgBrightness > 200;
+    const uneven = evenness < 0.6;
+    const optimal = !tooDark && !tooBright && !uneven;
+
+    // Calculate overall lighting score
+    let score = 0.5; // Base score
+    
+    if (optimal) score = 0.9;
+    else if (tooDark) score = Math.max(0.2, avgBrightness / 160);
+    else if (tooBright) score = Math.max(0.2, (255 - avgBrightness) / 110);
+    else if (uneven) score = Math.max(0.3, evenness);
+
+    return {
+      score,
+      brightness: avgBrightness / 255,
+      contrast: Math.min(contrast / 64, 1),
+      evenness,
+      conditions: {
+        tooDark,
+        tooBright,
+        uneven,
+        optimal
+      }
+    };
+  } catch (error) {
+    console.error('Error analyzing lighting:', error);
+    return {
+      score: 0.5,
+      brightness: 0.5,
+      contrast: 0.5,
+      evenness: 0.5,
+      conditions: {
+        tooDark: false,
+        tooBright: false,
+        uneven: false,
+        optimal: false
+      }
+    };
+  }
 };
 
-// Enhanced face analysis with quality scoring
+// Enhanced face analysis with lighting detection
 export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysis | null> => {
   try {
-    console.log('Analyzing face quality...');
+    console.log('Analyzing face quality with lighting detection...');
     const img = await faceapi.fetchImage(imageData);
     const detection = await faceapi
       .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
@@ -86,16 +135,36 @@ export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysi
       return null;
     }
 
-    // Simple quality calculation without the complex function for now
-    const qualityScore = Math.min(detection.detection.score, 1.0);
-    console.log(`Face quality score: ${qualityScore.toFixed(3)}`);
+    // Analyze lighting conditions
+    const lightingAnalysis = analyzeLightingConditions(detection, img);
+
+    // Calculate enhanced quality score
+    let qualityScore = Math.min(detection.detection.score, 1.0);
+    
+    // Adjust quality based on lighting
+    qualityScore = qualityScore * (0.7 + lightingAnalysis.score * 0.3);
+
+    // Face size factor (larger faces generally better)
+    const faceArea = detection.detection.box.width * detection.detection.box.height;
+    const imageArea = 640 * 640;
+    const sizeRatio = Math.min(faceArea / imageArea, 0.3) / 0.3; // Optimal around 30% of image
+    qualityScore = qualityScore * (0.8 + sizeRatio * 0.2);
+
+    console.log(`Enhanced face quality: ${qualityScore.toFixed(3)}, lighting: ${lightingAnalysis.score.toFixed(3)}`);
 
     return {
       descriptor: detection.descriptor,
       confidence: detection.detection.score,
       qualityScore,
       boundingBox: detection.detection.box,
-      landmarks: detection.landmarks
+      landmarks: detection.landmarks,
+      lightingScore: lightingAnalysis.score,
+      environmentalConditions: {
+        lighting: lightingAnalysis.conditions,
+        brightness: lightingAnalysis.brightness,
+        contrast: lightingAnalysis.contrast,
+        evenness: lightingAnalysis.evenness
+      }
     };
   } catch (error) {
     console.error('Error analyzing face quality:', error);
@@ -116,25 +185,138 @@ export const base64ToBlob = (base64Data: string): Blob => {
   return new Blob([byteArray], { type: 'image/jpeg' });
 };
 
-// Enhanced matching with adaptive threshold
+// Enhanced matching with adaptive threshold and multiple templates
 export const enhancedFaceMatch = (
   descriptor1: Float32Array, 
   descriptor2: Float32Array, 
-  baseThreshold: number = 0.6,
-  confidenceBoost: number = 0
+  userThreshold: number = 0.6,
+  confidenceBoost: number = 0,
+  lightingScore: number = 0.5
 ): { isMatch: boolean; similarity: number; adaptedThreshold: number } => {
   const similarity = 1 - faceapi.euclideanDistance(descriptor1, descriptor2);
   
-  // Adapt threshold based on confidence and quality
-  const adaptedThreshold = Math.max(0.4, baseThreshold - (confidenceBoost * 0.1));
+  // Adaptive threshold based on user experience and lighting
+  let adaptedThreshold = userThreshold;
+  
+  // Adjust for lighting conditions
+  if (lightingScore < 0.4) {
+    adaptedThreshold = Math.max(0.4, adaptedThreshold - 0.05); // More lenient in poor lighting
+  } else if (lightingScore > 0.8) {
+    adaptedThreshold = Math.min(0.7, adaptedThreshold + 0.02); // Slightly stricter in good lighting
+  }
+  
+  // Apply confidence boost for experienced users
+  adaptedThreshold = Math.max(0.4, adaptedThreshold - (confidenceBoost * 0.05));
   
   const isMatch = similarity >= adaptedThreshold;
   
-  console.log(`Enhanced face match: similarity=${similarity.toFixed(3)}, threshold=${adaptedThreshold.toFixed(3)}, match=${isMatch}`);
+  console.log(`Enhanced face match: similarity=${similarity.toFixed(3)}, threshold=${adaptedThreshold.toFixed(3)}, lighting=${lightingScore.toFixed(3)}, match=${isMatch}`);
   
   return {
     isMatch,
     similarity,
     adaptedThreshold
   };
+};
+
+// Multi-template matching for better accuracy
+export const multiTemplateMatch = (
+  newDescriptor: Float32Array,
+  templates: { descriptor: Float32Array; quality: number; weight: number }[],
+  baseThreshold: number,
+  lightingScore: number = 0.5
+): { isMatch: boolean; bestSimilarity: number; avgSimilarity: number; matchCount: number } => {
+  if (templates.length === 0) {
+    return { isMatch: false, bestSimilarity: 0, avgSimilarity: 0, matchCount: 0 };
+  }
+
+  let bestSimilarity = 0;
+  let weightedSimilaritySum = 0;
+  let totalWeight = 0;
+  let matchCount = 0;
+
+  for (const template of templates) {
+    const matchResult = enhancedFaceMatch(
+      newDescriptor,
+      template.descriptor,
+      baseThreshold,
+      template.weight,
+      lightingScore
+    );
+
+    if (matchResult.similarity > bestSimilarity) {
+      bestSimilarity = matchResult.similarity;
+    }
+
+    const templateWeight = template.quality * template.weight;
+    weightedSimilaritySum += matchResult.similarity * templateWeight;
+    totalWeight += templateWeight;
+
+    if (matchResult.isMatch) {
+      matchCount++;
+    }
+  }
+
+  const avgSimilarity = totalWeight > 0 ? weightedSimilaritySum / totalWeight : 0;
+  
+  // Match if either best similarity is high enough OR majority of templates match
+  const isMatch = bestSimilarity >= baseThreshold || (matchCount / templates.length) >= 0.6;
+
+  console.log(`Multi-template match: best=${bestSimilarity.toFixed(3)}, avg=${avgSimilarity.toFixed(3)}, matches=${matchCount}/${templates.length}, result=${isMatch}`);
+
+  return {
+    isMatch,
+    bestSimilarity,
+    avgSimilarity,
+    matchCount
+  };
+};
+
+// Check for duplicate registrations
+export const checkForDuplicateRegistration = async (
+  faceDescriptor: Float32Array,
+  threshold: number = 0.75
+): Promise<{ isDuplicate: boolean; similarUsers: any[]; bestMatch?: any }> => {
+  try {
+    // This would typically call the database function
+    console.log('Checking for duplicate registration with threshold:', threshold);
+    
+    // For now, return no duplicates - this will be implemented with the database function
+    return {
+      isDuplicate: false,
+      similarUsers: [],
+      bestMatch: null
+    };
+  } catch (error) {
+    console.error('Error checking for duplicates:', error);
+    return {
+      isDuplicate: false,
+      similarUsers: [],
+      bestMatch: null
+    };
+  }
+};
+
+// Get learning weight based on quality and conditions
+export const calculateLearningWeight = (
+  qualityScore: number,
+  lightingScore: number,
+  confidence: number
+): number => {
+  let weight = 1.0;
+
+  // Quality factor (high quality gets more weight)
+  if (qualityScore > 0.8) weight *= 1.5;
+  else if (qualityScore > 0.6) weight *= 1.2;
+  else if (qualityScore < 0.4) weight *= 0.5;
+
+  // Lighting factor
+  if (lightingScore > 0.7) weight *= 1.3;
+  else if (lightingScore < 0.4) weight *= 0.7;
+
+  // Confidence factor
+  if (confidence > 0.8) weight *= 1.2;
+  else if (confidence < 0.5) weight *= 0.8;
+
+  return Math.max(0.1, Math.min(weight, 3.0)); // Clamp between 0.1 and 3.0
 };

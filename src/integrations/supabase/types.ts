@@ -13,31 +13,82 @@ export type Database = {
         Row: {
           confidence_score: number | null
           created_at: string
+          environmental_conditions: Json | null
           face_embedding: number[]
           id: string
           image_url: string
+          learning_weight: number | null
+          lighting_score: number | null
           quality_score: number | null
           scan_type: string
+          template_rank: number | null
           user_email: string
         }
         Insert: {
           confidence_score?: number | null
           created_at?: string
+          environmental_conditions?: Json | null
           face_embedding: number[]
           id?: string
           image_url: string
+          learning_weight?: number | null
+          lighting_score?: number | null
           quality_score?: number | null
           scan_type: string
+          template_rank?: number | null
           user_email: string
         }
         Update: {
           confidence_score?: number | null
           created_at?: string
+          environmental_conditions?: Json | null
           face_embedding?: number[]
           id?: string
           image_url?: string
+          learning_weight?: number | null
+          lighting_score?: number | null
           quality_score?: number | null
           scan_type?: string
+          template_rank?: number | null
+          user_email?: string
+        }
+        Relationships: []
+      }
+      face_templates: {
+        Row: {
+          confidence_score: number
+          created_at: string | null
+          face_embedding: number[]
+          id: string
+          last_used: string | null
+          lighting_conditions: Json | null
+          quality_score: number
+          template_rank: number | null
+          usage_count: number | null
+          user_email: string
+        }
+        Insert: {
+          confidence_score?: number
+          created_at?: string | null
+          face_embedding: number[]
+          id?: string
+          last_used?: string | null
+          lighting_conditions?: Json | null
+          quality_score?: number
+          template_rank?: number | null
+          usage_count?: number | null
+          user_email: string
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string | null
+          face_embedding?: number[]
+          id?: string
+          last_used?: string | null
+          lighting_conditions?: Json | null
+          quality_score?: number
+          template_rank?: number | null
+          usage_count?: number | null
           user_email?: string
         }
         Relationships: []
@@ -71,36 +122,51 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          base_threshold: number | null
           created_at: string | null
+          current_threshold: number | null
           email: string
           embedding_count: number | null
           face_embedding: number[]
           id: string
           last_updated: string | null
+          learning_weight: number | null
+          lighting_conditions: Json | null
+          quality_score_avg: number | null
           recognition_threshold: number | null
           successful_logins: number | null
           total_logins: number | null
           updated_at: string | null
         }
         Insert: {
+          base_threshold?: number | null
           created_at?: string | null
+          current_threshold?: number | null
           email: string
           embedding_count?: number | null
           face_embedding: number[]
           id?: string
           last_updated?: string | null
+          learning_weight?: number | null
+          lighting_conditions?: Json | null
+          quality_score_avg?: number | null
           recognition_threshold?: number | null
           successful_logins?: number | null
           total_logins?: number | null
           updated_at?: string | null
         }
         Update: {
+          base_threshold?: number | null
           created_at?: string | null
+          current_threshold?: number | null
           email?: string
           embedding_count?: number | null
           face_embedding?: number[]
           id?: string
           last_updated?: string | null
+          learning_weight?: number | null
+          lighting_conditions?: Json | null
+          quality_score_avg?: number | null
           recognition_threshold?: number | null
           successful_logins?: number | null
           total_logins?: number | null
@@ -113,11 +179,38 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_duplicate_user: {
+        Args: { p_face_embedding: number[]; p_threshold?: number }
+        Returns: {
+          existing_email: string
+          similarity_score: number
+          user_id: string
+        }[]
+      }
+      manage_face_templates: {
+        Args: {
+          p_user_email: string
+          p_face_embedding: number[]
+          p_quality_score: number
+          p_confidence_score: number
+          p_lighting_conditions: Json
+        }
+        Returns: undefined
+      }
       update_user_embedding_with_scan: {
         Args: {
           p_user_email: string
           p_new_embedding: number[]
           p_confidence: number
+        }
+        Returns: undefined
+      }
+      update_user_learning_metrics: {
+        Args: {
+          p_user_email: string
+          p_success: boolean
+          p_confidence: number
+          p_quality_score: number
         }
         Returns: undefined
       }
