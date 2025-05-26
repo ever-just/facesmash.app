@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
+import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { getFaceScansByUser } from "@/services/faceScanService";
@@ -20,7 +20,6 @@ const FaceScanGallery = ({
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [api, setApi] = useState<CarouselApi>();
-  const [isAutoScrolling, setIsAutoScrolling] = useState(true);
   const autoScrollRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchFaceScans = async () => {
@@ -64,7 +63,7 @@ const FaceScanGallery = ({
 
   // Auto-scroll functionality
   useEffect(() => {
-    if (!api || !isAutoScrolling || faceScans.length <= 1) {
+    if (!api || faceScans.length <= 1) {
       return;
     }
 
@@ -81,11 +80,7 @@ const FaceScanGallery = ({
         clearInterval(autoScrollRef.current);
       }
     };
-  }, [api, isAutoScrolling, faceScans.length]);
-
-  const toggleAutoScroll = () => {
-    setIsAutoScrolling(!isAutoScrolling);
-  };
+  }, [api, faceScans.length]);
 
   const handleMouseEnter = () => {
     if (autoScrollRef.current) {
@@ -94,7 +89,7 @@ const FaceScanGallery = ({
   };
 
   const handleMouseLeave = () => {
-    if (isAutoScrolling && api && faceScans.length > 1) {
+    if (api && faceScans.length > 1) {
       autoScrollRef.current = setInterval(() => {
         if (api.canScrollNext()) {
           api.scrollNext();
@@ -190,28 +185,14 @@ const FaceScanGallery = ({
             <Camera className="mr-3 h-6 w-6 text-white" />
             Face Card Log
           </div>
-          <div className="flex items-center gap-2">
-            {faceScans.length > 1 && (
-              <Button 
-                onClick={toggleAutoScroll} 
-                variant="outline" 
-                size="sm" 
-                className="border-gray-600 text-gray-300 bg-slate-900 hover:bg-slate-800"
-              >
-                {isAutoScrolling ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-                {isAutoScrolling ? 'Pause' : 'Play'}
-              </Button>
-            )}
-            <Button 
-              onClick={fetchFaceScans} 
-              variant="outline" 
-              size="sm" 
-              className="border-gray-600 text-gray-300 bg-slate-900 hover:bg-slate-800"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
+          <Button 
+            onClick={fetchFaceScans} 
+            variant="outline" 
+            size="sm" 
+            className="border-gray-600 text-gray-300 bg-slate-900 hover:bg-slate-800"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -228,9 +209,7 @@ const FaceScanGallery = ({
               <p className="text-gray-400 text-sm">
                 Showing {Math.min(3, faceScans.length)} of {faceScans.length} cards
                 {faceScans.length > 1 && (
-                  <span className="ml-2">
-                    • {isAutoScrolling ? 'Auto-scrolling' : 'Manual navigation'}
-                  </span>
+                  <span className="ml-2">• Auto-scrolling</span>
                 )}
               </p>
             </div>
