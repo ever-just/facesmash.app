@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Square, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Square, ArrowLeft, CheckCircle, AlertCircle, Loader2, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { getAllUserProfiles } from "@/services/userProfileService";
 import LoginHeader from "@/components/LoginHeader";
 import LoginSuccess from "@/components/LoginSuccess";
 import LoginFailed from "@/components/LoginFailed";
+import { Button } from "@/components/ui/button";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,8 +19,36 @@ const Login = () => {
   const [loginResult, setLoginResult] = useState<'success' | 'failed' | null>(null);
   const [matchedUser, setMatchedUser] = useState<string | null>(null);
   const [faceAPILoaded, setFaceAPILoaded] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [showLoginOptions, setShowLoginOptions] = useState(false);
 
   useEffect(() => {
+    // Check if user is already logged in
+    const existingUser = localStorage.getItem('currentUserName');
+    if (existingUser) {
+      setCurrentUser(existingUser);
+      setShowLoginOptions(true);
+    } else {
+      // Load face API if no user is logged in
+      const loadFaceAPI = async () => {
+        console.log('Initializing face recognition models for login...');
+        const loaded = await initializeFaceAPI();
+        setFaceAPILoaded(loaded);
+        if (!loaded) {
+          toast.error("Failed to load face recognition models. Please refresh the page.");
+        }
+      };
+      loadFaceAPI();
+    }
+  }, []);
+
+  const handleSignOut = () => {
+    localStorage.removeItem('currentUserName');
+    setCurrentUser(null);
+    setShowLoginOptions(false);
+    toast.success("Signed out successfully!");
+    
+    // Load face API after signing out
     const loadFaceAPI = async () => {
       console.log('Initializing face recognition models for login...');
       const loaded = await initializeFaceAPI();
@@ -29,7 +58,11 @@ const Login = () => {
       }
     };
     loadFaceAPI();
-  }, []);
+  };
+
+  const goToDashboard = () => {
+    navigate('/dashboard');
+  };
 
   const handleImagesCapture = async (images: string[]) => {
     if (!faceAPILoaded) {
@@ -110,17 +143,42 @@ const Login = () => {
     setMatchedUser(null);
   };
 
-  const goToDashboard = () => {
-    navigate('/dashboard');
-  };
-
   return (
     <div className="min-h-screen bg-black text-white">
       <LoginHeader />
 
       <div className="container mx-auto px-6 py-12">
         <div className="max-w-2xl mx-auto">
-          {!faceAPILoaded && (
+          {showLoginOptions && currentUser && (
+            <Card className="bg-gray-900 border-gray-800">
+              <CardHeader className="text-center">
+                <CheckCircle className="h-16 w-16 text-white mx-auto mb-4" />
+                <CardTitle className="text-3xl text-white">Already Signed In</CardTitle>
+                <CardDescription className="text-gray-400 text-lg">
+                  You are currently signed in as {currentUser}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center space-y-6">
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+                  <p className="text-white font-semibold">Current Session Active</p>
+                  <p className="text-gray-300 mt-2">Welcome back, {currentUser}!</p>
+                  <p className="text-gray-400 text-sm mt-1">You can continue to your dashboard or sign in as a different user</p>
+                </div>
+                
+                <div className="space-y-4">
+                  <Button onClick={goToDashboard} className="w-full bg-white text-black hover:bg-gray-200">
+                    Continue to Dashboard
+                  </Button>
+                  <Button onClick={handleSignOut} variant="outline" className="w-full border-white hover:bg-white text-gray-900">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out & Login as Different User
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!showLoginOptions && !faceAPILoaded && (
             <Card className="bg-gray-900 border-gray-800 mb-6">
               <CardContent className="text-center py-8">
                 <Loader2 className="h-8 w-8 text-white mx-auto mb-4 animate-spin" />
@@ -130,7 +188,7 @@ const Login = () => {
             </Card>
           )}
 
-          {!scanComplete && faceAPILoaded && (
+          {!showLoginOptions && !scanComplete && faceAPILoaded && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-3xl text-white flex items-center justify-center">
@@ -159,7 +217,7 @@ const Login = () => {
             </Card>
           )}
 
-          {scanComplete && loginResult === 'success' && (
+          {!showLoginOptions && scanComplete && loginResult === 'success' && (
             <LoginSuccess 
               matchedUser={matchedUser}
               onContinue={goToDashboard}
@@ -167,20 +225,22 @@ const Login = () => {
             />
           )}
 
-          {scanComplete && loginResult === 'failed' && (
+          {!showLoginOptions && scanComplete && loginResult === 'failed' && (
             <LoginFailed onTryAgain={resetLogin} />
           )}
 
-          <div className="mt-8 text-center">
-            <p className="text-gray-400 mb-4">Need help?</p>
-            <div className="flex justify-center space-x-4">
-              <Link to="/register">
-                <button className="text-white hover:text-gray-300 hover:bg-gray-900 px-4 py-2 rounded">
-                  Don't have a Face Card?
-                </button>
-              </Link>
+          {!showLoginOptions && (
+            <div className="mt-8 text-center">
+              <p className="text-gray-400 mb-4">Need help?</p>
+              <div className="flex justify-center space-x-4">
+                <Link to="/register">
+                  <button className="text-white hover:text-gray-300 hover:bg-gray-900 px-4 py-2 rounded">
+                    Don't have a Face Card?
+                  </button>
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
