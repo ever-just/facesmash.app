@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,11 +5,9 @@ import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { getFaceScansByUser } from "@/services/faceScanService";
 import type { FaceScan } from "@/types";
-
 interface FaceScanGalleryProps {
   userEmail: string;
 }
-
 const FaceScanGallery = ({
   userEmail
 }: FaceScanGalleryProps) => {
@@ -18,7 +15,6 @@ const FaceScanGallery = ({
   const [loading, setLoading] = useState(true);
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
-
   const fetchFaceScans = async () => {
     try {
       console.log('Fetching face scans for user:', userEmail);
@@ -35,11 +31,9 @@ const FaceScanGallery = ({
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchFaceScans();
   }, [userEmail]);
-
   const getScanTypeColor = (scanType: string) => {
     switch (scanType) {
       case 'registration':
@@ -52,7 +46,6 @@ const FaceScanGallery = ({
         return 'bg-gray-500';
     }
   };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -62,7 +55,6 @@ const FaceScanGallery = ({
       minute: '2-digit'
     });
   };
-
   const handleImageError = (scanId: string, imageUrl: string) => {
     console.error('Image load failed for scan:', scanId, 'URL:', imageUrl);
     setImageLoadErrors(prev => new Set(prev).add(scanId));
@@ -72,7 +64,6 @@ const FaceScanGallery = ({
       return newSet;
     });
   };
-
   const handleImageLoad = (scanId: string, imageUrl: string) => {
     console.log('Image loaded successfully for scan:', scanId);
     setImageLoadErrors(prev => {
@@ -86,7 +77,6 @@ const FaceScanGallery = ({
       return newSet;
     });
   };
-
   const retryImageLoad = (scanId: string) => {
     console.log('Retrying image load for scan:', scanId);
     setRetryingImages(prev => new Set(prev).add(scanId));
@@ -105,7 +95,6 @@ const FaceScanGallery = ({
       img.src = `${scan.image_url}?retry=${Date.now()}`;
     }
   };
-
   if (loading) {
     return <Card className="bg-gray-900 border-gray-800">
         <CardContent className="text-center py-8">
@@ -114,7 +103,6 @@ const FaceScanGallery = ({
         </CardContent>
       </Card>;
   }
-
   return <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
         <CardTitle className="text-white flex items-center justify-between">
@@ -127,9 +115,7 @@ const FaceScanGallery = ({
             Refresh
           </Button>
         </CardTitle>
-        <CardDescription className="text-gray-400">
-          Your captured face images and scan history
-        </CardDescription>
+        
       </CardHeader>
       <CardContent>
         {faceScans.length === 0 ? <div className="text-center py-8">
@@ -199,5 +185,4 @@ const FaceScanGallery = ({
       </CardContent>
     </Card>;
 };
-
 export default FaceScanGallery;
