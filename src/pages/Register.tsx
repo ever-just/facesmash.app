@@ -20,6 +20,11 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [photoQuality, setPhotoQuality] = useState<{
+    score: number;
+    isGoodQuality: boolean;
+    feedback: string;
+  } | null>(null);
   const { isLoaded, error: faceAPIError } = useFaceAPI();
 
   const handleNameSubmit = async (e: React.FormEvent) => {
@@ -37,10 +42,63 @@ const Register = () => {
     }
   };
 
-  const handleImagesCapture = (images: string[]) => {
+  const handleImagesCapture = async (images: string[]) => {
     console.log('Images captured for registration:', images.length);
     setCapturedImages(images);
+    
+    // Immediately analyze the photo quality
+    await analyzePhotoQuality(images[0]);
     setStep(3);
+  };
+
+  const analyzePhotoQuality = async (imageData: string) => {
+    try {
+      const faceAnalysis = await analyzeFaceQuality(imageData);
+      
+      if (!faceAnalysis) {
+        setPhotoQuality({
+          score: 0,
+          isGoodQuality: false,
+          feedback: "No face detected in the image. Please retake the photo."
+        });
+        return;
+      }
+
+      const qualityScore = faceAnalysis.qualityScore;
+      const lightingScore = faceAnalysis.lightingScore;
+      
+      // Define quality criteria
+      const isGoodQuality = qualityScore >= 0.7 && lightingScore >= 0.6;
+      
+      let feedback = "";
+      if (isGoodQuality) {
+        feedback = "Excellent photo quality! Ready for registration.";
+        // Auto-proceed with registration for high-quality photos
+        setTimeout(() => {
+          handleRegister();
+        }, 1500);
+      } else if (qualityScore < 0.5) {
+        feedback = "Photo quality is too low. Please ensure good lighting and face the camera directly.";
+      } else if (lightingScore < 0.4) {
+        feedback = "Lighting needs improvement. Try moving to a brighter area or adjusting your position.";
+      } else {
+        feedback = "Photo quality is acceptable but could be better. You can proceed or retake for optimal results.";
+      }
+
+      setPhotoQuality({
+        score: Math.round((qualityScore + lightingScore) / 2 * 100),
+        isGoodQuality,
+        feedback
+      });
+
+    } catch (error) {
+      console.error('Error analyzing photo quality:', error);
+      setPhotoQuality({
+        score: 0,
+        isGoodQuality: false,
+        feedback: "Unable to analyze photo quality. Please try again."
+      });
+    }
   };
 
   const handleRegister = async () => {
@@ -224,13 +282,13 @@ const Register = () => {
             </Card>
           )}
 
-          {/* Step 3: Review and Confirm */}
+          {/* Step 3: Review and Quality Check */}
           {step === 3 && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white">Review Your Enhanced Face Card</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Confirm your details and complete registration with advanced face recognition
+                  Photo quality analysis and registration status
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -251,37 +309,60 @@ const Register = () => {
                   <p className="text-gray-300">
                     <strong>Email:</strong> {email}
                   </p>
-                  <p className="text-gray-300">
-                    <strong>Face Data:</strong> High-quality face profile ready for enhanced recognition
-                  </p>
-                  <p className="text-gray-400 text-sm">
-                    Your face data will improve automatically with each login for better recognition over time.
-                  </p>
                   
-                  <div className="flex space-x-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setStep(2)}
-                      disabled={isRegistering}
-                      className="flex-1 border-white hover:bg-white text-gray-900"
-                    >
-                      Retake Photo
-                    </Button>
-                    <Button
-                      onClick={handleRegister}
-                      disabled={isRegistering}
-                      className="flex-1 bg-white text-black hover:bg-gray-200"
-                    >
-                      {isRegistering ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing Enhanced Face...
-                        </>
-                      ) : (
-                        "Complete Enhanced Registration"
+                  {/* Photo Quality Analysis */}
+                  {photoQuality && (
+                    <div className={`p-4 rounded-lg border ${
+                      photoQuality.isGoodQuality 
+                        ? 'bg-green-900/20 border-green-800 text-green-400' 
+                        : photoQuality.score > 50
+                        ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400'
+                        : 'bg-red-900/20 border-red-800 text-red-400'
+                    }`}>
+                      <div className="flex items-center justify-center mb-2">
+                        {photoQuality.isGoodQuality ? (
+                          <CheckCircle className="h-6 w-6 mr-2" />
+                        ) : (
+                          <AlertCircle className="h-6 w-6 mr-2" />
+                        )}
+                        <span className="font-semibold">
+                          Photo Quality: {photoQuality.score}%
+                        </span>
+                      </div>
+                      <p className="text-sm">{photoQuality.feedback}</p>
+                    </div>
+                  )}
+
+                  {isRegistering ? (
+                    <div className="flex items-center justify-center space-x-3 text-blue-400 px-6 py-3">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="font-semibold">Processing Enhanced Registration...</span>
+                    </div>
+                  ) : (
+                    <div className="flex space-x-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setStep(2);
+                          setCapturedImages([]);
+                          setPhotoQuality(null);
+                        }}
+                        disabled={isRegistering}
+                        className="flex-1 border-white hover:bg-white text-gray-900"
+                      >
+                        Retake Photo
+                      </Button>
+                      {photoQuality && !photoQuality.isGoodQuality && (
+                        <Button
+                          onClick={handleRegister}
+                          disabled={isRegistering || !photoQuality || photoQuality.score < 30}
+                          className="flex-1 bg-white text-black hover:bg-gray-200"
+                        >
+                          Complete Registration Anyway
+                        </Button>
                       )}
-                    </Button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
