@@ -204,7 +204,7 @@ const Register = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <WebcamCapture onImagesCapture={handleImagesCapture} />
+                <WebcamCapture onImagesCapture={handleImagesCapture} autoStart={true} />
               </CardContent>
             </Card>
           )}
