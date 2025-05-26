@@ -1,16 +1,14 @@
-
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-
 interface LoginFailedProps {
   onTryAgain: () => void;
 }
-
-const LoginFailed = ({ onTryAgain }: LoginFailedProps) => {
-  return (
-    <Card className="bg-gray-900 border-gray-800">
+const LoginFailed = ({
+  onTryAgain
+}: LoginFailedProps) => {
+  return <Card className="bg-gray-900 border-gray-800">
       <CardHeader className="text-center">
         <AlertCircle className="h-20 w-20 text-white mx-auto mb-4" />
         <CardTitle className="text-3xl text-white">Access Denied</CardTitle>
@@ -25,24 +23,16 @@ const LoginFailed = ({ onTryAgain }: LoginFailedProps) => {
         </div>
         
         <div className="space-y-4">
-          <Button 
-            onClick={onTryAgain}
-            className="w-full bg-white text-black hover:bg-gray-200"
-          >
+          <Button onClick={onTryAgain} className="w-full bg-white text-black hover:bg-gray-200">
             Try Again
           </Button>
           <Link to="/register">
-            <Button 
-              variant="outline"
-              className="w-full border-white text-white hover:bg-white hover:text-black"
-            >
+            <Button variant="outline" className="w-full border-white hover:bg-white text-gray-900">
               Create New Face Card
             </Button>
           </Link>
         </div>
       </CardContent>
-    </Card>
-  );
+    </Card>;
 };
-
 export default LoginFailed;
