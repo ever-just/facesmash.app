@@ -1,12 +1,9 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Square, Shield, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
-
 const Index = () => {
-  return (
-    <div className="min-h-screen bg-black text-white">
+  return <div className="min-h-screen bg-black text-white">
       {/* Navigation */}
       <nav className="flex items-center justify-between p-6 border-b border-gray-800">
         <div className="flex items-center space-x-3">
@@ -21,7 +18,7 @@ const Index = () => {
         </div>
         <div className="space-x-4">
           <Link to="/login">
-            <Button variant="ghost" className="text-white hover:text-gray-300 hover:bg-gray-900">
+            <Button variant="ghost" className="text-slate-800 bg-sky-500 hover:bg-sky-400">
               Sign In
             </Button>
           </Link>
@@ -116,8 +113,6 @@ const Index = () => {
           <p>&copy; 2024 Face Card. Secure facial recognition authentication.</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
