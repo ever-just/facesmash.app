@@ -66,11 +66,24 @@ export const getFaceTemplates = async (userEmail: string): Promise<FaceTemplate[
 
 export const updateTemplateUsage = async (templateId: string): Promise<boolean> => {
   try {
+    // First get the current usage count
+    const { data: currentTemplate, error: fetchError } = await supabase
+      .from('face_templates')
+      .select('usage_count')
+      .eq('id', templateId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching current template:', fetchError);
+      return false;
+    }
+
+    // Update with incremented usage count and current timestamp
     const { error } = await supabase
       .from('face_templates')
       .update({
         last_used: new Date().toISOString(),
-        usage_count: supabase.rpc('increment_usage_count', { template_id: templateId })
+        usage_count: (currentTemplate.usage_count || 0) + 1
       })
       .eq('id', templateId);
 
