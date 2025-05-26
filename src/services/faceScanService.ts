@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface FaceScan {
@@ -18,33 +17,57 @@ export const uploadFaceImage = async (
   scanType: string
 ): Promise<string | null> => {
   try {
-    const timestamp = Date.now();
-    const fileName = `${userEmail}/${scanType}_${timestamp}.jpg`;
+    console.log('Starting face image upload process...');
+    console.log('Blob size:', imageBlob.size, 'bytes');
+    console.log('Blob type:', imageBlob.type);
     
-    console.log('Uploading face image:', fileName);
+    const timestamp = Date.now();
+    const fileName = `${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}/${scanType}_${timestamp}.jpg`;
+    
+    console.log('Uploading to path:', fileName);
+    
+    // Check if bucket exists first
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+    console.log('Available buckets:', buckets?.map(b => b.id));
+    
+    if (bucketsError) {
+      console.error('Error listing buckets:', bucketsError);
+    }
     
     const { data, error } = await supabase.storage
       .from('face-images')
       .upload(fileName, imageBlob, {
         cacheControl: '3600',
-        upsert: false
+        upsert: false,
+        contentType: 'image/jpeg'
       });
 
     if (error) {
-      console.error('Error uploading face image:', error);
+      console.error('Storage upload error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return null;
     }
 
-    console.log('Face image uploaded successfully:', data.path);
+    console.log('Upload successful:', data);
     
     // Get public URL
     const { data: urlData } = supabase.storage
       .from('face-images')
       .getPublicUrl(data.path);
       
+    console.log('Generated public URL:', urlData.publicUrl);
+    
+    // Test if the URL is accessible
+    try {
+      const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
+      console.log('URL accessibility test:', response.status, response.statusText);
+    } catch (urlError) {
+      console.error('URL accessibility test failed:', urlError);
+    }
+    
     return urlData.publicUrl;
   } catch (error) {
-    console.error('Unexpected error uploading face image:', error);
+    console.error('Unexpected error in uploadFaceImage:', error);
     return null;
   }
 };

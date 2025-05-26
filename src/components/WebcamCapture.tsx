@@ -1,4 +1,3 @@
-
 import { useCallback, useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import { Button } from "@/components/ui/button";
@@ -28,9 +27,29 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
     facingMode: "user"
   };
 
+  const dataURLtoBlob = (dataURL: string): Blob => {
+    const arr = dataURL.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
+      console.log('Image captured from webcam');
+      console.log('Image data URL length:', imageSrc.length);
+      
+      // Convert to blob for debugging
+      const blob = dataURLtoBlob(imageSrc);
+      console.log('Converted blob size:', blob.size, 'bytes');
+      console.log('Converted blob type:', blob.type);
+      
       const newImages = [imageSrc];
       setCapturedImages(newImages);
       onImagesCapture(newImages);
@@ -46,6 +65,8 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
       }
+    } else {
+      console.error('Failed to capture image from webcam');
     }
   }, [onImagesCapture]);
 

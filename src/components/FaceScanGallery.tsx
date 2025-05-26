@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Clock, TrendingUp } from "lucide-react";
+import { Camera, Clock, TrendingUp, AlertCircle } from "lucide-react";
 import { getFaceScansByUser } from "@/services/faceScanService";
 import type { FaceScan } from "@/services/faceScanService";
 
@@ -13,11 +13,14 @@ interface FaceScanGalleryProps {
 const FaceScanGallery = ({ userEmail }: FaceScanGalleryProps) => {
   const [faceScans, setFaceScans] = useState<FaceScan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchFaceScans = async () => {
       try {
+        console.log('Fetching face scans for user:', userEmail);
         const scans = await getFaceScansByUser(userEmail);
+        console.log('Retrieved face scans:', scans);
         setFaceScans(scans);
       } catch (error) {
         console.error('Error fetching face scans:', error);
@@ -50,6 +53,17 @@ const FaceScanGallery = ({ userEmail }: FaceScanGalleryProps) => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleImageError = (scanId: string, imageUrl: string) => {
+    console.error('Failed to load image for scan:', scanId);
+    console.error('Image URL:', imageUrl);
+    setImageLoadErrors(prev => new Set(prev).add(scanId));
+  };
+
+  const handleImageLoad = (scanId: string, imageUrl: string) => {
+    console.log('Successfully loaded image for scan:', scanId);
+    console.log('Image URL:', imageUrl);
   };
 
   if (loading) {
@@ -86,15 +100,21 @@ const FaceScanGallery = ({ userEmail }: FaceScanGalleryProps) => {
             {faceScans.map((scan) => (
               <div key={scan.id} className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
                 <div className="aspect-square relative">
-                  <img 
-                    src={scan.image_url} 
-                    alt={`Face scan - ${scan.scan_type}`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMzc0MTUxIi8+CjxwYXRoIGQ9Ik0xMDAgNzBDODkuNTQzIDcwIDgxIDc4LjU0MyA4MSA4OUM4MSA5OS40NTcgODkuNTQzIDEwOCAxMDAgMTA4QzExMC40NTcgMTA4IDExOSA5OS40NTcgMTE5IDg5QzExOSA3OC41NDMgMTEwLjQ1NyA3MCAxMDAgNzBaIiBmaWxsPSIjNkI3Mjg0Ii8+CjxwYXRoIGQ9Ik0xMDAgMTIwQzc3LjkwODYgMTIwIDYwIDEzNy45MDkgNjAgMTYwSDE0MEM0MCAxMzcuOTA5IDEyMi4wOTEgMTIwIDEwMCAxMjBaIiBmaWxsPSIjNkI3Mjg0Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5Q0E0QUYiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9IjUwMCI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPgo=';
-                    }}
-                  />
+                  {imageLoadErrors.has(scan.id) ? (
+                    <div className="w-full h-full bg-gray-700 flex items-center justify-center flex-col">
+                      <AlertCircle className="h-8 w-8 text-red-400 mb-2" />
+                      <p className="text-red-400 text-sm text-center px-2">Failed to load image</p>
+                      <p className="text-gray-500 text-xs text-center px-2 mt-1 break-all">{scan.image_url}</p>
+                    </div>
+                  ) : (
+                    <img 
+                      src={scan.image_url} 
+                      alt={`Face scan - ${scan.scan_type}`}
+                      className="w-full h-full object-cover"
+                      onError={() => handleImageError(scan.id, scan.image_url)}
+                      onLoad={() => handleImageLoad(scan.id, scan.image_url)}
+                    />
+                  )}
                   <div className="absolute top-2 right-2">
                     <Badge className={`${getScanTypeColor(scan.scan_type)} text-white text-xs`}>
                       {scan.scan_type}
@@ -124,6 +144,14 @@ const FaceScanGallery = ({ userEmail }: FaceScanGalleryProps) => {
                       </span>
                     </div>
                   </div>
+                  
+                  {imageLoadErrors.has(scan.id) && (
+                    <div className="text-xs text-red-400 bg-red-900/20 p-2 rounded">
+                      <p className="font-semibold mb-1">Debug Info:</p>
+                      <p>Scan ID: {scan.id}</p>
+                      <p className="break-all">URL: {scan.image_url}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -143,6 +171,14 @@ const FaceScanGallery = ({ userEmail }: FaceScanGalleryProps) => {
               <span>
                 Login: {faceScans.filter(s => s.scan_type === 'login').length}
               </span>
+              {imageLoadErrors.size > 0 && (
+                <>
+                  <span className="mx-2">•</span>
+                  <span className="text-red-400">
+                    Failed Images: {imageLoadErrors.size}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         )}
