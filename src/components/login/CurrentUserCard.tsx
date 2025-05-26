@@ -1,17 +1,17 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, LogOut } from "lucide-react";
-
 interface CurrentUserCardProps {
   currentUser: string;
   onSignOut: () => void;
   onGoToDashboard: () => void;
 }
-
-const CurrentUserCard = ({ currentUser, onSignOut, onGoToDashboard }: CurrentUserCardProps) => {
-  return (
-    <Card className="bg-gray-900 border-gray-800">
+const CurrentUserCard = ({
+  currentUser,
+  onSignOut,
+  onGoToDashboard
+}: CurrentUserCardProps) => {
+  return <Card className="bg-gray-900 border-gray-800">
       <CardHeader className="text-center">
         <CheckCircle className="h-16 w-16 text-white mx-auto mb-4" />
         <CardTitle className="text-3xl text-white">Already Signed In</CardTitle>
@@ -30,14 +30,12 @@ const CurrentUserCard = ({ currentUser, onSignOut, onGoToDashboard }: CurrentUse
           <Button onClick={onGoToDashboard} className="w-full bg-white text-black hover:bg-gray-200">
             Continue to Dashboard
           </Button>
-          <Button onClick={onSignOut} variant="outline" className="w-full border-white hover:bg-white text-gray-900">
+          <Button onClick={onSignOut} variant="outline" className="w-full border-white bg-slate-600 hover:bg-slate-500 text-slate-50">
             <LogOut className="mr-2 h-4 w-4" />
             Sign-Out
           </Button>
         </div>
       </CardContent>
-    </Card>
-  );
+    </Card>;
 };
-
 export default CurrentUserCard;
