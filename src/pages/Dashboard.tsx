@@ -50,7 +50,7 @@ const Dashboard = () => {
         </div>
         <div className="flex items-center space-x-4">
           <span className="text-gray-300">Welcome, {userName}</span>
-          <Button onClick={handleSignOut} variant="outline" className="border-white text-white hover:bg-white hover:text-black">
+          <Button onClick={handleSignOut} variant="outline" className="border-white hover:bg-white text-gray-900">
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </Button>
