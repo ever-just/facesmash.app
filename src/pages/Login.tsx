@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Camera, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
 import { initializeFaceAPI, processMultipleImages, facesMatch } from "@/utils/faceRecognition";
 import { getAllUserProfiles } from "@/services/userProfileService";
 
 const Login = () => {
+  const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
   const [loginResult, setLoginResult] = useState<'success' | 'failed' | null>(null);
@@ -73,6 +74,9 @@ const Login = () => {
           foundMatch = true;
           setMatchedUser(profile.email);
           console.log(`Match found! User: ${profile.email}`);
+          
+          // Store user email for dashboard
+          localStorage.setItem('currentUserEmail', profile.email);
           break;
         }
       }
@@ -86,6 +90,11 @@ const Login = () => {
       if (foundMatch) {
         setLoginResult('success');
         toast.success(`Welcome back, ${matchedUser}!`);
+        
+        // Navigate to dashboard after a short delay
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 2000);
       } else {
         setLoginResult('failed');
         console.log('No matching face found');
@@ -105,6 +114,10 @@ const Login = () => {
     setScanComplete(false);
     setLoginResult(null);
     setMatchedUser(null);
+  };
+
+  const goToDashboard = () => {
+    navigate('/dashboard');
   };
 
   return (
@@ -188,7 +201,10 @@ const Login = () => {
                 </div>
                 
                 <div className="space-y-4">
-                  <Button className="w-full bg-cyan-500 hover:bg-cyan-600">
+                  <Button 
+                    onClick={goToDashboard}
+                    className="w-full bg-cyan-500 hover:bg-cyan-600"
+                  >
                     Continue to Dashboard
                   </Button>
                   <Button 
