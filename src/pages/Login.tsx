@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Square, ArrowLeft, CheckCircle, AlertCircle, Loader2, LogOut } from "lucide-react";
@@ -221,9 +220,7 @@ const Login = () => {
         const qualityMsg = faceAnalysis.qualityScore > 0.7 ? " (High quality scan - learning enhanced!)" : "";
         toast.success(`Welcome back, ${matchedUser}!${qualityMsg}`);
         
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1500);
+        // Removed automatic redirect - users now control navigation via LoginSuccess buttons
       } else {
         setLoginResult('failed');
         
