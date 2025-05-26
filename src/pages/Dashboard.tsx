@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getUserProfileByName } from "@/services/userProfileService";
 import SignInHistory from "@/components/SignInHistory";
+import FaceScanGallery from "@/components/FaceScanGallery";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -69,7 +70,7 @@ const Dashboard = () => {
       </nav>
 
       <div className="container mx-auto px-6 py-12">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Welcome Section */}
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold mb-4 text-white">
@@ -149,6 +150,11 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Face Scan Gallery */}
+          <div className="mb-8">
+            <FaceScanGallery userEmail={userName} />
           </div>
 
           {/* Sign-In History Section */}
