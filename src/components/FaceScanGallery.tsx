@@ -1,13 +1,17 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw } from "lucide-react";
+import { Camera, Clock, TrendingUp, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { getFaceScansByUser } from "@/services/faceScanService";
 import type { FaceScan } from "@/types";
+
 interface FaceScanGalleryProps {
   userEmail: string;
 }
+
 const FaceScanGallery = ({
   userEmail
 }: FaceScanGalleryProps) => {
@@ -15,6 +19,8 @@ const FaceScanGallery = ({
   const [loading, setLoading] = useState(true);
   const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
   const [retryingImages, setRetryingImages] = useState<Set<string>>(new Set());
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   const fetchFaceScans = async () => {
     try {
       console.log('Fetching face scans for user:', userEmail);
@@ -25,15 +31,18 @@ const FaceScanGallery = ({
       // Clear error states when refetching
       setImageLoadErrors(new Set());
       setRetryingImages(new Set());
+      setCurrentIndex(0);
     } catch (error) {
       console.error('Error fetching face scans:', error);
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchFaceScans();
   }, [userEmail]);
+
   const getScanTypeColor = (scanType: string) => {
     switch (scanType) {
       case 'registration':
@@ -46,6 +55,7 @@ const FaceScanGallery = ({
         return 'bg-gray-500';
     }
   };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -55,6 +65,7 @@ const FaceScanGallery = ({
       minute: '2-digit'
     });
   };
+
   const handleImageError = (scanId: string, imageUrl: string) => {
     console.error('Image load failed for scan:', scanId, 'URL:', imageUrl);
     setImageLoadErrors(prev => new Set(prev).add(scanId));
@@ -64,6 +75,7 @@ const FaceScanGallery = ({
       return newSet;
     });
   };
+
   const handleImageLoad = (scanId: string, imageUrl: string) => {
     console.log('Image loaded successfully for scan:', scanId);
     setImageLoadErrors(prev => {
@@ -77,6 +89,7 @@ const FaceScanGallery = ({
       return newSet;
     });
   };
+
   const retryImageLoad = (scanId: string) => {
     console.log('Retrying image load for scan:', scanId);
     setRetryingImages(prev => new Set(prev).add(scanId));
@@ -95,81 +108,148 @@ const FaceScanGallery = ({
       img.src = `${scan.image_url}?retry=${Date.now()}`;
     }
   };
+
   if (loading) {
-    return <Card className="bg-gray-900 border-gray-800">
+    return (
+      <Card className="bg-gray-900 border-gray-800">
         <CardContent className="text-center py-8">
           <div className="animate-spin h-8 w-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading face scans...</p>
+          <p className="text-gray-400">Loading face cards...</p>
         </CardContent>
-      </Card>;
+      </Card>
+    );
   }
-  return <Card className="bg-gray-900 border-gray-800">
+
+  return (
+    <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
         <CardTitle className="text-white flex items-center justify-between">
           <div className="flex items-center">
             <Camera className="mr-3 h-6 w-6 text-white" />
-            Face Scan Gallery
+            Face Card Log
           </div>
-          <Button onClick={fetchFaceScans} variant="outline" size="sm" className="border-gray-600 text-gray-300 bg-slate-900 hover:bg-slate-800">
+          <Button 
+            onClick={fetchFaceScans} 
+            variant="outline" 
+            size="sm" 
+            className="border-gray-600 text-gray-300 bg-slate-900 hover:bg-slate-800"
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
         </CardTitle>
-        
       </CardHeader>
       <CardContent>
-        {faceScans.length === 0 ? <div className="text-center py-8">
+        {faceScans.length === 0 ? (
+          <div className="text-center py-8">
             <Camera className="h-12 w-12 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400">No face scans found</p>
+            <p className="text-gray-400">No face cards found</p>
             <p className="text-gray-500 text-sm">Face images will appear here after registration or login</p>
-          </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {faceScans.map(scan => <div key={scan.id} className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
-                <div className="aspect-square relative">
-                  {imageLoadErrors.has(scan.id) ? <div className="w-full h-full bg-gray-700 flex items-center justify-center flex-col">
-                      <AlertCircle className="h-8 w-8 text-red-400 mb-2" />
-                      <p className="text-red-400 text-sm text-center px-2 mb-2">Failed to load image</p>
-                      <Button onClick={() => retryImageLoad(scan.id)} variant="outline" size="sm" className="border-red-400 text-red-400 hover:bg-red-400 hover:text-white">
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                        Retry
-                      </Button>
-                    </div> : retryingImages.has(scan.id) ? <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                      <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
-                    </div> : <img src={scan.image_url} alt={`Face scan - ${scan.scan_type}`} className="w-full h-full object-cover" onError={() => handleImageError(scan.id, scan.image_url)} onLoad={() => handleImageLoad(scan.id, scan.image_url)} />}
-                  <div className="absolute top-2 right-2">
-                    <Badge className={`${getScanTypeColor(scan.scan_type)} text-white text-xs`}>
-                      {scan.scan_type}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div className="p-3 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400 flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {formatDate(scan.created_at)}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-gray-700 rounded px-2 py-1">
-                      <span className="text-gray-400">Quality:</span>
-                      <span className="text-white ml-1">
-                        {((scan.quality_score || 0) * 100).toFixed(0)}%
-                      </span>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Card Position Indicator */}
+            <div className="text-center">
+              <p className="text-gray-400 text-sm">
+                Card {currentIndex + 1} of {faceScans.length}
+              </p>
+            </div>
+
+            {/* Carousel Container */}
+            <Carousel 
+              className="w-full max-w-md mx-auto"
+              onSelect={(emblaApi) => {
+                if (emblaApi) {
+                  setCurrentIndex(emblaApi.selectedScrollSnap());
+                }
+              }}
+            >
+              <CarouselContent>
+                {faceScans.map((scan, index) => (
+                  <CarouselItem key={scan.id}>
+                    <div className="flex justify-center">
+                      <div className="bg-gray-800 rounded-xl overflow-hidden border border-gray-700 w-80 shadow-2xl">
+                        {/* Main Face Image */}
+                        <div className="aspect-square relative">
+                          {imageLoadErrors.has(scan.id) ? (
+                            <div className="w-full h-full bg-gray-700 flex items-center justify-center flex-col">
+                              <AlertCircle className="h-12 w-12 text-red-400 mb-4" />
+                              <p className="text-red-400 text-sm text-center px-4 mb-4">Failed to load image</p>
+                              <Button 
+                                onClick={() => retryImageLoad(scan.id)} 
+                                variant="outline" 
+                                size="sm" 
+                                className="border-red-400 text-red-400 hover:bg-red-400 hover:text-white"
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Retry
+                              </Button>
+                            </div>
+                          ) : retryingImages.has(scan.id) ? (
+                            <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                              <div className="animate-spin h-8 w-8 border-4 border-white border-t-transparent rounded-full"></div>
+                            </div>
+                          ) : (
+                            <img 
+                              src={scan.image_url} 
+                              alt={`Face scan - ${scan.scan_type}`} 
+                              className="w-full h-full object-cover" 
+                              onError={() => handleImageError(scan.id, scan.image_url)} 
+                              onLoad={() => handleImageLoad(scan.id, scan.image_url)} 
+                            />
+                          )}
+                          
+                          {/* Scan Type Badge */}
+                          <div className="absolute top-4 right-4">
+                            <Badge className={`${getScanTypeColor(scan.scan_type)} text-white text-sm px-3 py-1`}>
+                              {scan.scan_type}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        {/* Card Metadata */}
+                        <div className="p-6 space-y-4">
+                          {/* Date and Time */}
+                          <div className="flex items-center justify-center text-gray-300">
+                            <Clock className="h-4 w-4 mr-2" />
+                            <span className="text-sm">{formatDate(scan.created_at)}</span>
+                          </div>
+                          
+                          {/* Quality Metrics */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-gray-700 rounded-lg px-3 py-2 text-center">
+                              <p className="text-gray-400 text-xs mb-1">Quality</p>
+                              <p className="text-white font-semibold">
+                                {((scan.quality_score || 0) * 100).toFixed(0)}%
+                              </p>
+                            </div>
+                            <div className="bg-gray-700 rounded-lg px-3 py-2 text-center">
+                              <p className="text-gray-400 text-xs mb-1">Confidence</p>
+                              <p className="text-white font-semibold">
+                                {((scan.confidence_score || 0) * 100).toFixed(0)}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="bg-gray-700 rounded px-2 py-1">
-                      <span className="text-gray-400">Confidence:</span>
-                      <span className="text-white ml-1">
-                        {((scan.confidence_score || 0) * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>)}
-          </div>}
-        
-        {faceScans.length > 0}
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              
+              {/* Navigation Controls */}
+              {faceScans.length > 1 && (
+                <>
+                  <CarouselPrevious className="left-4 bg-gray-800 border-gray-600 text-white hover:bg-gray-700" />
+                  <CarouselNext className="right-4 bg-gray-800 border-gray-600 text-white hover:bg-gray-700" />
+                </>
+              )}
+            </Carousel>
+          </div>
+        )}
       </CardContent>
-    </Card>;
+    </Card>
+  );
 };
+
 export default FaceScanGallery;
