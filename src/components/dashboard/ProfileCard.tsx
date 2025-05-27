@@ -29,20 +29,12 @@ const ProfileCard = ({ userName, userProfile }: ProfileCardProps) => {
           <span className="text-white text-sm sm:text-base">✓ Registered</span>
         </div>
         {userProfile && (
-          <>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm sm:text-base">Card Created:</span>
-              <span className="text-white text-sm sm:text-base">
-                {new Date(userProfile.created_at).toLocaleDateString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm sm:text-base">Last Updated:</span>
-              <span className="text-white text-sm sm:text-base">
-                {new Date(userProfile.updated_at).toLocaleDateString()}
-              </span>
-            </div>
-          </>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-400 text-sm sm:text-base">Card Created:</span>
+            <span className="text-white text-sm sm:text-base">
+              {new Date(userProfile.created_at).toLocaleDateString()}
+            </span>
+          </div>
         )}
       </CardContent>
     </Card>

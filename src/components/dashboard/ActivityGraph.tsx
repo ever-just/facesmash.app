@@ -33,12 +33,10 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
   }, [userEmail]);
 
   const generateActivityGrid = () => {
-    const startDate = userCreatedAt ? new Date(userCreatedAt) : new Date();
-    if (!userCreatedAt) {
-      startDate.setMonth(startDate.getMonth() - 12);
-    }
-    
     const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 28); // Last 4 weeks (28 days)
+    
     const weeks = [];
     const currentDate = new Date(startDate);
 
@@ -77,8 +75,24 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
   };
 
   const weeks = generateActivityGrid();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  // Get month labels for the 4-week period
+  const getMonthLabels = () => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 28);
+    const endDate = new Date();
+    
+    const months = new Set();
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      months.add(currentDate.toLocaleString('default', { month: 'short' }));
+      currentDate.setDate(currentDate.getDate() + 7);
+    }
+    
+    return Array.from(months);
+  };
 
   if (loading) {
     return (
@@ -99,28 +113,28 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
           Login Activity
         </CardTitle>
         <CardDescription className="text-gray-400">
-          Your login activity since joining FaceCard
+          Your login activity over the last 4 weeks
         </CardDescription>
       </CardHeader>
       <CardContent className="p-4 sm:p-6">
         <div className="overflow-x-auto">
-          <div className="min-w-[600px] sm:min-w-0">
+          <div className="min-w-[300px] sm:min-w-0">
             {/* Month labels */}
-            <div className="flex mb-2 text-xs text-gray-400">
-              {months.map((month, index) => (
-                <div key={month} className="flex-1 text-left first:pl-8">
-                  {index % 2 === 0 && month}
-                </div>
+            <div className="flex mb-2 text-xs text-gray-400 justify-center">
+              {getMonthLabels().map((month, index) => (
+                <span key={index} className="mx-2">
+                  {month}
+                </span>
               ))}
             </div>
 
             {/* Activity grid */}
-            <div className="flex">
+            <div className="flex justify-center">
               {/* Day labels */}
               <div className="flex flex-col pr-2">
                 {days.map((day, index) => (
-                  <div key={day} className="h-3 mb-1 text-xs text-gray-400 text-right w-6">
-                    {index % 2 === 1 && day.slice(0, 1)}
+                  <div key={day} className="h-3 mb-1 text-xs text-gray-400 text-right w-4">
+                    {index % 2 === 1 && day}
                   </div>
                 ))}
               </div>
