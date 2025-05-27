@@ -101,20 +101,6 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     window.location.reload();
   };
 
-  if (isLoading) {
-    return (
-      <Card className="bg-gray-900 border-gray-700">
-        <CardContent className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
-            <p className="text-white mb-2">Initializing camera...</p>
-            <p className="text-gray-400 text-sm">Please allow camera access</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (error || hasPermission === false) {
     return (
       <Card className="bg-gray-900 border-gray-700">
@@ -138,32 +124,64 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   return (
     <Card className="bg-gray-900 border-gray-700 overflow-hidden">
       <CardContent className="p-0">
-        <div className="relative">
-          <Webcam
-            ref={webcamRef}
-            audio={false}
-            screenshotFormat="image/jpeg"
-            videoConstraints={videoConstraints}
-            className="w-full h-auto rounded-t-lg"
-            onUserMediaError={(error) => {
-              console.error('Webcam error:', error);
-              setError('Failed to access camera');
-            }}
-          />
+        <div className="relative w-full h-[360px] bg-gray-800 rounded-t-lg overflow-hidden">
+          {/* Webcam Component */}
+          {hasPermission && !error && (
+            <Webcam
+              ref={webcamRef}
+              audio={false}
+              screenshotFormat="image/jpeg"
+              videoConstraints={videoConstraints}
+              className="w-full h-full object-cover"
+              onUserMediaError={(error) => {
+                console.error('Webcam error:', error);
+                setError('Failed to access camera');
+              }}
+            />
+          )}
+          
+          {/* Loading Overlay */}
+          {isLoading && (
+            <div className="absolute inset-0 bg-gray-800 bg-opacity-90 flex items-center justify-center">
+              <div className="text-center">
+                <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+                <p className="text-white mb-2">Preparing your camera...</p>
+                <p className="text-gray-400 text-sm">Almost ready</p>
+              </div>
+            </div>
+          )}
+
+          {/* Face Guide Oval Overlay */}
+          {!isLoading && !error && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              {/* Face guide oval */}
+              <div className="relative">
+                <div className="w-48 h-60 border-4 border-blue-500 border-opacity-70 rounded-full bg-transparent">
+                  <div className="absolute inset-2 border-2 border-blue-300 border-opacity-50 rounded-full"></div>
+                </div>
+                {/* Instruction text */}
+                <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center">
+                  <p className="text-white text-sm font-medium bg-black bg-opacity-50 px-3 py-1 rounded">
+                    Position your face within the oval
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Face detection overlay */}
           {!isScanning && faceDetected && (
             <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 border-4 border-blue-500 rounded-full mx-auto mb-4 relative">
-                  <div className="absolute inset-2 border-2 border-blue-300 rounded-full animate-pulse"></div>
+                <div className="w-20 h-20 border-4 border-green-500 rounded-full mx-auto mb-4 relative">
+                  <div className="absolute inset-2 border-2 border-green-300 rounded-full animate-pulse"></div>
                 </div>
                 <p className="text-white mb-2">Face detected</p>
                 <p className="text-gray-300 text-sm">Scanning automatically...</p>
                 {detectionProgress > 0 && (
                   <div className="w-48 bg-gray-700 rounded-full h-2 mt-3 mx-auto">
                     <div 
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                      className="bg-green-500 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${detectionProgress}%` }}
                     ></div>
                   </div>
@@ -186,7 +204,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         
         <div className="p-4 text-center">
           <p className="text-gray-400 text-sm">
-            {isScanning ? 'Processing...' : 'Position your face in the camera'}
+            {isScanning ? 'Processing...' : isLoading ? 'Getting ready...' : 'Look directly at the camera'}
           </p>
         </div>
       </CardContent>
