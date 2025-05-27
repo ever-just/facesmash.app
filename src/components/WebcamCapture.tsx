@@ -20,17 +20,19 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
   const [faceDetected, setFaceDetected] = useState(false);
   const [webcamReady, setWebcamReady] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(true);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { isLoaded } = useFaceAPI();
 
   // Optimized video constraints for faster initialization
   const videoConstraints = {
-    width: { ideal: 640, min: 480 },
-    height: { ideal: 640, min: 480 },
+    width: { ideal: 640, min: 320 },
+    height: { ideal: 640, min: 320 },
     facingMode: "user",
-    frameRate: { ideal: 30, max: 30 }
+    frameRate: { ideal: 15, max: 30 }
   };
 
   const dataURLtoBlob = (dataURL: string): Blob => {
@@ -49,9 +51,6 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
       console.log('Image captured from webcam');
-      
-      const blob = dataURLtoBlob(imageSrc);
-      console.log('Converted blob size:', blob.size, 'bytes');
       
       const newImages = [imageSrc];
       setCapturedImages(newImages);
@@ -74,7 +73,15 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
   }, [onImagesCapture]);
 
   const startFaceDetection = useCallback(async () => {
-    if (!webcamRef.current?.video || isDetecting || !webcamReady || !isLoaded) return;
+    if (!webcamRef.current?.video || isDetecting || !webcamReady || !isLoaded) {
+      console.log('Cannot start detection:', { 
+        hasVideo: !!webcamRef.current?.video, 
+        isDetecting, 
+        webcamReady, 
+        isLoaded 
+      });
+      return;
+    }
     
     setIsDetecting(true);
     setScanProgress(0);
@@ -123,28 +130,57 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
     console.log('Webcam is ready');
     setWebcamReady(true);
     setCameraLoading(false);
+    setCameraError(null);
+    
+    // Clear any existing timeout
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
+    }
   }, []);
 
   const onWebcamError = useCallback((error: string | DOMException) => {
     console.error('Webcam error:', error);
     setCameraLoading(false);
+    setCameraError("Camera access failed. Please check permissions and try again.");
     toast.error("Camera access failed. Please check permissions.");
   }, []);
 
+  // Auto-start detection when conditions are met
   useEffect(() => {
     if (webcamReady && autoStart && !isDetecting && capturedImages.length === 0 && isLoaded) {
       console.log('Auto-starting face detection...');
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         startFaceDetection();
       }, 500);
+      return () => clearTimeout(timer);
     }
   }, [webcamReady, autoStart, startFaceDetection, isDetecting, capturedImages.length, isLoaded]);
+
+  // Add timeout for camera initialization
+  useEffect(() => {
+    if (cameraLoading) {
+      initTimeoutRef.current = setTimeout(() => {
+        if (cameraLoading) {
+          console.log('Camera initialization timeout');
+          setCameraLoading(false);
+          setCameraError("Camera is taking too long to initialize. Please refresh and try again.");
+        }
+      }, 10000); // 10 second timeout
+    }
+    
+    return () => {
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+    };
+  }, [cameraLoading]);
 
   const reset = () => {
     setCapturedImages([]);
     setIsDetecting(false);
     setFaceDetected(false);
     setScanProgress(0);
+    setCameraError(null);
     
     if (detectionIntervalRef.current) {
       clearInterval(detectionIntervalRef.current);
@@ -156,6 +192,13 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
     }
   };
 
+  const retryCamera = () => {
+    setCameraLoading(true);
+    setWebcamReady(false);
+    setCameraError(null);
+    reset();
+  };
+
   useEffect(() => {
     return () => {
       if (detectionIntervalRef.current) {
@@ -163,6 +206,9 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
       }
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
+      }
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
       }
     };
   }, []);
@@ -206,10 +252,29 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
     </div>
   );
 
+  // Camera Error Component
+  const CameraErrorComponent = () => (
+    <div className="relative w-80 h-80 bg-red-900/20 rounded-3xl border-4 border-red-600 shadow-2xl flex flex-col items-center justify-center p-6 text-center">
+      <div className="text-red-400 mb-4">
+        <Square className="h-16 w-16 mx-auto mb-2" />
+        <h3 className="text-lg font-semibold">Camera Error</h3>
+      </div>
+      <p className="text-red-300 text-sm mb-6">{cameraError}</p>
+      <Button 
+        onClick={retryCamera}
+        className="bg-red-600 hover:bg-red-700 text-white"
+      >
+        Try Again
+      </Button>
+    </div>
+  );
+
   return (
     <div className="space-y-8">
       <div className="relative flex justify-center">
-        {cameraLoading ? (
+        {cameraError ? (
+          <CameraErrorComponent />
+        ) : cameraLoading ? (
           <CameraLoadingSkeleton />
         ) : (
           <div className="relative w-80 h-80 bg-black rounded-3xl overflow-hidden border-4 border-gray-600 shadow-2xl">
@@ -295,6 +360,8 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
               ? 'bg-blue-400 animate-pulse shadow-lg shadow-blue-400/50'
               : cameraLoading
               ? 'bg-gray-600 animate-pulse'
+              : cameraError
+              ? 'bg-red-400'
               : 'bg-gray-600'
           }`}>
             {capturedImages.length > 0 && (
@@ -313,6 +380,8 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
               ? "text-blue-400"
               : cameraLoading
               ? "text-blue-400"
+              : cameraError
+              ? "text-red-400"
               : "text-gray-300"
           }`}>
             {capturedImages.length > 0 
@@ -323,6 +392,8 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
               ? "🔍 Scanning for face..."
               : cameraLoading
               ? "📷 Loading camera..."
+              : cameraError
+              ? "❌ Camera error"
               : autoStart
               ? `📸 Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
               : `📸 Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
@@ -330,7 +401,9 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
           </p>
 
           <p className="text-sm text-gray-400">
-            {cameraLoading
+            {cameraError
+              ? "Please check camera permissions and try again"
+              : cameraLoading
               ? "Initializing camera and face detection..."
               : !isLoaded 
               ? "Loading face recognition models..."
@@ -345,7 +418,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
       </div>
 
       <div className="flex justify-center space-x-4">
-        {capturedImages.length === 0 && !isDetecting && !autoStart && isLoaded && !cameraLoading && (
+        {capturedImages.length === 0 && !isDetecting && !autoStart && isLoaded && !cameraLoading && !cameraError && (
           <Button 
             onClick={startFaceDetection}
             className="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
