@@ -20,7 +20,7 @@ export const useLoginLogic = () => {
 
   const handleImagesCapture = async (images: string[]) => {
     if (!isLoaded) {
-      toast.error("Face recognition is still loading. Please wait.");
+      console.error("Face recognition not loaded");
       return;
     }
 
@@ -34,19 +34,8 @@ export const useLoginLogic = () => {
         setIsScanning(false);
         setScanComplete(true);
         setLoginResult('failed');
-        toast.error("No face detected. Please try again.");
+        console.log("No face detected in image");
         return;
-      }
-
-      // Provide lighting feedback
-      if (faceAnalysis.lightingScore < 0.4) {
-        const conditions = faceAnalysis.environmentalConditions.lighting;
-        let lightingTip = "Poor lighting detected. ";
-        if (conditions.tooDark) lightingTip += "Try moving to a brighter area.";
-        else if (conditions.tooBright) lightingTip += "Try reducing the light or moving away from direct light.";
-        else if (conditions.uneven) lightingTip += "Try to get more even lighting on your face.";
-        
-        toast.warning(lightingTip);
       }
 
       console.log(`Enhanced login analysis - Quality: ${faceAnalysis.qualityScore.toFixed(3)}, Lighting: ${faceAnalysis.lightingScore.toFixed(3)}`);
@@ -57,7 +46,7 @@ export const useLoginLogic = () => {
         setIsScanning(false);
         setScanComplete(true);
         setLoginResult('failed');
-        toast.error("No registered users found. Please register first.");
+        console.log("No registered users found");
         return;
       }
       
@@ -187,14 +176,11 @@ export const useLoginLogic = () => {
       
       if (foundMatch) {
         setLoginResult('success');
-        const qualityMsg = faceAnalysis.qualityScore > 0.7 ? " (High quality scan - learning enhanced!)" : "";
-        toast.success(`Welcome back, ${matchedUser}!${qualityMsg}`);
-        
-        // Removed automatic redirect - users now control navigation via LoginSuccess buttons
+        toast.success(`Welcome back, ${matchedUser}!`);
       } else {
         setLoginResult('failed');
         
-        // Update failed login statistics with enhanced feedback
+        // Update failed login statistics
         if (bestMatch.similarity > 0.3 && bestMatch.profile) {
           await updateUserLearningMetrics(
             bestMatch.profile.email,
@@ -202,18 +188,9 @@ export const useLoginLogic = () => {
             faceAnalysis.confidence,
             faceAnalysis.qualityScore
           );
-          
-          // Provide helpful feedback
-          if (bestMatch.similarity > 0.5) {
-            toast.error(`Close match found (${(bestMatch.similarity * 100).toFixed(0)}% similar). Try improving lighting or face positioning.`);
-          } else if (faceAnalysis.lightingScore < 0.4) {
-            toast.error("Face not recognized. Poor lighting may be affecting recognition quality.");
-          } else {
-            toast.error("Face not recognized. Please try again or register a new Face Card.");
-          }
-        } else {
-          toast.error("Face not recognized. Please try again or register a new Face Card.");
         }
+        
+        toast.error("Face not recognized. Please try again or register a new Face Card.");
       }
     } catch (error) {
       console.error('Enhanced login error:', error);

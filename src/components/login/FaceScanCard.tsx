@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Square, Loader2 } from "lucide-react";
-import WebcamCapture from "@/components/WebcamCapture";
+import AutoFaceDetection from "@/components/AutoFaceDetection";
 
 interface FaceScanCardProps {
   isScanning: boolean;
@@ -16,6 +16,9 @@ const FaceScanCard = ({ isScanning, onImagesCapture }: FaceScanCardProps) => {
           <Square className="mr-3 h-6 w-6 sm:h-8 sm:w-8 text-white" />
           FACECARD LOGIN
         </CardTitle>
+        <CardDescription className="text-gray-400 mt-2">
+          Look at the camera for automatic face recognition
+        </CardDescription>
       </CardHeader>
       <CardContent className="p-4 sm:p-6">
         {isScanning ? (
@@ -29,7 +32,10 @@ const FaceScanCard = ({ isScanning, onImagesCapture }: FaceScanCardProps) => {
             </p>
           </div>
         ) : (
-          <WebcamCapture onImagesCapture={onImagesCapture} autoStart={true} />
+          <AutoFaceDetection 
+            onImagesCapture={onImagesCapture} 
+            isScanning={isScanning}
+          />
         )}
       </CardContent>
     </Card>
