@@ -129,6 +129,7 @@ export type Database = {
           embedding_count: number | null
           face_embedding: number[]
           id: string
+          is_admin: boolean
           last_updated: string | null
           learning_weight: number | null
           lighting_conditions: Json | null
@@ -146,6 +147,7 @@ export type Database = {
           embedding_count?: number | null
           face_embedding: number[]
           id?: string
+          is_admin?: boolean
           last_updated?: string | null
           learning_weight?: number | null
           lighting_conditions?: Json | null
@@ -163,6 +165,7 @@ export type Database = {
           embedding_count?: number | null
           face_embedding?: number[]
           id?: string
+          is_admin?: boolean
           last_updated?: string | null
           learning_weight?: number | null
           lighting_conditions?: Json | null
@@ -179,6 +182,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
       check_duplicate_user: {
         Args: { p_face_embedding: number[]; p_threshold?: number }
         Returns: {
@@ -186,6 +193,58 @@ export type Database = {
           similarity_score: number
           user_id: string
         }[]
+      }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: unknown
       }
       manage_face_templates: {
         Args: {
@@ -196,6 +255,18 @@ export type Database = {
           p_lighting_conditions: Json
         }
         Returns: undefined
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
       }
       update_user_embedding_with_scan: {
         Args: {
@@ -213,6 +284,30 @@ export type Database = {
           p_quality_score: number
         }
         Returns: undefined
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
       }
     }
     Enums: {
