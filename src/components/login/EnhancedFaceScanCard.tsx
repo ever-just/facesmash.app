@@ -1,7 +1,7 @@
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Square, Loader2, CheckCircle, AlertCircle, Brain, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import WebcamCapture from "@/components/WebcamCapture";
 
 interface EnhancedFaceScanCardProps {
@@ -23,7 +23,39 @@ const EnhancedFaceScanCard = ({
   onTryAgain,
   onContinue 
 }: EnhancedFaceScanCardProps) => {
+  const { isLoading, loadProgress } = useFaceAPI();
   
+  // Face API Loading Component
+  const FaceAPILoadingAnimation = () => (
+    <div className="text-center py-12">
+      <div className="relative mb-8">
+        <Brain className="h-16 w-16 text-blue-400 mx-auto animate-pulse mb-6" />
+        
+        {/* Progress Bar */}
+        <div className="space-y-3">
+          <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-white transition-all duration-300 ease-out"
+              style={{ width: `${loadProgress}%` }}
+            />
+          </div>
+          <p className="text-white text-sm font-medium">
+            {Math.round(loadProgress)}% Complete
+          </p>
+        </div>
+      </div>
+      
+      <div className="space-y-4">
+        <h3 className="text-xl font-semibold text-white">
+          Loading Face Recognition...
+        </h3>
+        <p className="text-gray-300">
+          Preparing AI models for secure authentication
+        </p>
+      </div>
+    </div>
+  );
+
   // AI Processing Animation Component
   const AIProcessingAnimation = () => (
     <div className="text-center py-12">
@@ -180,19 +212,23 @@ const EnhancedFaceScanCard = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 sm:p-6">
-        {!scanComplete && !isScanning && (
+        {isLoading && (
+          <FaceAPILoadingAnimation />
+        )}
+        
+        {!isLoading && !scanComplete && !isScanning && (
           <WebcamCapture onImagesCapture={onImagesCapture} isLogin={true} autoStart={true} />
         )}
         
-        {isScanning && !scanComplete && (
+        {!isLoading && isScanning && !scanComplete && (
           <AIProcessingAnimation />
         )}
         
-        {scanComplete && loginResult === 'success' && (
+        {!isLoading && scanComplete && loginResult === 'success' && (
           <SuccessResult />
         )}
         
-        {scanComplete && loginResult === 'failed' && (
+        {!isLoading && scanComplete && loginResult === 'failed' && (
           <FailedResult />
         )}
       </CardContent>

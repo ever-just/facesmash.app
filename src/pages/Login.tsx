@@ -1,7 +1,6 @@
 
 import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import LoginHeader from "@/components/LoginHeader";
-import LoadingSkeleton from "@/components/LoadingSkeleton";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import FaceAPIError from "@/components/login/FaceAPIError";
 import EnhancedFaceScanCard from "@/components/login/EnhancedFaceScanCard";
@@ -23,20 +22,6 @@ const Login = () => {
     goToDashboard
   } = useLoginLogic();
 
-  // Show loading state only when Face API is loading
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black text-white">
-        <LoginHeader />
-        <div className="container mx-auto px-6 py-12">
-          <div className="max-w-2xl mx-auto">
-            <LoadingSkeleton variant="webcam" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-black text-white">
       <LoginHeader />
@@ -52,25 +37,19 @@ const Login = () => {
               />
             )}
 
-            {/* Face API Error State */}
             {!showLoginOptions && (
-              <FaceAPIError error={faceAPIError} />
-            )}
-
-            {!showLoginOptions && isLoaded && !faceAPIError && (
-              <EnhancedFaceScanCard 
-                isScanning={isScanning}
-                scanComplete={scanComplete}
-                loginResult={loginResult}
-                matchedUser={matchedUser}
-                onImagesCapture={handleImagesCapture}
-                onTryAgain={resetLogin}
-                onContinue={goToDashboard}
-              />
-            )}
-
-            {!showLoginOptions && (
-              <LoginFooter />
+              <>
+                <EnhancedFaceScanCard 
+                  isScanning={isScanning}
+                  scanComplete={scanComplete}
+                  loginResult={loginResult}
+                  matchedUser={matchedUser}
+                  onImagesCapture={handleImagesCapture}
+                  onTryAgain={resetLogin}
+                  onContinue={goToDashboard}
+                />
+                <LoginFooter />
+              </>
             )}
           </ErrorBoundary>
         </div>
