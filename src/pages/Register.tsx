@@ -145,6 +145,8 @@ const Register = () => {
           });
           
           setIsRegistering(false);
+          // Move to step 3 to show only the notification
+          setStep(3);
           return;
         }
       } catch (duplicateError) {
@@ -359,8 +361,8 @@ const Register = () => {
             </Card>
           )}
 
-          {/* Step 2: Face Capture */}
-          {step === 2 && (
+          {/* Step 2: Face Capture - Only show if no duplicate detected */}
+          {step === 2 && !notification?.type === 'duplicate' && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white flex items-center justify-center">
@@ -388,6 +390,13 @@ const Register = () => {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {/* Step 3: Duplicate Detection Result - Only show notification */}
+          {step === 3 && notification?.type === 'duplicate' && (
+            <div className="text-center py-12">
+              {/* Notification is already shown above */}
+            </div>
           )}
 
           {/* Step 4: Success */}
