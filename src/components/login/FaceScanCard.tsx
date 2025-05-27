@@ -1,4 +1,5 @@
 
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Square, Loader2 } from "lucide-react";
 import WebcamCapture from "@/components/WebcamCapture";
@@ -14,7 +15,7 @@ const FaceScanCard = ({
       <CardHeader className="text-center">
         <CardTitle className="text-3xl text-white flex items-center justify-center">
           <Square className="mr-3 h-8 w-8 text-white" />
-          FACECARD Login
+          FACECARD LOGIN
         </CardTitle>
         
       </CardHeader>
@@ -28,3 +29,4 @@ const FaceScanCard = ({
     </Card>;
 };
 export default FaceScanCard;
+
