@@ -1,10 +1,7 @@
-
 import { useCallback, useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { RotateCcw, CheckCircle, Loader2, Camera } from "lucide-react";
-import { toast } from "sonner";
+import { RotateCcw, CheckCircle, Camera } from "lucide-react";
 import { analyzeFaceQuality } from "@/utils/enhancedFaceRecognition";
 import { useFaceAPI } from '@/contexts/FaceAPIContext';
 
@@ -23,11 +20,11 @@ const ContinuousQualityCapture = ({
 }: ContinuousQualityCaptureProps) => {
   const webcamRef = useRef<Webcam>(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [currentQuality, setCurrentQuality] = useState(0);
   const [attempts, setAttempts] = useState(0);
   const [bestImage, setBestImage] = useState<string | null>(null);
   const [bestQuality, setBestQuality] = useState(0);
   const [webcamReady, setWebcamReady] = useState(false);
+  const [captureSuccess, setCaptureSuccess] = useState(false);
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { isLoaded } = useFaceAPI();
 
@@ -48,7 +45,6 @@ const ContinuousQualityCapture = ({
       
       if (faceAnalysis) {
         const quality = faceAnalysis.qualityScore;
-        setCurrentQuality(quality);
         
         // Keep track of best image
         if (quality > bestQuality) {
@@ -62,17 +58,16 @@ const ContinuousQualityCapture = ({
         if (quality >= qualityThreshold) {
           console.log('Quality threshold met!');
           setIsCapturing(false);
+          setCaptureSuccess(true);
           if (captureIntervalRef.current) {
             clearInterval(captureIntervalRef.current);
             captureIntervalRef.current = null;
           }
           onImageCapture(imageSrc, quality);
-          toast.success(`High-quality photo captured! Quality: ${(quality * 100).toFixed(1)}%`);
           return;
         }
       } else {
         console.log('No face detected in current frame');
-        setCurrentQuality(0);
       }
 
       const newAttempts = attempts + 1;
@@ -89,9 +84,8 @@ const ContinuousQualityCapture = ({
         
         if (bestImage && bestQuality > 0.3) {
           onImageCapture(bestImage, bestQuality);
-          toast.warning(`Used best available photo after ${maxAttempts} attempts. Quality: ${(bestQuality * 100).toFixed(1)}%`);
         } else {
-          toast.error("Unable to capture a suitable photo. Please try again with better lighting.");
+          // Let parent handle error notification
           reset();
         }
       }
@@ -102,15 +96,14 @@ const ContinuousQualityCapture = ({
 
   const startContinuousCapture = useCallback(() => {
     if (!webcamReady || !isLoaded) {
-      toast.error("Camera not ready. Please wait.");
       return;
     }
 
     setIsCapturing(true);
     setAttempts(0);
-    setCurrentQuality(0);
     setBestImage(null);
     setBestQuality(0);
+    setCaptureSuccess(false);
     
     console.log(`Starting continuous capture with ${qualityThreshold * 100}% quality threshold`);
     
@@ -120,10 +113,10 @@ const ContinuousQualityCapture = ({
 
   const reset = () => {
     setIsCapturing(false);
-    setCurrentQuality(0);
     setAttempts(0);
     setBestImage(null);
     setBestQuality(0);
+    setCaptureSuccess(false);
     
     if (captureIntervalRef.current) {
       clearInterval(captureIntervalRef.current);
@@ -138,10 +131,10 @@ const ContinuousQualityCapture = ({
 
   // Auto-start capture when webcam is ready and autoStart is enabled
   useEffect(() => {
-    if (autoStart && webcamReady && isLoaded && !isCapturing) {
+    if (autoStart && webcamReady && isLoaded && !isCapturing && !captureSuccess) {
       startContinuousCapture();
     }
-  }, [autoStart, webcamReady, isLoaded, isCapturing, startContinuousCapture]);
+  }, [autoStart, webcamReady, isLoaded, isCapturing, captureSuccess, startContinuousCapture]);
 
   useEffect(() => {
     return () => {
@@ -150,10 +143,6 @@ const ContinuousQualityCapture = ({
       }
     };
   }, []);
-
-  const qualityPercentage = Math.round(currentQuality * 100);
-  const thresholdPercentage = Math.round(qualityThreshold * 100);
-  const progressValue = Math.min((qualityPercentage / thresholdPercentage) * 100, 100);
 
   return (
     <div className="space-y-6">
@@ -169,10 +158,10 @@ const ContinuousQualityCapture = ({
             mirrored={true}
           />
           
-          {/* Quality overlay */}
+          {/* Simple face detection overlay */}
           <div className="absolute inset-4">
             <div className={`w-full h-full rounded-full border-4 transition-all duration-500 ${
-              qualityPercentage >= thresholdPercentage
+              captureSuccess
                 ? 'border-green-400 shadow-lg shadow-green-400/50' 
                 : isCapturing 
                 ? 'border-blue-400 shadow-lg shadow-blue-400/30' 
@@ -188,59 +177,36 @@ const ContinuousQualityCapture = ({
           {/* Status indicators */}
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
             <div className="bg-black/80 text-white text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-              {isCapturing ? 'Capturing...' : 'Ready to capture'}
+              {captureSuccess ? 'Captured!' : isCapturing ? 'Capturing...' : 'Ready to capture'}
             </div>
           </div>
 
-          {/* Quality indicator */}
-          {isCapturing && (
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-              <div className="bg-black/80 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm">
-                Quality: {qualityPercentage}% (Target: {thresholdPercentage}%)
-              </div>
-            </div>
-          )}
-
           {/* Success overlay */}
-          {qualityPercentage >= thresholdPercentage && (
+          {captureSuccess && (
             <div className="absolute inset-0 bg-green-400/20 flex items-center justify-center animate-pulse">
               <div className="text-2xl font-bold text-white drop-shadow-lg flex items-center">
                 <CheckCircle className="mr-2 h-8 w-8" />
-                Perfect Quality!
+                Captured!
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Progress Bar */}
-      {isCapturing && (
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-gray-400">
-            <span>Quality Progress</span>
-            <span>{qualityPercentage}% / {thresholdPercentage}%</span>
-          </div>
-          <Progress 
-            value={progressValue} 
-            className="h-3"
-          />
-        </div>
-      )}
-
       {/* Status */}
       <div className="text-center space-y-2">
         <p className={`text-lg font-medium transition-colors duration-500 ${
-          qualityPercentage >= thresholdPercentage
+          captureSuccess
             ? "text-green-400"
             : isCapturing
             ? "text-blue-400"
             : "text-gray-300"
         }`}>
-          {qualityPercentage >= thresholdPercentage
-            ? "✓ Perfect quality achieved!"
+          {captureSuccess
+            ? "✓ Face captured successfully!"
             : isCapturing
-            ? `🔍 Analyzing quality... (${qualityPercentage}%)`
-            : "📸 Ready for high-quality capture"
+            ? "🔍 Looking for your face..."
+            : "📸 Ready for face capture"
           }
         </p>
 
@@ -248,8 +214,8 @@ const ContinuousQualityCapture = ({
           {!isLoaded 
             ? "Waiting for face recognition to load..."
             : isCapturing 
-            ? "Hold still and maintain good lighting for best results"
-            : `Will automatically capture when quality reaches ${thresholdPercentage}%`
+            ? "Hold still and look at the camera"
+            : "Will automatically capture when your face is detected"
           }
         </p>
       </div>
@@ -257,16 +223,16 @@ const ContinuousQualityCapture = ({
       {/* Controls */}
       {!autoStart && (
         <div className="flex justify-center space-x-4">
-          {!isCapturing ? (
+          {!isCapturing && !captureSuccess ? (
             <Button 
               onClick={startContinuousCapture}
               className="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-xl font-semibold"
               disabled={!webcamReady || !isLoaded}
             >
               <Camera className="mr-2 h-5 w-5" />
-              Start Quality Capture
+              Start Face Capture
             </Button>
-          ) : (
+          ) : !captureSuccess ? (
             <Button 
               onClick={reset}
               variant="outline"
@@ -275,16 +241,7 @@ const ContinuousQualityCapture = ({
               <RotateCcw className="mr-2 h-4 w-4" />
               Stop & Reset
             </Button>
-          )}
-        </div>
-      )}
-
-      {/* Best quality indicator */}
-      {bestQuality > 0 && isCapturing && (
-        <div className="text-center">
-          <p className="text-sm text-green-400">
-            Best quality so far: {Math.round(bestQuality * 100)}%
-          </p>
+          ) : null}
         </div>
       )}
     </div>

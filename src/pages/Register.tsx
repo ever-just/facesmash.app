@@ -1,18 +1,19 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Square, ArrowLeft, CheckCircle, User, Loader2, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
-import WebcamCapture from "@/components/WebcamCapture";
-import { toast } from "sonner";
+import { Link, useNavigate } from "react-router-dom";
+import ContinuousQualityCapture from "@/components/ContinuousQualityCapture";
+import InlineNotification from "@/components/InlineNotification";
 import { useFaceAPI } from "@/contexts/FaceAPIContext";
-import { analyzeFaceQuality, base64ToBlob, calculateLearningWeight } from "@/utils/enhancedFaceRecognition";
+import { analyzeFaceQuality, base64ToBlob } from "@/utils/enhancedFaceRecognition";
 import { createUserProfile, getUserProfileByName } from "@/services/userProfileService";
 import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
 import { manageFaceTemplates, checkDuplicateUsers } from "@/services/faceTemplateService";
-import ContinuousQualityCapture from "@/components/ContinuousQualityCapture";
+import { createSignInLog } from "@/services/signInLogService";
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -20,22 +21,32 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [photoQuality, setPhotoQuality] = useState<{
-    score: number;
-    isGoodQuality: boolean;
-    feedback: string;
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error' | 'duplicate';
+    title: string;
+    message: string;
+    userEmail?: string;
   } | null>(null);
   const { isLoaded, error: faceAPIError } = useFaceAPI();
+  const navigate = useNavigate();
 
   const handleNameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (name && email) {
       if (!isLoaded) {
-        toast.error("Face recognition is still loading. Please wait.");
+        setNotification({
+          type: 'error',
+          title: 'Face Recognition Loading',
+          message: 'Face recognition is still loading. Please wait a moment.'
+        });
         return;
       }
       if (faceAPIError) {
-        toast.error("Face recognition failed to load. Please refresh the page.");
+        setNotification({
+          type: 'error',
+          title: 'Face Recognition Error',
+          message: 'Face recognition failed to load. Please refresh the page.'
+        });
         return;
       }
 
@@ -43,110 +54,61 @@ const Register = () => {
       console.log('Checking if email already exists:', email);
       const existingProfile = await getUserProfileByName(email);
       if (existingProfile) {
-        toast.error(`An account with email ${email} already exists. Please use a different email or try logging in.`);
-        return;
-      }
-
-      setStep(2);
-    }
-  };
-
-  const handleImagesCapture = async (images: string[]) => {
-    console.log('Images captured for registration:', images.length);
-    setCapturedImages(images);
-    setStep(3);
-  };
-
-  const handleQualityImageCapture = async (imageData: string, quality: number) => {
-    console.log('High-quality image captured with quality:', quality);
-    setCapturedImages([imageData]);
-    
-    // Set quality info immediately
-    setPhotoQuality({
-      score: Math.round(quality * 100),
-      isGoodQuality: quality >= 0.5,
-      feedback: quality >= 0.5 
-        ? "Good photo quality! Ready for registration." 
-        : "Photo quality captured. Ready for registration."
-    });
-    
-    setStep(3);
-    
-    // Auto-proceed with registration for quality photos
-    setTimeout(() => {
-      handleRegister();
-    }, 1000);
-  };
-
-  const analyzePhotoQuality = async (imageData: string) => {
-    try {
-      const faceAnalysis = await analyzeFaceQuality(imageData);
-      
-      if (!faceAnalysis) {
-        setPhotoQuality({
-          score: 0,
-          isGoodQuality: false,
-          feedback: "No face detected in the image. Please retake the photo."
+        setNotification({
+          type: 'error',
+          title: 'Email Already Registered',
+          message: `An account with email ${email} already exists. Please use a different email or try logging in.`
         });
         return;
       }
 
-      const qualityScore = faceAnalysis.qualityScore;
-      const lightingScore = faceAnalysis.lightingScore;
-      
-      // Define quality criteria
-      const isGoodQuality = qualityScore >= 0.7 && lightingScore >= 0.6;
-      
-      let feedback = "";
-      if (isGoodQuality) {
-        feedback = "Excellent photo quality! Ready for registration.";
-        // Auto-proceed with registration for high-quality photos
-        setTimeout(() => {
-          handleRegister();
-        }, 1500);
-      } else if (qualityScore < 0.5) {
-        feedback = "Photo quality is too low. Please ensure good lighting and face the camera directly.";
-      } else if (lightingScore < 0.4) {
-        feedback = "Lighting needs improvement. Try moving to a brighter area or adjusting your position.";
-      } else {
-        feedback = "Photo quality is acceptable but could be better. You can proceed or retake for optimal results.";
-      }
-
-      setPhotoQuality({
-        score: Math.round((qualityScore + lightingScore) / 2 * 100),
-        isGoodQuality,
-        feedback
-      });
-
-    } catch (error) {
-      console.error('Error analyzing photo quality:', error);
-      setPhotoQuality({
-        score: 0,
-        isGoodQuality: false,
-        feedback: "Unable to analyze photo quality. Please try again."
-      });
+      setNotification(null);
+      setStep(2);
     }
   };
 
-  const handleRegister = async () => {
+  const handleQualityImageCapture = async (imageData: string, quality: number) => {
+    console.log('Image captured for registration:', quality);
+    setCapturedImages([imageData]);
+    setNotification(null);
+    
+    // Auto-proceed with registration after a brief delay
+    setTimeout(() => {
+      handleRegister(imageData);
+    }, 500);
+  };
+
+  const handleRegister = async (imageData?: string) => {
+    const imageToUse = imageData || capturedImages[0];
+    
     setIsRegistering(true);
+    setNotification(null);
+    
     try {
       console.log('Starting enhanced registration process with duplicate detection...');
 
-      // Analyze face quality with better error handling
+      // Analyze face quality
       let faceAnalysis;
       try {
-        faceAnalysis = await analyzeFaceQuality(capturedImages[0]);
+        faceAnalysis = await analyzeFaceQuality(imageToUse);
       } catch (analysisError) {
         console.error('Face analysis failed:', analysisError);
-        toast.error("Face analysis failed. Please try capturing again.");
+        setNotification({
+          type: 'error',
+          title: 'Face Analysis Failed',
+          message: 'Unable to analyze your face. Please try capturing again.'
+        });
         setStep(2);
         setIsRegistering(false);
         return;
       }
 
       if (!faceAnalysis) {
-        toast.error("No face detected in the captured image. Please try again.");
+        setNotification({
+          type: 'error',
+          title: 'No Face Detected',
+          message: 'No face was detected in the captured image. Please try again.'
+        });
         setStep(2);
         setIsRegistering(false);
         return;
@@ -154,7 +116,11 @@ const Register = () => {
 
       // Check quality threshold for registration
       if (faceAnalysis.qualityScore < 0.3) {
-        toast.error("Face quality is too low for registration. Please ensure good lighting and face the camera directly.");
+        setNotification({
+          type: 'error',
+          title: 'Face Quality Too Low',
+          message: 'Face quality is too low for registration. Please ensure good lighting and face the camera directly.'
+        });
         setStep(2);
         setIsRegistering(false);
         return;
@@ -162,39 +128,47 @@ const Register = () => {
 
       console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
 
-      // Enhanced duplicate detection with stricter threshold
+      // Enhanced duplicate detection
       console.log('Performing enhanced duplicate detection...');
       try {
-        const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.65); // Lowered threshold for stricter detection
+        const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.65);
         
         if (duplicates && duplicates.length > 0) {
           console.log('Duplicate face detected:', duplicates);
-          const similarity = (duplicates[0]?.similarity_score || 0) * 100;
           const duplicateEmail = duplicates[0]?.existing_email || 'unknown user';
           
-          toast.error(
-            `This face is already registered! Found ${similarity.toFixed(0)}% match with user: ${duplicateEmail}. ` +
-            "Please use a different face or try logging in if this is your account."
-          );
+          setNotification({
+            type: 'duplicate',
+            title: 'Welcome Back!',
+            message: 'This face is already registered. Would you like to continue to your dashboard?',
+            userEmail: duplicateEmail
+          });
           
-          // Stay on current step to allow user to retake photo or go back
           setIsRegistering(false);
           return;
         }
       } catch (duplicateError) {
         console.error('Duplicate check failed:', duplicateError);
-        toast.error("Unable to verify face uniqueness. Please try again later.");
+        setNotification({
+          type: 'error',
+          title: 'Verification Error',
+          message: 'Unable to verify face uniqueness. Please try again later.'
+        });
         setIsRegistering(false);
         return;
       }
 
       console.log('No duplicate face found, proceeding with registration...');
 
-      // Double-check email availability one more time before creating profile
+      // Double-check email availability
       const existingProfile = await getUserProfileByName(email);
       if (existingProfile) {
-        toast.error(`Email ${email} is already registered. Please use a different email.`);
-        setStep(1); // Go back to name/email input
+        setNotification({
+          type: 'error',
+          title: 'Email Already Registered',
+          message: `Email ${email} is already registered. Please use a different email.`
+        });
+        setStep(1);
         setIsRegistering(false);
         return;
       }
@@ -204,20 +178,24 @@ const Register = () => {
       // Create user profile using email
       const profile = await createUserProfile(email, faceAnalysis.descriptor);
       if (!profile) {
-        toast.error("Failed to create Face Card. Please try again.");
+        setNotification({
+          type: 'error',
+          title: 'Registration Failed',
+          message: 'Failed to create Face Card. Please try again.'
+        });
         setIsRegistering(false);
         return;
       }
 
       // Upload and store the registration image
       try {
-        const imageBlob = base64ToBlob(capturedImages[0]);
+        const imageBlob = base64ToBlob(imageToUse);
         const imageUrl = await uploadFaceImage(imageBlob, email, 'registration');
         if (imageUrl) {
           await createFaceScan(email, imageUrl, faceAnalysis.descriptor, 'registration', faceAnalysis.confidence, faceAnalysis.qualityScore);
           console.log('Registration scan stored successfully');
 
-          // Store initial face template for better future matching
+          // Store initial face template
           await manageFaceTemplates(
             email,
             faceAnalysis.descriptor,
@@ -228,18 +206,39 @@ const Register = () => {
         }
       } catch (storageError) {
         console.error('Error storing registration image:', storageError);
-        // Don't fail registration if storage fails
-        toast.warning("Face Card created, but image storage had issues. Recognition will still work.");
       }
 
       console.log('Enhanced user profile created successfully:', profile.id);
       setStep(4);
-      toast.success("Enhanced Face Card created successfully! Your face is now securely registered and unique.");
+      setNotification({
+        type: 'success',
+        title: 'Registration Successful!',
+        message: 'Your Enhanced Face Card has been created successfully. You can now sign in using facial recognition.'
+      });
     } catch (error) {
       console.error('Enhanced registration error:', error);
-      toast.error("An error occurred during registration. Please try again.");
+      setNotification({
+        type: 'error',
+        title: 'Registration Error',
+        message: 'An error occurred during registration. Please try again.'
+      });
     }
     setIsRegistering(false);
+  };
+
+  const handleContinueToDashboard = async () => {
+    if (notification?.userEmail) {
+      // Set the user as logged in and redirect to dashboard
+      localStorage.setItem('currentUserName', notification.userEmail);
+      await createSignInLog(notification.userEmail);
+      navigate('/dashboard');
+    }
+  };
+
+  const handleRetryCapture = () => {
+    setNotification(null);
+    setStep(2);
+    setCapturedImages([]);
   };
 
   return (
@@ -286,6 +285,18 @@ const Register = () => {
             ))}
           </div>
 
+          {/* Notifications */}
+          {notification && (
+            <InlineNotification
+              type={notification.type}
+              title={notification.title}
+              message={notification.message}
+              userEmail={notification.userEmail}
+              onContinueToDashboard={notification.type === 'duplicate' ? handleContinueToDashboard : undefined}
+              onRetry={notification.type === 'error' && step === 2 ? handleRetryCapture : undefined}
+            />
+          )}
+
           {/* Face API Error State */}
           {faceAPIError && (
             <Card className="bg-red-900/20 border-red-800 mb-6">
@@ -307,7 +318,7 @@ const Register = () => {
                   Create Your Enhanced Face Card
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Enter your name and email to get started with advanced face recognition that learns over time
+                  Enter your name and email to get started with advanced face recognition
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -341,122 +352,45 @@ const Register = () => {
                     className="w-full bg-white text-black hover:bg-gray-200"
                     disabled={!name || !email || !isLoaded}
                   >
-                    {!isLoaded ? 'Loading Face Recognition...' : 'Continue to Enhanced Face Capture'}
+                    {!isLoaded ? 'Loading Face Recognition...' : 'Continue to Face Capture'}
                   </Button>
                 </form>
               </CardContent>
             </Card>
           )}
 
-          {/* Step 2: Enhanced Face Capture */}
+          {/* Step 2: Face Capture */}
           {step === 2 && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white flex items-center justify-center">
                   <Square className="mr-2 h-6 w-6 text-white" />
-                  Capture Your High-Quality Face
+                  Capture Your Face
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Face capture will start automatically and stop when we get a good quality photo
+                  Look at the camera and we'll automatically capture your face
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ContinuousQualityCapture 
-                  onImageCapture={handleQualityImageCapture}
-                  qualityThreshold={0.5}
-                  maxAttempts={8}
-                  autoStart={true}
-                />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Review and Quality Check */}
-          {step === 3 && (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl text-white">Review Your Enhanced Face Card</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Photo quality analysis and registration status
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex justify-center">
-                  <div className="w-48 h-48 rounded-lg overflow-hidden border border-gray-600">
-                    <img
-                      src={capturedImages[0]}
-                      alt="Captured face"
-                      className="w-full h-full object-cover"
-                    />
+                {isRegistering ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-16 w-16 text-white mx-auto mb-6 animate-spin" />
+                    <h3 className="text-xl font-semibold text-white mb-2">Processing Registration...</h3>
+                    <p className="text-gray-400">Verifying uniqueness and creating your Face Card</p>
                   </div>
-                </div>
-                
-                <div className="text-center space-y-4">
-                  <p className="text-gray-300">
-                    <strong>Name:</strong> {name}
-                  </p>
-                  <p className="text-gray-300">
-                    <strong>Email:</strong> {email}
-                  </p>
-                  
-                  {/* Photo Quality Analysis */}
-                  {photoQuality && (
-                    <div className={`p-4 rounded-lg border ${
-                      photoQuality.isGoodQuality 
-                        ? 'bg-green-900/20 border-green-800 text-green-400' 
-                        : photoQuality.score > 50
-                        ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400'
-                        : 'bg-red-900/20 border-red-800 text-red-400'
-                    }`}>
-                      <div className="flex items-center justify-center mb-2">
-                        {photoQuality.isGoodQuality ? (
-                          <CheckCircle className="h-6 w-6 mr-2" />
-                        ) : (
-                          <AlertCircle className="h-6 w-6 mr-2" />
-                        )}
-                        <span className="font-semibold">
-                          Photo Quality: {photoQuality.score}%
-                        </span>
-                      </div>
-                      <p className="text-sm">{photoQuality.feedback}</p>
-                    </div>
-                  )}
-
-                  {isRegistering ? (
-                    <div className="flex items-center justify-center space-x-3 text-blue-400 px-6 py-3">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="font-semibold">Verifying Uniqueness & Processing Registration...</span>
-                    </div>
-                  ) : (
-                    <div className="flex space-x-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setStep(2);
-                          setCapturedImages([]);
-                          setPhotoQuality(null);
-                        }}
-                        disabled={isRegistering}
-                        className="flex-1 border-white hover:bg-white text-gray-900"
-                      >
-                        Retake Photo
-                      </Button>
-                      {photoQuality && !photoQuality.isGoodQuality && (
-                        <Button
-                          onClick={handleRegister}
-                          disabled={isRegistering || !photoQuality || photoQuality.score < 30}
-                          className="flex-1 bg-white text-black hover:bg-gray-200"
-                        >
-                          Complete Registration Anyway
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                ) : (
+                  <ContinuousQualityCapture 
+                    onImageCapture={handleQualityImageCapture}
+                    qualityThreshold={0.5}
+                    maxAttempts={8}
+                    autoStart={true}
+                  />
+                )}
               </CardContent>
             </Card>
           )}
 
+          {/* Step 4: Success */}
           {step === 4 && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
@@ -475,7 +409,6 @@ const Register = () => {
                   <p className="text-gray-400 text-sm mt-1">
                     • Unique face verification<br />
                     • Adaptive recognition threshold<br />
-                    • Face quality scoring<br />
                     • Continuous learning from logins<br />
                     • Secure image storage
                   </p>
