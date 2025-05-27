@@ -16,30 +16,36 @@ interface UseFaceTrackingProps {
   isActive: boolean;
   onFaceDetected?: (position: FacePosition) => void;
   onFaceLost?: () => void;
+  detectionInterval?: number; // Allow customizable detection frequency
 }
 
 export const useFaceTracking = ({
   webcamRef,
   isActive,
   onFaceDetected,
-  onFaceLost
+  onFaceLost,
+  detectionInterval = 200 // Reduced from 100ms to 200ms (5 FPS instead of 10 FPS)
 }: UseFaceTrackingProps) => {
   const [facePosition, setFacePosition] = useState<FacePosition | null>(null);
   const [isTracking, setIsTracking] = useState(false);
   const trackingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastDetectionTimeRef = useRef<number>(0);
+  const isDetectingRef = useRef<boolean>(false); // Prevent overlapping detections
 
   const detectFace = useCallback(async () => {
-    if (!webcamRef.current || !isActive) return;
+    // Skip if already detecting or if webcam/video is not ready
+    if (isDetectingRef.current || !webcamRef.current || !isActive) return;
+    
+    const video = webcamRef.current.video;
+    if (!video || video.readyState !== 4) return;
+
+    isDetectingRef.current = true;
 
     try {
-      const video = webcamRef.current.video;
-      if (!video || video.readyState !== 4) return;
-
       const detection = await faceapi
         .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ 
-          inputSize: 416, 
-          scoreThreshold: 0.3 
+          inputSize: 320, // Reduced from 416 for better performance
+          scoreThreshold: 0.4 // Slightly higher threshold for more reliable detection
         }))
         .withFaceLandmarks();
 
@@ -65,15 +71,13 @@ export const useFaceTracking = ({
         };
 
         console.log('Face detected at position:', position);
-        console.log('Video dimensions - actual:', video.videoWidth, 'x', video.videoHeight);
-        console.log('Video dimensions - displayed:', videoDisplayWidth, 'x', videoDisplayHeight);
         
         setFacePosition(position);
         lastDetectionTimeRef.current = Date.now();
         onFaceDetected?.(position);
       } else {
-        // Clear face position if no detection for more than 300ms
-        if (Date.now() - lastDetectionTimeRef.current > 300) {
+        // Clear face position if no detection for more than 500ms (increased from 300ms)
+        if (Date.now() - lastDetectionTimeRef.current > 500) {
           console.log('Face lost - clearing position');
           setFacePosition(null);
           onFaceLost?.();
@@ -81,16 +85,18 @@ export const useFaceTracking = ({
       }
     } catch (error) {
       console.error('Face tracking error:', error);
+    } finally {
+      isDetectingRef.current = false;
     }
   }, [webcamRef, isActive, onFaceDetected, onFaceLost]);
 
   const startTracking = useCallback(() => {
-    if (trackingIntervalRef.current) return;
+    if (trackingIntervalRef.current || !isActive) return;
     
-    console.log('Starting face tracking...');
+    console.log(`Starting face tracking with ${detectionInterval}ms interval...`);
     setIsTracking(true);
-    trackingIntervalRef.current = setInterval(detectFace, 100); // 10 FPS for smoother tracking
-  }, [detectFace]);
+    trackingIntervalRef.current = setInterval(detectFace, detectionInterval);
+  }, [detectFace, detectionInterval, isActive]);
 
   const stopTracking = useCallback(() => {
     if (trackingIntervalRef.current) {
@@ -100,6 +106,7 @@ export const useFaceTracking = ({
     console.log('Stopping face tracking...');
     setIsTracking(false);
     setFacePosition(null);
+    isDetectingRef.current = false;
   }, []);
 
   useEffect(() => {
