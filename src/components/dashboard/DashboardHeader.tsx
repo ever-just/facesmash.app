@@ -1,70 +1,35 @@
 
-import { useState, useEffect } from "react";
-import { Square, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { checkIsAdmin } from "@/services/adminService";
+import { LogOut } from "lucide-react";
+import { useSignOut } from "@/hooks/useSignOut";
 
 interface DashboardHeaderProps {
   userName: string;
 }
 
 const DashboardHeader = ({ userName }: DashboardHeaderProps) => {
-  const navigate = useNavigate();
-  const { handleSignOut } = useCurrentUser();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (userName) {
-        const adminStatus = await checkIsAdmin(userName);
-        setIsAdmin(adminStatus);
-      }
-    };
-    checkAdminStatus();
-  }, [userName]);
-
-  const handleAdminClick = () => {
-    navigate('/admin');
-  };
+  const { handleSignOut } = useSignOut();
 
   return (
-    <header className="border-b border-gray-800 bg-black">
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Square className="h-8 w-8 text-white" />
-              <span className="text-xl font-bold text-white">FACECARD</span>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            {isAdmin && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAdminClick}
-                className="border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Admin
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSignOut}
-              className="border-gray-600 text-white hover:bg-gray-800"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
+    <nav className="flex items-center justify-between p-6 border-b border-gray-800">
+      <div className="flex items-center space-x-3">
+        <div className="w-8 h-8 bg-white rounded border-2 border-white flex items-center justify-center">
+          <div className="w-4 h-4 border border-black rounded-full relative">
+            <div className="absolute top-1 left-1 w-1 h-1 bg-black rounded-full"></div>
+            <div className="absolute top-1 right-1 w-1 h-1 bg-black rounded-full"></div>
+            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 border-t border-black rounded-t"></div>
           </div>
         </div>
+        <span className="text-2xl font-bold">Face Card Dashboard</span>
       </div>
-    </header>
+      <div className="flex items-center space-x-4">
+        <span className="text-gray-300">Welcome, {userName}</span>
+        <Button onClick={handleSignOut} variant="outline" className="border-white hover:bg-white text-gray-900">
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </Button>
+      </div>
+    </nav>
   );
 };
 

@@ -1,3 +1,4 @@
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -9,7 +10,6 @@ export interface UserProfile {
   recognition_threshold?: number;
   total_logins?: number;
   successful_logins?: number;
-  is_admin: boolean;
 }
 
 export interface FaceScan {
