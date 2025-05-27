@@ -3,12 +3,12 @@ import { useState, useEffect } from "react";
 import { Square } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getUserProfileByName } from "@/services/userProfileService";
-import SignInHistory from "@/components/SignInHistory";
 import FaceScanGallery from "@/components/FaceScanGallery";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import WelcomeSection from "@/components/dashboard/WelcomeSection";
 import ProfileCard from "@/components/dashboard/ProfileCard";
-import SecurityCard from "@/components/dashboard/SecurityCard";
+import EnhancedSecurityCard from "@/components/dashboard/EnhancedSecurityCard";
+import ActivityGraph from "@/components/dashboard/ActivityGraph";
 import { testStorageSetup } from "@/utils/storageTest";
 
 const Dashboard = () => {
@@ -49,23 +49,28 @@ const Dashboard = () => {
     <div className="min-h-screen bg-black text-white">
       <DashboardHeader userName={userName} />
 
-      <div className="container mx-auto px-6 py-12">
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-12">
         <div className="max-w-6xl mx-auto">
           <WelcomeSection userName={userName} />
 
-          {/* User Profile and Security Cards */}
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
+          {/* Mobile-first responsive grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-6 sm:mb-8">
             <ProfileCard userName={userName} userProfile={userProfile} />
-            <SecurityCard />
+            <EnhancedSecurityCard userName={userName} />
           </div>
 
-          {/* Face Scan Gallery */}
-          <div className="mb-8">
+          {/* Activity Graph - Full width on mobile */}
+          <div className="mb-6 sm:mb-8">
+            <ActivityGraph 
+              userEmail={userName} 
+              userCreatedAt={userProfile?.created_at}
+            />
+          </div>
+
+          {/* Face Scan Gallery - Full width */}
+          <div className="mb-6 sm:mb-8">
             <FaceScanGallery userEmail={userName} />
           </div>
-
-          {/* Sign-In History Section */}
-          <SignInHistory userEmail={userName} />
         </div>
       </div>
     </div>

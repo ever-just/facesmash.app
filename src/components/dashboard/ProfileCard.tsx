@@ -11,7 +11,7 @@ const ProfileCard = ({ userName, userProfile }: ProfileCardProps) => {
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
-        <CardTitle className="text-white flex items-center">
+        <CardTitle className="text-white flex items-center text-lg sm:text-xl">
           <User className="mr-3 h-6 w-6 text-white" />
           Profile Information
         </CardTitle>
@@ -19,26 +19,26 @@ const ProfileCard = ({ userName, userProfile }: ProfileCardProps) => {
           Your Face Card details and recognition data
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-4 sm:p-6">
         <div className="flex justify-between items-center">
-          <span className="text-gray-400">Name:</span>
-          <span className="text-white">{userName}</span>
+          <span className="text-gray-400 text-sm sm:text-base">Name:</span>
+          <span className="text-white text-sm sm:text-base truncate ml-2">{userName}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-400">Face Profile:</span>
-          <span className="text-white">✓ Registered</span>
+          <span className="text-gray-400 text-sm sm:text-base">Face Profile:</span>
+          <span className="text-white text-sm sm:text-base">✓ Registered</span>
         </div>
         {userProfile && (
           <>
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">Card Created:</span>
-              <span className="text-white">
+              <span className="text-gray-400 text-sm sm:text-base">Card Created:</span>
+              <span className="text-white text-sm sm:text-base">
                 {new Date(userProfile.created_at).toLocaleDateString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-400">Last Updated:</span>
-              <span className="text-white">
+              <span className="text-gray-400 text-sm sm:text-base">Last Updated:</span>
+              <span className="text-white text-sm sm:text-base">
                 {new Date(userProfile.updated_at).toLocaleDateString()}
               </span>
             </div>
