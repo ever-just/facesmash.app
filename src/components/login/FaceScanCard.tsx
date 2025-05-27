@@ -29,7 +29,7 @@ const FaceScanCard = ({ isScanning, onImagesCapture }: FaceScanCardProps) => {
             </p>
           </div>
         ) : (
-          <WebcamCapture onImagesCapture={onImagesCapture} isLogin={true} autoStart={true} />
+          <WebcamCapture onImagesCapture={onImagesCapture} autoStart={true} />
         )}
       </CardContent>
     </Card>
