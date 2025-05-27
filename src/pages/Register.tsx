@@ -9,7 +9,7 @@ import WebcamCapture from "@/components/WebcamCapture";
 import { toast } from "sonner";
 import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import { analyzeFaceQuality, base64ToBlob, calculateLearningWeight } from "@/utils/enhancedFaceRecognition";
-import { createUserProfile } from "@/services/userProfileService";
+import { createUserProfile, getUserProfileByName } from "@/services/userProfileService";
 import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
 import { manageFaceTemplates, checkDuplicateUsers } from "@/services/faceTemplateService";
 import ContinuousQualityCapture from "@/components/ContinuousQualityCapture";
@@ -38,6 +38,15 @@ const Register = () => {
         toast.error("Face recognition failed to load. Please refresh the page.");
         return;
       }
+
+      // Check if email is already registered
+      console.log('Checking if email already exists:', email);
+      const existingProfile = await getUserProfileByName(email);
+      if (existingProfile) {
+        toast.error(`An account with email ${email} already exists. Please use a different email or try logging in.`);
+        return;
+      }
+
       setStep(2);
     }
   };
@@ -122,7 +131,7 @@ const Register = () => {
   const handleRegister = async () => {
     setIsRegistering(true);
     try {
-      console.log('Starting enhanced registration process...');
+      console.log('Starting enhanced registration process with duplicate detection...');
 
       // Analyze face quality with better error handling
       let faceAnalysis;
@@ -144,7 +153,7 @@ const Register = () => {
       }
 
       // Check quality threshold for registration
-      if (faceAnalysis.qualityScore < 0.4) {
+      if (faceAnalysis.qualityScore < 0.3) {
         toast.error("Face quality is too low for registration. Please ensure good lighting and face the camera directly.");
         setStep(2);
         setIsRegistering(false);
@@ -153,24 +162,43 @@ const Register = () => {
 
       console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
 
-      // Check for duplicate users with better error handling
-      console.log('Checking for duplicate users...');
+      // Enhanced duplicate detection with stricter threshold
+      console.log('Performing enhanced duplicate detection...');
       try {
-        const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.75);
+        const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.65); // Lowered threshold for stricter detection
         
         if (duplicates && duplicates.length > 0) {
-          console.log('Duplicate users found:', duplicates);
+          console.log('Duplicate face detected:', duplicates);
+          const similarity = (duplicates[0]?.similarity_score || 0) * 100;
           const duplicateEmail = duplicates[0]?.existing_email || 'unknown user';
-          toast.error(`A Face Card already exists for this face. Found similar user: ${duplicateEmail}`);
+          
+          toast.error(
+            `This face is already registered! Found ${similarity.toFixed(0)}% match with user: ${duplicateEmail}. ` +
+            "Please use a different face or try logging in if this is your account."
+          );
+          
+          // Stay on current step to allow user to retake photo or go back
           setIsRegistering(false);
           return;
         }
       } catch (duplicateError) {
         console.error('Duplicate check failed:', duplicateError);
-        toast.warning("Could not verify if face already exists. Proceeding with registration.");
+        toast.error("Unable to verify face uniqueness. Please try again later.");
+        setIsRegistering(false);
+        return;
       }
 
-      console.log('No duplicates found, proceeding with registration...');
+      console.log('No duplicate face found, proceeding with registration...');
+
+      // Double-check email availability one more time before creating profile
+      const existingProfile = await getUserProfileByName(email);
+      if (existingProfile) {
+        toast.error(`Email ${email} is already registered. Please use a different email.`);
+        setStep(1); // Go back to name/email input
+        setIsRegistering(false);
+        return;
+      }
+
       console.log('Creating user profile with enhanced face data...');
 
       // Create user profile using email
@@ -188,6 +216,15 @@ const Register = () => {
         if (imageUrl) {
           await createFaceScan(email, imageUrl, faceAnalysis.descriptor, 'registration', faceAnalysis.confidence, faceAnalysis.qualityScore);
           console.log('Registration scan stored successfully');
+
+          // Store initial face template for better future matching
+          await manageFaceTemplates(
+            email,
+            faceAnalysis.descriptor,
+            faceAnalysis.qualityScore,
+            faceAnalysis.confidence,
+            faceAnalysis.environmentalConditions || {}
+          );
         }
       } catch (storageError) {
         console.error('Error storing registration image:', storageError);
@@ -197,7 +234,7 @@ const Register = () => {
 
       console.log('Enhanced user profile created successfully:', profile.id);
       setStep(4);
-      toast.success("Enhanced Face Card created successfully with high-quality face data!");
+      toast.success("Enhanced Face Card created successfully! Your face is now securely registered and unique.");
     } catch (error) {
       console.error('Enhanced registration error:', error);
       toast.error("An error occurred during registration. Please try again.");
@@ -388,7 +425,7 @@ const Register = () => {
                   {isRegistering ? (
                     <div className="flex items-center justify-center space-x-3 text-blue-400 px-6 py-3">
                       <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="font-semibold">Processing Enhanced Registration...</span>
+                      <span className="font-semibold">Verifying Uniqueness & Processing Registration...</span>
                     </div>
                   ) : (
                     <div className="flex space-x-4">
@@ -436,6 +473,7 @@ const Register = () => {
                 <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                   <p className="text-green-400 font-semibold text-sm">✨ Enhanced Features Active</p>
                   <p className="text-gray-400 text-sm mt-1">
+                    • Unique face verification<br />
                     • Adaptive recognition threshold<br />
                     • Face quality scoring<br />
                     • Continuous learning from logins<br />
