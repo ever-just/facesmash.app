@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Square, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Square, RefreshCw, AlertCircle, Download } from 'lucide-react';
 import { useFaceAPI } from '@/contexts/FaceAPIContext';
 
 const LoadingTips = [
@@ -10,10 +10,11 @@ const LoadingTips = [
   "✨ Face recognition improves with each login",
   "🔒 Your face data is securely encrypted",
   "⚡ Models are cached for faster future loading",
+  "🚀 Local models provide the best performance",
 ];
 
 const GlobalLoadingScreen = () => {
-  const { isLoading, error, loadProgress, retryLoading } = useFaceAPI();
+  const { isLoading, error, loadProgress, loadingStage, retryLoading } = useFaceAPI();
   const [currentTip, setCurrentTip] = useState(0);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ const GlobalLoadingScreen = () => {
     
     const tipInterval = setInterval(() => {
       setCurrentTip(prev => (prev + 1) % LoadingTips.length);
-    }, 2500);
+    }, 3000);
 
     return () => clearInterval(tipInterval);
   }, [isLoading]);
@@ -52,7 +53,9 @@ const GlobalLoadingScreen = () => {
               <p className="text-gray-400 mb-4">
                 Failed to load face recognition models. Please check your internet connection.
               </p>
-              <p className="text-red-400 text-sm">{error}</p>
+              <p className="text-red-400 text-sm bg-red-900 bg-opacity-30 p-3 rounded-lg border border-red-800">
+                {error}
+              </p>
             </div>
             <Button 
               onClick={retryLoading}
@@ -63,30 +66,45 @@ const GlobalLoadingScreen = () => {
             </Button>
           </div>
         ) : (
-          // Loading State
+          // Enhanced Loading State
           <div className="space-y-6">
-            <Square className="h-16 w-16 text-white mx-auto animate-pulse" />
+            <div className="relative">
+              <Square className="h-16 w-16 text-white mx-auto" />
+              {loadProgress > 0 && (
+                <Download className="h-6 w-6 text-blue-400 absolute -bottom-1 -right-1 animate-bounce" />
+              )}
+            </div>
             
             <div>
               <h2 className="text-2xl font-bold text-white mb-2">
                 Initializing Face Recognition
               </h2>
-              <p className="text-gray-400">
+              <p className="text-gray-400 mb-2">
                 Loading advanced AI models for secure face authentication...
+              </p>
+              <p className="text-blue-400 text-sm font-medium">
+                {loadingStage}
               </p>
             </div>
 
-            {/* Progress Bar */}
+            {/* Enhanced Progress Bar */}
             <div className="space-y-3">
-              <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
+              <div className="w-full bg-gray-800 rounded-full h-4 overflow-hidden border border-gray-700">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-white transition-all duration-300 ease-out"
+                  className="h-full bg-gradient-to-r from-blue-500 via-blue-400 to-white transition-all duration-500 ease-out relative"
                   style={{ width: `${loadProgress}%` }}
-                />
+                >
+                  <div className="absolute inset-0 bg-white bg-opacity-20 animate-pulse"></div>
+                </div>
               </div>
-              <p className="text-white text-sm font-medium">
-                {Math.round(loadProgress)}% Complete
-              </p>
+              <div className="flex justify-between text-xs">
+                <span className="text-white font-medium">
+                  {Math.round(loadProgress)}% Complete
+                </span>
+                <span className="text-gray-400">
+                  {loadProgress === 100 ? 'Ready!' : 'Loading...'}
+                </span>
+              </div>
             </div>
 
             {/* Rotating Tips */}
@@ -96,19 +114,25 @@ const GlobalLoadingScreen = () => {
               </p>
             </div>
 
-            {/* Loading Animation */}
+            {/* Enhanced Loading Animation */}
             <div className="flex justify-center space-x-2">
-              {[0, 1, 2].map((i) => (
+              {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="w-3 h-3 bg-white rounded-full animate-pulse"
+                  className="w-2 h-2 bg-white rounded-full"
                   style={{
-                    animationDelay: `${i * 0.2}s`,
-                    animationDuration: '1s'
+                    animation: `pulse 1.5s ease-in-out ${i * 0.2}s infinite`,
                   }}
                 />
               ))}
             </div>
+
+            {/* Performance Hint */}
+            {loadProgress > 25 && loadProgress < 100 && (
+              <div className="text-xs text-gray-500 bg-gray-900 bg-opacity-50 p-2 rounded border border-gray-800">
+                💡 First-time loading may take longer. Subsequent loads will be much faster!
+              </div>
+            )}
           </div>
         )}
       </div>
