@@ -23,9 +23,7 @@ const Index = () => {
             </Button>
           </Link>
           <Link to="/register">
-            <Button className="bg-white text-black hover:bg-gray-200">
-              Get Started
-            </Button>
+            
           </Link>
         </div>
       </nav>
