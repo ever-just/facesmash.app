@@ -129,6 +129,7 @@ export type Database = {
           embedding_count: number | null
           face_embedding: number[]
           id: string
+          is_admin: boolean
           last_updated: string | null
           learning_weight: number | null
           lighting_conditions: Json | null
@@ -146,6 +147,7 @@ export type Database = {
           embedding_count?: number | null
           face_embedding: number[]
           id?: string
+          is_admin?: boolean
           last_updated?: string | null
           learning_weight?: number | null
           lighting_conditions?: Json | null
@@ -163,6 +165,7 @@ export type Database = {
           embedding_count?: number | null
           face_embedding?: number[]
           id?: string
+          is_admin?: boolean
           last_updated?: string | null
           learning_weight?: number | null
           lighting_conditions?: Json | null
