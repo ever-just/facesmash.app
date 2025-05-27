@@ -1,12 +1,10 @@
 
 import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import LoginHeader from "@/components/LoginHeader";
-import LoginSuccess from "@/components/LoginSuccess";
-import LoginFailed from "@/components/LoginFailed";
 import LoadingSkeleton from "@/components/LoadingSkeleton";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import FaceAPIError from "@/components/login/FaceAPIError";
-import FaceScanCard from "@/components/login/FaceScanCard";
+import EnhancedFaceScanCard from "@/components/login/EnhancedFaceScanCard";
 import CurrentUserCard from "@/components/login/CurrentUserCard";
 import LoginFooter from "@/components/login/LoginFooter";
 import { useLoginLogic } from "@/hooks/useLoginLogic";
@@ -59,23 +57,16 @@ const Login = () => {
               <FaceAPIError error={faceAPIError} />
             )}
 
-            {!showLoginOptions && !scanComplete && isLoaded && !faceAPIError && (
-              <FaceScanCard 
+            {!showLoginOptions && isLoaded && !faceAPIError && (
+              <EnhancedFaceScanCard 
                 isScanning={isScanning}
-                onImagesCapture={handleImagesCapture}
-              />
-            )}
-
-            {!showLoginOptions && scanComplete && loginResult === 'success' && (
-              <LoginSuccess 
+                scanComplete={scanComplete}
+                loginResult={loginResult}
                 matchedUser={matchedUser}
+                onImagesCapture={handleImagesCapture}
+                onTryAgain={resetLogin}
                 onContinue={goToDashboard}
-                onSignInAgain={resetLogin}
               />
-            )}
-
-            {!showLoginOptions && scanComplete && loginResult === 'failed' && (
-              <LoginFailed onTryAgain={resetLogin} />
             )}
 
             {!showLoginOptions && (
