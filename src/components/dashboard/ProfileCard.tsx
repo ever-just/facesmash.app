@@ -22,6 +22,10 @@ const ProfileCard = ({ userName, userProfile }: ProfileCardProps) => {
       <CardContent className="space-y-4 p-4 sm:p-6">
         <div className="flex justify-between items-center">
           <span className="text-gray-400 text-sm sm:text-base">Name:</span>
+          <span className="text-white text-sm sm:text-base truncate ml-2">{userName.split('@')[0]}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-gray-400 text-sm sm:text-base">Email:</span>
           <span className="text-white text-sm sm:text-base truncate ml-2">{userName}</span>
         </div>
         <div className="flex justify-between items-center">
