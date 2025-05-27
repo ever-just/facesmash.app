@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Square, RefreshCw, AlertCircle, Download } from 'lucide-react';
-import { useFaceAPI } from '@/contexts/FaceAPIContext';
 
 const LoadingTips = [
   "💡 Ensure good lighting for better face recognition",
@@ -13,8 +12,24 @@ const LoadingTips = [
   "🚀 Local models provide the best performance",
 ];
 
+// Create a safe hook that doesn't throw if used outside provider
+const useFaceAPISafe = () => {
+  try {
+    const { useFaceAPI } = require('@/contexts/FaceAPIContext');
+    return useFaceAPI();
+  } catch {
+    return {
+      isLoading: false,
+      error: null,
+      loadProgress: 0,
+      loadingStage: '',
+      retryLoading: () => {}
+    };
+  }
+};
+
 const GlobalLoadingScreen = () => {
-  const { isLoading, error, loadProgress, loadingStage, retryLoading } = useFaceAPI();
+  const { isLoading, error, loadProgress, loadingStage, retryLoading } = useFaceAPISafe();
   const [currentTip, setCurrentTip] = useState(0);
 
   useEffect(() => {
