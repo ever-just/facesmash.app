@@ -21,15 +21,16 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
   const [cameraLoading, setCameraLoading] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
+  const [faceAPILoading, setFaceAPILoading] = useState(false);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { isLoaded, isLoading, loadFaceAPI } = useFaceAPI();
+  const { isLoaded, loadFaceAPI } = useFaceAPI();
 
-  // Simplified video constraints for faster initialization
+  // Basic video constraints for faster initialization
   const videoConstraints = {
-    width: 640,
-    height: 640,
+    width: 480,
+    height: 480,
     facingMode: "user"
   };
 
@@ -80,24 +81,22 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
       return;
     }
 
+    setIsDetecting(true);
+    setScanProgress(0);
+    
     // Load Face API if not already loaded
-    if (!isLoaded && !isLoading) {
+    if (!isLoaded) {
       console.log('Loading Face API for detection...');
+      setFaceAPILoading(true);
       const loaded = await loadFaceAPI();
+      setFaceAPILoading(false);
       if (!loaded) {
         toast.error("Failed to load face recognition. Please refresh and try again.");
+        setIsDetecting(false);
         return;
       }
     }
-
-    // Wait for Face API to be loaded
-    if (!isLoaded) {
-      console.log('Waiting for Face API to load...');
-      return;
-    }
     
-    setIsDetecting(true);
-    setScanProgress(0);
     console.log('Starting automatic face detection...');
     
     // Start progress animation
@@ -137,7 +136,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
         console.error('Face detection error:', error);
       }
     }, 200);
-  }, [capture, isDetecting, webcamReady, isLoaded, isLoading, loadFaceAPI]);
+  }, [capture, isDetecting, webcamReady, isLoaded, loadFaceAPI]);
 
   const onWebcamReady = useCallback(() => {
     console.log('Webcam is ready');
@@ -160,16 +159,16 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
 
   // Auto-start detection when conditions are met
   useEffect(() => {
-    if (webcamReady && autoStart && !isDetecting && capturedImages.length === 0) {
+    if (webcamReady && autoStart && !isDetecting && capturedImages.length === 0 && !faceAPILoading) {
       console.log('Auto-starting face detection...');
       const timer = setTimeout(() => {
         startFaceDetection();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [webcamReady, autoStart, startFaceDetection, isDetecting, capturedImages.length]);
+  }, [webcamReady, autoStart, startFaceDetection, isDetecting, capturedImages.length, faceAPILoading]);
 
-  // Reduced timeout for camera initialization
+  // Camera initialization timeout
   useEffect(() => {
     if (cameraLoading) {
       initTimeoutRef.current = setTimeout(() => {
@@ -178,7 +177,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
           setCameraLoading(false);
           setCameraError("Camera is taking too long to initialize. Please refresh and try again.");
         }
-      }, 5000); // Reduced to 5 seconds
+      }, 8000);
     }
     
     return () => {
@@ -194,6 +193,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
     setFaceDetected(false);
     setScanProgress(0);
     setCameraError(null);
+    setFaceAPILoading(false);
     
     if (detectionIntervalRef.current) {
       clearInterval(detectionIntervalRef.current);
@@ -226,7 +226,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
     };
   }, []);
 
-  // Simplified loading skeleton
+  // Camera Loading Skeleton
   const CameraLoadingSkeleton = () => (
     <div className="relative w-80 h-80 bg-gray-900 rounded-3xl overflow-hidden border-4 border-gray-600 shadow-2xl flex items-center justify-center">
       <div className="text-center">
@@ -234,6 +234,16 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
         <div className="bg-black/80 text-white text-sm px-3 py-1 rounded-full backdrop-blur-sm">
           Loading camera...
         </div>
+      </div>
+    </div>
+  );
+
+  // Face API Loading Overlay
+  const FaceAPILoadingOverlay = () => (
+    <div className="absolute inset-0 bg-black/80 flex items-center justify-center rounded-3xl">
+      <div className="text-center">
+        <Loader2 className="h-8 w-8 text-blue-400 mx-auto mb-2 animate-spin" />
+        <div className="text-white text-sm">Loading AI models...</div>
       </div>
     </div>
   );
@@ -274,6 +284,9 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
               onUserMediaError={onWebcamError}
               mirrored={true}
             />
+            
+            {/* Face API Loading Overlay */}
+            {faceAPILoading && <FaceAPILoadingOverlay />}
             
             {/* Face Detection Overlay */}
             <div className="absolute inset-4">
@@ -380,8 +393,6 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
               ? "📷 Loading camera..."
               : cameraError
               ? "❌ Camera error"
-              : autoStart
-              ? `📸 Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
               : `📸 Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
             }
           </p>
@@ -391,7 +402,7 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
               ? "Please check camera permissions and try again"
               : cameraLoading
               ? "Initializing camera..."
-              : isLoading
+              : faceAPILoading
               ? "Loading face recognition models..."
               : autoStart 
               ? "Detection will start automatically when ready"
@@ -408,10 +419,10 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
           <Button 
             onClick={startFaceDetection}
             className="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
-            disabled={!webcamReady || cameraLoading}
+            disabled={!webcamReady || cameraLoading || faceAPILoading}
           >
             <Scan className="mr-2 h-5 w-5" />
-            {webcamReady && !cameraLoading ? 'Start Scanning' : 'Loading...'}
+            {webcamReady && !cameraLoading && !faceAPILoading ? 'Start Scanning' : 'Loading...'}
           </Button>
         )}
 
