@@ -1,335 +1,199 @@
 
-import { useCallback, useRef, useState, useEffect } from "react";
-import Webcam from "react-webcam";
-import { Button } from "@/components/ui/button";
-import { Square, RotateCcw, CheckCircle, Scan } from "lucide-react";
-import { toast } from "sonner";
-import * as faceapi from 'face-api.js';
-import { useFaceAPI } from '@/contexts/FaceAPIContext';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
+import Webcam from 'react-webcam';
+import { Camera, RefreshCw, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface WebcamCaptureProps {
   onImagesCapture: (images: string[]) => void;
-  isLogin?: boolean;
+  isCapturing?: boolean;
+  disabled?: boolean;
   autoStart?: boolean;
+  captureCount?: number;
+  captureInterval?: number;
 }
 
-const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: WebcamCaptureProps) => {
+const WebcamCapture: React.FC<WebcamCaptureProps> = ({
+  onImagesCapture,
+  isCapturing = false,
+  disabled = false,
+  autoStart = false,
+  captureCount = 3,
+  captureInterval = 1000,
+}) => {
   const webcamRef = useRef<Webcam>(null);
-  const [capturedImages, setCapturedImages] = useState<string[]>([]);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [faceDetected, setFaceDetected] = useState(false);
-  const [webcamReady, setWebcamReady] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const { isLoaded } = useFaceAPI();
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [captureProgress, setCaptureProgress] = useState(0);
+  const [currentCaptureCount, setCurrentCaptureCount] = useState(0);
 
+  // Video constraints - simplified for faster initialization
   const videoConstraints = {
     width: 640,
-    height: 640,
+    height: 480,
     facingMode: "user"
   };
 
-  const dataURLtoBlob = (dataURL: string): Blob => {
-    const arr = dataURL.split(',');
-    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
+  useEffect(() => {
+    const initializeCamera = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasPermission(true);
+        setIsLoading(false);
+        // Clean up the test stream
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.error('Camera initialization error:', err);
+        setHasPermission(false);
+        setError('Camera access denied or not available');
+        setIsLoading(false);
+      }
+    };
+
+    initializeCamera();
+  }, []);
+
+  // Auto-start capture when requested
+  useEffect(() => {
+    if (autoStart && hasPermission && !isLoading && !isCapturing) {
+      const timer = setTimeout(() => {
+        handleCapture();
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-    return new Blob([u8arr], { type: mime });
-  };
+  }, [autoStart, hasPermission, isLoading, isCapturing]);
 
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
-    if (imageSrc) {
-      console.log('Image captured from webcam');
-      console.log('Image data URL length:', imageSrc.length);
-      
-      // Convert to blob for debugging
-      const blob = dataURLtoBlob(imageSrc);
-      console.log('Converted blob size:', blob.size, 'bytes');
-      console.log('Converted blob type:', blob.type);
-      
-      const newImages = [imageSrc];
-      setCapturedImages(newImages);
-      onImagesCapture(newImages);
-      setIsDetecting(false);
-      setFaceDetected(false);
-      setScanProgress(0);
-      
-      if (detectionIntervalRef.current) {
-        clearInterval(detectionIntervalRef.current);
-        detectionIntervalRef.current = null;
-      }
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-    } else {
-      console.error('Failed to capture image from webcam');
-    }
-  }, [onImagesCapture]);
+    return imageSrc;
+  }, [webcamRef]);
 
-  const startFaceDetection = useCallback(async () => {
-    if (!webcamRef.current?.video || isDetecting || !webcamReady || !isLoaded) return;
-    
-    setIsDetecting(true);
-    setScanProgress(0);
-    console.log('Starting automatic face detection...');
-    
-    // Start progress animation
-    progressIntervalRef.current = setInterval(() => {
-      setScanProgress(prev => {
-        if (prev >= 100) return 0;
-        return prev + 2;
-      });
-    }, 50);
-    
-    detectionIntervalRef.current = setInterval(async () => {
-      const video = webcamRef.current?.video;
-      if (!video || video.readyState !== 4) return;
-      
-      try {
-        const detection = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }));
+  const handleCapture = useCallback(async () => {
+    if (!webcamRef.current || isCapturing) return;
+
+    const images: string[] = [];
+    setCurrentCaptureCount(0);
+    setCaptureProgress(0);
+
+    for (let i = 0; i < captureCount; i++) {
+      const image = capture();
+      if (image) {
+        images.push(image);
+        setCurrentCaptureCount(i + 1);
+        setCaptureProgress(((i + 1) / captureCount) * 100);
         
-        if (detection) {
-          console.log('Face detected! Capturing image...');
-          setFaceDetected(true);
-          
-          setTimeout(() => {
-            capture();
-          }, 800);
-          
-          if (detectionIntervalRef.current) {
-            clearInterval(detectionIntervalRef.current);
-            detectionIntervalRef.current = null;
-          }
-          if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-            progressIntervalRef.current = null;
-          }
+        if (i < captureCount - 1) {
+          await new Promise(resolve => setTimeout(resolve, captureInterval));
         }
-      } catch (error) {
-        console.error('Face detection error:', error);
       }
-    }, 200);
-  }, [capture, isDetecting, webcamReady, isLoaded]);
-
-  const onWebcamReady = useCallback(() => {
-    console.log('Webcam is ready');
-    setWebcamReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (webcamReady && autoStart && !isDetecting && capturedImages.length === 0 && isLoaded) {
-      console.log('Auto-starting face detection...');
-      setTimeout(() => {
-        startFaceDetection();
-      }, 500);
     }
-  }, [webcamReady, autoStart, startFaceDetection, isDetecting, capturedImages.length, isLoaded]);
 
-  const reset = () => {
-    setCapturedImages([]);
-    setIsDetecting(false);
-    setFaceDetected(false);
-    setScanProgress(0);
-    
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = null;
-    }
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
+    onImagesCapture(images);
+    setCaptureProgress(0);
+    setCurrentCaptureCount(0);
+  }, [capture, onImagesCapture, captureCount, captureInterval, isCapturing]);
+
+  const handleRetry = () => {
+    window.location.reload();
   };
 
-  useEffect(() => {
-    return () => {
-      if (detectionIntervalRef.current) {
-        clearInterval(detectionIntervalRef.current);
-      }
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-    };
-  }, []);
+  if (isLoading) {
+    return (
+      <Card className="bg-gray-900 border-gray-700">
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+            <p className="text-white mb-2">Initializing camera...</p>
+            <p className="text-gray-400 text-sm">Please allow camera access</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || hasPermission === false) {
+    return (
+      <Card className="bg-gray-900 border-gray-700">
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <p className="text-white mb-2">Camera Access Required</p>
+            <p className="text-gray-400 text-sm mb-4">
+              {error || 'Please enable camera access to continue'}
+            </p>
+            <Button onClick={handleRetry} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      <div className="relative flex justify-center">
-        <div className="relative w-80 h-80 bg-black rounded-3xl overflow-hidden border-4 border-gray-600 shadow-2xl">
+    <Card className="bg-gray-900 border-gray-700 overflow-hidden">
+      <CardContent className="p-0">
+        <div className="relative">
           <Webcam
             ref={webcamRef}
             audio={false}
             screenshotFormat="image/jpeg"
             videoConstraints={videoConstraints}
-            className="w-full h-full object-cover"
-            onUserMedia={onWebcamReady}
-            mirrored={true}
+            className="w-full h-auto rounded-t-lg"
+            onUserMediaError={(error) => {
+              console.error('Webcam error:', error);
+              setError('Failed to access camera');
+            }}
           />
           
-          {/* Face Detection Overlay */}
-          <div className="absolute inset-4">
-            <div className={`w-full h-full rounded-full border-4 transition-all duration-500 ${
-              faceDetected 
-                ? 'border-green-400 shadow-lg shadow-green-400/50' 
-                : isDetecting 
-                ? 'border-blue-400 shadow-lg shadow-blue-400/30' 
-                : 'border-white/50'
-            }`}>
-              <div className="absolute -top-2 -left-2 w-8 h-8 border-l-4 border-t-4 border-white rounded-tl-lg"></div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 border-r-4 border-t-4 border-white rounded-tr-lg"></div>
-              <div className="absolute -bottom-2 -left-2 w-8 h-8 border-l-4 border-b-4 border-white rounded-bl-lg"></div>
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 border-r-4 border-b-4 border-white rounded-br-lg"></div>
-            </div>
-            
-            {isDetecting && !faceDetected && (
-              <div className="absolute inset-0 rounded-full overflow-hidden">
-                <div 
-                  className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent transform transition-transform duration-100"
-                  style={{ transform: `translateY(${(scanProgress / 100) * 280}px)` }}
-                ></div>
-              </div>
-            )}
-          </div>
-
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
-            <div className="bg-black/80 text-white text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-              Position your face here
-            </div>
-          </div>
-
-          {faceDetected && (
-            <div className="absolute inset-0 bg-green-400/20 flex items-center justify-center animate-pulse">
-              <div className="text-2xl font-bold text-white drop-shadow-lg flex items-center">
-                <CheckCircle className="mr-2 h-8 w-8" />
-                Face Detected!
+          {isCapturing && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-white mb-2">Capturing...</p>
+                <p className="text-gray-300 text-sm">
+                  {currentCaptureCount} of {captureCount}
+                </p>
+                {captureProgress > 0 && (
+                  <div className="w-48 bg-gray-700 rounded-full h-2 mt-2 mx-auto">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${captureProgress}%` }}
+                    ></div>
+                  </div>
+                )}
               </div>
             </div>
           )}
-
-          {isDetecting && !faceDetected && (
-            <div className="absolute inset-0 pointer-events-none opacity-30">
-              <div className="w-full h-full grid grid-cols-8 grid-rows-8">
-                {Array.from({ length: 64 }).map((_, i) => (
-                  <div 
-                    key={i} 
-                    className="border border-blue-400/20 animate-pulse"
-                    style={{ 
-                      animationDelay: `${(i * 50)}ms`,
-                      animationDuration: '2s'
-                    }}
-                  ></div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="text-center space-y-6">
-        <div className="flex items-center justify-center">
-          <div className={`w-6 h-6 rounded-full transition-all duration-500 ${
-            capturedImages.length > 0 
-              ? 'bg-green-400 shadow-lg shadow-green-400/50' 
-              : faceDetected
-              ? 'bg-green-400 animate-pulse shadow-lg shadow-green-400/50'
-              : isDetecting
-              ? 'bg-blue-400 animate-pulse shadow-lg shadow-blue-400/50'
-              : 'bg-gray-600'
-          }`}>
-            {capturedImages.length > 0 && (
-              <CheckCircle className="w-6 h-6 text-white" />
-            )}
-          </div>
         </div>
         
-        <div className="space-y-2">
-          <p className={`text-lg font-medium transition-colors duration-500 ${
-            capturedImages.length > 0 
-              ? "text-green-400"
-              : faceDetected
-              ? "text-green-400"
-              : isDetecting
-              ? "text-blue-400"
-              : "text-gray-300"
-          }`}>
-            {capturedImages.length > 0 
-              ? "✓ Photo captured successfully!"
-              : faceDetected
-              ? "✓ Face detected - capturing..."
-              : isDetecting
-              ? "🔍 Scanning for face..."
-              : autoStart
-              ? `📸 Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
-              : `📸 Ready to capture your ${isLogin ? 'verification' : 'profile'} photo`
-            }
-          </p>
-
-          <p className="text-sm text-gray-400">
-            {!isLoaded 
-              ? "Waiting for face recognition to load..."
-              : autoStart 
-              ? "Detection will start automatically when camera is ready"
-              : isDetecting 
-              ? "Hold still and look directly at the camera"
-              : "Position your face in the circle for automatic capture"
-            }
-          </p>
-        </div>
-      </div>
-
-      <div className="flex justify-center space-x-4">
-        {capturedImages.length === 0 && !isDetecting && !autoStart && isLoaded && (
+        <div className="p-4">
           <Button 
-            onClick={startFaceDetection}
-            className="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
-            disabled={!webcamReady || !isLoaded}
+            onClick={handleCapture}
+            disabled={disabled || isCapturing}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
-            <Scan className="mr-2 h-5 w-5" />
-            {webcamReady && isLoaded ? 'Start Scanning' : 'Loading...'}
+            {isCapturing ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Capturing...
+              </>
+            ) : (
+              <>
+                <Camera className="h-4 w-4 mr-2" />
+                Capture Face
+              </>
+            )}
           </Button>
-        )}
-
-        {capturedImages.length > 0 && (
-          <>
-            <Button 
-              onClick={reset}
-              variant="outline"
-              className="border-2 border-white text-white hover:bg-white hover:text-black px-6 py-3 rounded-xl font-semibold transition-all duration-300"
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Retake
-            </Button>
-            <div className="flex items-center space-x-3 text-green-400 px-6 py-3">
-              <CheckCircle className="h-6 w-6 animate-pulse" />
-              <span className="font-semibold">Photo Ready!</span>
-            </div>
-          </>
-        )}
-      </div>
-
-      {capturedImages.length > 0 && (
-        <div className="space-y-4 animate-fade-in">
-          <h4 className="text-center text-white font-medium">Captured Photo</h4>
-          <div className="flex justify-center">
-            <div className="w-32 h-32 rounded-2xl overflow-hidden border-2 border-gray-600 shadow-lg transform hover:scale-105 transition-transform duration-300">
-              <img
-                src={capturedImages[0]}
-                alt="Captured face"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 
