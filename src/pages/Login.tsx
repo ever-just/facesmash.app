@@ -1,9 +1,12 @@
 
 import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import LoginHeader from "@/components/LoginHeader";
+import LoginSuccess from "@/components/LoginSuccess";
+import LoginFailed from "@/components/LoginFailed";
+import LoadingSkeleton from "@/components/LoadingSkeleton";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import FaceAPIError from "@/components/login/FaceAPIError";
-import EnhancedFaceScanCard from "@/components/login/EnhancedFaceScanCard";
+import FaceScanCard from "@/components/login/FaceScanCard";
 import CurrentUserCard from "@/components/login/CurrentUserCard";
 import LoginFooter from "@/components/login/LoginFooter";
 import { useLoginLogic } from "@/hooks/useLoginLogic";
@@ -22,6 +25,20 @@ const Login = () => {
     goToDashboard
   } = useLoginLogic();
 
+  // Show loading state only when Face API is loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <LoginHeader />
+        <div className="container mx-auto px-6 py-12">
+          <div className="max-w-2xl mx-auto">
+            <LoadingSkeleton variant="webcam" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <LoginHeader />
@@ -37,19 +54,32 @@ const Login = () => {
               />
             )}
 
+            {/* Face API Error State */}
             {!showLoginOptions && (
-              <>
-                <EnhancedFaceScanCard 
-                  isScanning={isScanning}
-                  scanComplete={scanComplete}
-                  loginResult={loginResult}
-                  matchedUser={matchedUser}
-                  onImagesCapture={handleImagesCapture}
-                  onTryAgain={resetLogin}
-                  onContinue={goToDashboard}
-                />
-                <LoginFooter />
-              </>
+              <FaceAPIError error={faceAPIError} />
+            )}
+
+            {!showLoginOptions && !scanComplete && isLoaded && !faceAPIError && (
+              <FaceScanCard 
+                isScanning={isScanning}
+                onImagesCapture={handleImagesCapture}
+              />
+            )}
+
+            {!showLoginOptions && scanComplete && loginResult === 'success' && (
+              <LoginSuccess 
+                matchedUser={matchedUser}
+                onContinue={goToDashboard}
+                onSignInAgain={resetLogin}
+              />
+            )}
+
+            {!showLoginOptions && scanComplete && loginResult === 'failed' && (
+              <LoginFailed onTryAgain={resetLogin} />
+            )}
+
+            {!showLoginOptions && (
+              <LoginFooter />
             )}
           </ErrorBoundary>
         </div>

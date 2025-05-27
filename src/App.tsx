@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FaceAPIProvider } from "@/contexts/FaceAPIContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import GlobalLoadingScreen from "@/components/GlobalLoadingScreen";
 import Index from "./pages/Index";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -30,6 +31,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <GlobalLoadingScreen />
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />

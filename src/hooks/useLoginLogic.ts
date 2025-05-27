@@ -25,7 +25,6 @@ export const useLoginLogic = () => {
     }
 
     setIsScanning(true);
-    setScanComplete(false);
     
     try {
       // Enhanced face analysis with lighting detection
@@ -183,9 +182,6 @@ export const useLoginLogic = () => {
         }
       }
 
-      // Simulate processing time for better UX
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       setIsScanning(false);
       setScanComplete(true);
       
@@ -193,6 +189,8 @@ export const useLoginLogic = () => {
         setLoginResult('success');
         const qualityMsg = faceAnalysis.qualityScore > 0.7 ? " (High quality scan - learning enhanced!)" : "";
         toast.success(`Welcome back, ${matchedUser}!${qualityMsg}`);
+        
+        // Removed automatic redirect - users now control navigation via LoginSuccess buttons
       } else {
         setLoginResult('failed');
         
