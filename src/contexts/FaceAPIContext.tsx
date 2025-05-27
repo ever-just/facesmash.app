@@ -1,13 +1,12 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { initializeFaceAPI, LoadingProgress, reloadModels } from '@/utils/faceRecognition';
+import { initializeFaceAPI } from '@/utils/faceRecognition';
 
 interface FaceAPIContextType {
   isLoaded: boolean;
   isLoading: boolean;
   error: string | null;
   loadProgress: number;
-  loadingStage: string;
   retryLoading: () => void;
 }
 
@@ -30,68 +29,45 @@ export const FaceAPIProvider = ({ children }: FaceAPIProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadProgress, setLoadProgress] = useState(0);
-  const [loadingStage, setLoadingStage] = useState('Initializing...');
-
-  const handleProgress = (progress: LoadingProgress) => {
-    setLoadingStage(progress.stage);
-    const percentage = (progress.progress / progress.total) * 100;
-    setLoadProgress(percentage);
-  };
 
   const loadModels = async () => {
     setIsLoading(true);
     setError(null);
     setLoadProgress(0);
-    setLoadingStage('Initializing...');
 
     try {
-      console.log('Starting Face API initialization with progress tracking...');
+      console.log('Starting global Face API initialization...');
       
-      const success = await initializeFaceAPI(handleProgress);
+      // Simulate progress for user feedback
+      const progressInterval = setInterval(() => {
+        setLoadProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 15;
+        });
+      }, 300);
+
+      const success = await initializeFaceAPI();
+      
+      clearInterval(progressInterval);
+      setLoadProgress(100);
       
       if (success) {
         setIsLoaded(true);
         setIsLoading(false);
-        setLoadProgress(100);
-        setLoadingStage('Complete');
-        console.log('Face API initialization completed successfully');
+        console.log('Global Face API initialization completed successfully');
       } else {
         throw new Error('Failed to load face recognition models');
       }
     } catch (err) {
-      console.error('Face API initialization failed:', err);
+      console.error('Global Face API initialization failed:', err);
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
       setIsLoading(false);
       setLoadProgress(0);
-      setLoadingStage('Error');
     }
   };
 
-  const retryLoading = async () => {
-    try {
-      console.log('Retrying Face API initialization...');
-      setIsLoading(true);
-      setError(null);
-      setLoadProgress(0);
-      setLoadingStage('Retrying...');
-      
-      const success = await reloadModels(handleProgress);
-      
-      if (success) {
-        setIsLoaded(true);
-        setIsLoading(false);
-        setLoadProgress(100);
-        setLoadingStage('Complete');
-      } else {
-        throw new Error('Retry failed to load face recognition models');
-      }
-    } catch (err) {
-      console.error('Face API retry failed:', err);
-      setError(err instanceof Error ? err.message : 'Retry failed');
-      setIsLoading(false);
-      setLoadProgress(0);
-      setLoadingStage('Error');
-    }
+  const retryLoading = () => {
+    loadModels();
   };
 
   useEffect(() => {
@@ -105,7 +81,6 @@ export const FaceAPIProvider = ({ children }: FaceAPIProviderProps) => {
         isLoading,
         error,
         loadProgress,
-        loadingStage,
         retryLoading,
       }}
     >

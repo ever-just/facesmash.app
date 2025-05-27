@@ -1,9 +1,9 @@
-
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { Camera, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useFaceTracking } from '@/hooks/useFaceTracking';
 
 interface AutoFaceDetectionProps {
   onImagesCapture: (images: string[]) => void;
@@ -17,17 +17,31 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   disabled = false,
 }) => {
   const webcamRef = useRef<Webcam>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [captureTimer, setCaptureTimer] = useState(0);
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [detectionProgress, setDetectionProgress] = useState(0);
 
   const videoConstraints = {
     width: 640,
     height: 480,
     facingMode: "user"
   };
+
+  // Initialize face tracking
+  const { facePosition, isTracking } = useFaceTracking({
+    webcamRef,
+    isActive: hasPermission && !isLoading && !isScanning && !disabled,
+    onFaceDetected: () => {
+      setFaceDetected(true);
+    },
+    onFaceLost: () => {
+      setFaceDetected(false);
+      setDetectionProgress(0);
+    }
+  });
 
   useEffect(() => {
     const initializeCamera = async () => {
@@ -50,57 +64,50 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     initializeCamera();
   }, []);
 
-  // Auto-capture after camera is ready and stable
+  // Auto-detection logic
   useEffect(() => {
-    if (!hasPermission || isLoading || isScanning || disabled || isCapturing) return;
+    if (!hasPermission || isLoading || isScanning || disabled || !faceDetected) return;
 
-    let timer: NodeJS.Timeout;
-    let countdown = 3;
-    
-    const startCountdown = () => {
-      setIsCapturing(true);
-      setCaptureTimer(countdown);
-      
-      timer = setInterval(() => {
-        countdown--;
-        setCaptureTimer(countdown);
-        
-        if (countdown <= 0) {
-          clearInterval(timer);
-          captureImages();
-        }
-      }, 1000);
-    };
+    let detectionCount = 0;
+    const maxDetections = 3;
+    const detectionInterval = 1500;
 
-    // Start countdown after camera is stable (2 seconds)
-    const initialDelay = setTimeout(startCountdown, 2000);
+    const autoDetect = async () => {
+      if (!webcamRef.current) return;
 
-    return () => {
-      clearTimeout(initialDelay);
-      clearInterval(timer);
-    };
-  }, [hasPermission, isLoading, isScanning, disabled, isCapturing]);
+      const image = webcamRef.current.getScreenshot();
+      if (image) {
+        detectionCount++;
+        setDetectionProgress((detectionCount / maxDetections) * 100);
 
-  const captureImages = async () => {
-    if (!webcamRef.current) return;
-
-    try {
-      const images = [];
-      for (let i = 0; i < 3; i++) {
-        const image = webcamRef.current.getScreenshot();
-        if (image) {
-          images.push(image);
-        }
-        if (i < 2) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+        if (detectionCount >= maxDetections) {
+          // Capture multiple images for better accuracy
+          const images = [];
+          for (let i = 0; i < 3; i++) {
+            const capturedImage = webcamRef.current.getScreenshot();
+            if (capturedImage) {
+              images.push(capturedImage);
+            }
+            if (i < 2) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+          onImagesCapture(images);
+          return;
         }
       }
-      onImagesCapture(images);
-    } catch (error) {
-      console.error('Error capturing images:', error);
-      setIsCapturing(false);
-    }
-  };
+
+      setTimeout(autoDetect, detectionInterval);
+    };
+
+    // Start auto-detection after face is stable
+    const startTimer = setTimeout(autoDetect, 2000);
+
+    return () => {
+      clearTimeout(startTimer);
+      setDetectionProgress(0);
+    };
+  }, [hasPermission, isLoading, isScanning, disabled, faceDetected, onImagesCapture]);
 
   const handleRetry = () => {
     window.location.reload();
@@ -129,7 +136,10 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   return (
     <Card className="bg-gray-900 border-gray-700 overflow-hidden">
       <CardContent className="p-0">
-        <div className="relative w-full h-[360px] bg-gray-800 rounded-t-lg overflow-hidden">
+        <div 
+          ref={videoContainerRef}
+          className="relative w-full h-[360px] bg-gray-800 rounded-t-lg overflow-hidden"
+        >
           {/* Webcam Component */}
           {hasPermission && !error && (
             <Webcam
@@ -156,34 +166,63 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
             </div>
           )}
 
-          {/* Static Face Guide Overlay */}
-          {!isLoading && !error && !isScanning && (
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="relative">
-                {/* Main guide oval */}
-                <div className="w-48 h-60 border-4 border-blue-500 border-opacity-70 rounded-full bg-transparent">
-                  <div className="absolute inset-2 border-2 border-blue-300 border-opacity-50 rounded-full"></div>
+          {/* Dynamic Face Guide Overlay */}
+          {!isLoading && !error && (
+            <div className="absolute inset-0 pointer-events-none">
+              {facePosition ? (
+                // Dynamic face tracking overlay - positioned using pixels
+                <div
+                  className="absolute transition-all duration-150 ease-out"
+                  style={{
+                    left: `${facePosition.x}px`,
+                    top: `${facePosition.y}px`,
+                    width: `${Math.max(facePosition.width * 1.2, 100)}px`,
+                    height: `${Math.max(facePosition.height * 1.3, 120)}px`,
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                >
+                  <div className="w-full h-full border-4 border-green-500 border-opacity-80 rounded-full bg-transparent relative">
+                    <div className="absolute inset-2 border-2 border-green-300 border-opacity-60 rounded-full animate-pulse"></div>
+                  </div>
+                  {/* Dynamic instruction text */}
+                  <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
+                    <p className="text-white text-xs font-medium bg-black bg-opacity-60 px-2 py-1 rounded">
+                      Face detected - hold steady
+                    </p>
+                  </div>
                 </div>
-                
-                {/* Instruction text */}
-                <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center">
-                  <p className="text-white text-sm font-medium bg-black bg-opacity-50 px-3 py-1 rounded">
-                    {isCapturing ? `Capturing in ${captureTimer}...` : 'Position your face within the oval'}
-                  </p>
+              ) : (
+                // Default centered guide when no face detected
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="relative">
+                    <div className="w-48 h-60 border-4 border-blue-500 border-opacity-70 rounded-full bg-transparent">
+                      <div className="absolute inset-2 border-2 border-blue-300 border-opacity-50 rounded-full"></div>
+                    </div>
+                    <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center">
+                      <p className="text-white text-sm font-medium bg-black bg-opacity-50 px-3 py-1 rounded">
+                        {isTracking ? 'Looking for your face...' : 'Position your face within the oval'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
           
-          {/* Capture countdown overlay */}
-          {isCapturing && !isScanning && (
+          {/* Face detection progress overlay */}
+          {!isScanning && faceDetected && detectionProgress > 0 && (
             <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 border-4 border-green-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <span className="text-green-500 text-2xl font-bold">{captureTimer}</span>
+                <div className="w-20 h-20 border-4 border-green-500 rounded-full mx-auto mb-4 relative">
+                  <div className="absolute inset-2 border-2 border-green-300 rounded-full animate-pulse"></div>
                 </div>
-                <p className="text-white mb-2">Get ready for capture!</p>
-                <p className="text-gray-300 text-sm">Hold steady...</p>
+                <p className="text-white mb-2">Scanning automatically...</p>
+                <div className="w-48 bg-gray-700 rounded-full h-2 mt-3 mx-auto">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${detectionProgress}%` }}
+                  ></div>
+                </div>
               </div>
             </div>
           )}
@@ -202,7 +241,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         
         <div className="p-4 text-center">
           <p className="text-gray-400 text-sm">
-            {isScanning ? 'Processing...' : isLoading ? 'Getting ready...' : isCapturing ? `Capturing in ${captureTimer} seconds...` : 'Look directly at the camera'}
+            {isScanning ? 'Processing...' : isLoading ? 'Getting ready...' : facePosition ? 'Face detected - hold steady' : 'Look directly at the camera'}
           </p>
         </div>
       </CardContent>

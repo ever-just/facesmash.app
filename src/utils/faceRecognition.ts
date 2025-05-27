@@ -1,134 +1,24 @@
+
 import * as faceapi from 'face-api.js';
 
-// Cache for loaded models to prevent reloading
-let modelsLoaded = false;
-let loadingPromise: Promise<boolean> | null = null;
-
-// Progress tracking for better user feedback
-export interface LoadingProgress {
-  stage: string;
-  progress: number;
-  total: number;
-}
-
-// Initialize face-api.js models with local files and caching
-export const initializeFaceAPI = async (
-  onProgress?: (progress: LoadingProgress) => void
-): Promise<boolean> => {
-  // Return immediately if models are already loaded
-  if (modelsLoaded) {
-    console.log('Face-api.js models already loaded from cache');
-    onProgress?.({ stage: 'Complete', progress: 4, total: 4 });
-    return true;
-  }
-
-  // Return existing loading promise if already in progress
-  if (loadingPromise) {
-    console.log('Face-api.js models loading already in progress');
-    return loadingPromise;
-  }
-
-  // Start new loading process
-  loadingPromise = loadModels(onProgress);
-  const result = await loadingPromise;
-  loadingPromise = null;
-  
-  return result;
-};
-
-const loadModels = async (
-  onProgress?: (progress: LoadingProgress) => void
-): Promise<boolean> => {
-  // Try local models first, fallback to CDN
-  const MODEL_URL = '/models';
-  const CDN_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+// Initialize face-api.js models
+export const initializeFaceAPI = async () => {
+  // Use CDN for easier setup - change back to '/models' when you have local models
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
   
   try {
-    console.log('Loading Face-api.js models from local files...');
-    
-    // Define models to load with progress tracking
-    const modelLoaders = [
-      {
-        name: 'Face Detector',
-        loader: () => faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
-      },
-      {
-        name: 'Landmarks',
-        loader: () => faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
-      },
-      {
-        name: 'Recognition',
-        loader: () => faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-      },
-      {
-        name: 'Expressions',
-        loader: () => faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
-      }
-    ];
-
-    // Load models with progress tracking
-    for (let i = 0; i < modelLoaders.length; i++) {
-      const { name, loader } = modelLoaders[i];
-      
-      onProgress?.({
-        stage: `Loading ${name}...`,
-        progress: i,
-        total: modelLoaders.length
-      });
-      
-      console.log(`Loading ${name} model...`);
-      await loader();
-      console.log(`${name} model loaded successfully`);
-    }
-
-    onProgress?.({
-      stage: 'Complete',
-      progress: modelLoaders.length,
-      total: modelLoaders.length
-    });
-
-    modelsLoaded = true;
-    console.log('All Face-api.js models loaded successfully from local files');
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
+    ]);
+    console.log('Face-api.js models loaded successfully');
     return true;
-
-  } catch (localError) {
-    console.warn('Failed to load local models, falling back to CDN:', localError);
-    
-    try {
-      onProgress?.({ stage: 'Loading from CDN...', progress: 0, total: 4 });
-      
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(CDN_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(CDN_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(CDN_URL),
-        faceapi.nets.faceExpressionNet.loadFromUri(CDN_URL)
-      ]);
-
-      onProgress?.({ stage: 'Complete', progress: 4, total: 4 });
-      
-      modelsLoaded = true;
-      console.log('Face-api.js models loaded successfully from CDN');
-      return true;
-    } catch (cdnError) {
-      console.error('Failed to load face-api.js models from both local and CDN:', cdnError);
-      onProgress?.({ stage: 'Error', progress: 0, total: 4 });
-      return false;
-    }
+  } catch (error) {
+    console.error('Failed to load face-api.js models:', error);
+    return false;
   }
-};
-
-// Check if models are ready (for components to use)
-export const areModelsLoaded = (): boolean => {
-  return modelsLoaded;
-};
-
-// Force reload models (for retry functionality)
-export const reloadModels = async (
-  onProgress?: (progress: LoadingProgress) => void
-): Promise<boolean> => {
-  modelsLoaded = false;
-  loadingPromise = null;
-  return initializeFaceAPI(onProgress);
 };
 
 // Extract face descriptor from image

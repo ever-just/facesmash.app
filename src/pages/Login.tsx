@@ -9,7 +9,7 @@ import FaceAPIError from "@/components/login/FaceAPIError";
 import FaceScanCard from "@/components/login/FaceScanCard";
 import CurrentUserCard from "@/components/login/CurrentUserCard";
 import LoginFooter from "@/components/login/LoginFooter";
-import { useOptimizedLogin } from "@/hooks/useOptimizedLogin";
+import { useLoginLogic } from "@/hooks/useLoginLogic";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const Login = () => {
@@ -23,7 +23,7 @@ const Login = () => {
     handleImagesCapture,
     resetLogin,
     goToDashboard
-  } = useOptimizedLogin();
+  } = useLoginLogic();
 
   // Show loading state only when Face API is loading
   if (isLoading) {
