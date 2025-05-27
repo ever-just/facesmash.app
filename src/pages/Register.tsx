@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Square, ArrowLeft, CheckCircle, User, Loader2, AlertCircle } from "lucide-react";
+import { Square, ArrowLeft, CheckCircle, User, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import ContinuousQualityCapture from "@/components/ContinuousQualityCapture";
 import InlineNotification from "@/components/InlineNotification";
-import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import { analyzeFaceQuality, base64ToBlob } from "@/utils/enhancedFaceRecognition";
 import { createUserProfile, getUserProfileByName } from "@/services/userProfileService";
 import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
@@ -27,39 +26,26 @@ const Register = () => {
     message: string;
     userEmail?: string;
   } | null>(null);
-  const { isLoaded, error: faceAPIError } = useFaceAPI();
   const navigate = useNavigate();
 
   const handleNameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (name && email) {
-      if (!isLoaded) {
-        setNotification({
-          type: 'error',
-          title: 'Face Recognition Loading',
-          message: 'Face recognition is still loading. Please wait a moment.'
-        });
-        return;
-      }
-      if (faceAPIError) {
-        setNotification({
-          type: 'error',
-          title: 'Face Recognition Error',
-          message: 'Face recognition failed to load. Please refresh the page.'
-        });
-        return;
-      }
-
       // Check if email is already registered
       console.log('Checking if email already exists:', email);
-      const existingProfile = await getUserProfileByName(email);
-      if (existingProfile) {
-        setNotification({
-          type: 'error',
-          title: 'Email Already Registered',
-          message: `An account with email ${email} already exists. Please use a different email or try logging in.`
-        });
-        return;
+      try {
+        const existingProfile = await getUserProfileByName(email);
+        if (existingProfile) {
+          setNotification({
+            type: 'error',
+            title: 'Email Already Registered',
+            message: `An account with email ${email} already exists. Please use a different email or try logging in.`
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking existing profile:', error);
+        // Continue with registration if check fails
       }
 
       setNotification(null);
@@ -299,18 +285,6 @@ const Register = () => {
             />
           )}
 
-          {/* Face API Error State */}
-          {faceAPIError && (
-            <Card className="bg-red-900/20 border-red-800 mb-6">
-              <CardContent className="pt-6">
-                <div className="flex items-center space-x-3 text-red-400">
-                  <AlertCircle className="h-5 w-5" />
-                  <p>Face recognition failed to load. Please refresh the page to try again.</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Step 1: Name and Email Input */}
           {step === 1 && (
             <Card className="bg-gray-900 border-gray-800">
@@ -352,9 +326,9 @@ const Register = () => {
                   <Button
                     type="submit"
                     className="w-full bg-white text-black hover:bg-gray-200"
-                    disabled={!name || !email || !isLoaded}
+                    disabled={!name || !email}
                   >
-                    {!isLoaded ? 'Loading Face Recognition...' : 'Continue to Face Capture'}
+                    Continue to Face Capture
                   </Button>
                 </form>
               </CardContent>

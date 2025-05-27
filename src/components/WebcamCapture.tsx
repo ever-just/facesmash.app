@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Square, RotateCcw, CheckCircle, Scan, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import * as faceapi from 'face-api.js';
-import { useFaceAPI } from '@/contexts/FaceAPIContext';
 
 interface WebcamCaptureProps {
   onImagesCapture: (images: string[]) => void;
@@ -22,28 +21,39 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [faceAPILoading, setFaceAPILoading] = useState(false);
+  const [faceAPILoaded, setFaceAPILoaded] = useState(false);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { isLoaded, loadFaceAPI } = useFaceAPI();
 
-  // Basic video constraints for faster initialization
+  // Simple video constraints for fastest initialization
   const videoConstraints = {
-    width: 480,
-    height: 480,
-    facingMode: "user"
+    video: true
   };
 
-  const dataURLtoBlob = (dataURL: string): Blob => {
-    const arr = dataURL.split(',');
-    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
+  const loadFaceAPIIfNeeded = async (): Promise<boolean> => {
+    if (faceAPILoaded) return true;
+    if (faceAPILoading) return false;
+
+    setFaceAPILoading(true);
+    try {
+      console.log('Loading Face API models...');
+      const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+      
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      ]);
+      
+      console.log('Face API models loaded successfully');
+      setFaceAPILoaded(true);
+      setFaceAPILoading(false);
+      return true;
+    } catch (error) {
+      console.error('Failed to load Face API models:', error);
+      setFaceAPILoading(false);
+      return false;
     }
-    return new Blob([u8arr], { type: mime });
   };
 
   const capture = useCallback(() => {
@@ -81,23 +91,17 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
       return;
     }
 
+    console.log('Starting face detection...');
     setIsDetecting(true);
     setScanProgress(0);
     
-    // Load Face API if not already loaded
-    if (!isLoaded) {
-      console.log('Loading Face API for detection...');
-      setFaceAPILoading(true);
-      const loaded = await loadFaceAPI();
-      setFaceAPILoading(false);
-      if (!loaded) {
-        toast.error("Failed to load face recognition. Please refresh and try again.");
-        setIsDetecting(false);
-        return;
-      }
+    // Load Face API only when detection starts
+    const loaded = await loadFaceAPIIfNeeded();
+    if (!loaded) {
+      toast.error("Failed to load face recognition. Please try again.");
+      setIsDetecting(false);
+      return;
     }
-    
-    console.log('Starting automatic face detection...');
     
     // Start progress animation
     progressIntervalRef.current = setInterval(() => {
@@ -136,18 +140,13 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
         console.error('Face detection error:', error);
       }
     }, 200);
-  }, [capture, isDetecting, webcamReady, isLoaded, loadFaceAPI]);
+  }, [capture, isDetecting, webcamReady]);
 
   const onWebcamReady = useCallback(() => {
     console.log('Webcam is ready');
     setWebcamReady(true);
     setCameraLoading(false);
     setCameraError(null);
-    
-    // Clear any existing timeout
-    if (initTimeoutRef.current) {
-      clearTimeout(initTimeoutRef.current);
-    }
   }, []);
 
   const onWebcamError = useCallback((error: string | DOMException) => {
@@ -159,32 +158,28 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
 
   // Auto-start detection when conditions are met
   useEffect(() => {
-    if (webcamReady && autoStart && !isDetecting && capturedImages.length === 0 && !faceAPILoading) {
+    if (webcamReady && autoStart && !isDetecting && capturedImages.length === 0) {
       console.log('Auto-starting face detection...');
       const timer = setTimeout(() => {
         startFaceDetection();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [webcamReady, autoStart, startFaceDetection, isDetecting, capturedImages.length, faceAPILoading]);
+  }, [webcamReady, autoStart, startFaceDetection, isDetecting, capturedImages.length]);
 
-  // Camera initialization timeout
+  // Camera initialization timeout (reduced to 5 seconds)
   useEffect(() => {
     if (cameraLoading) {
-      initTimeoutRef.current = setTimeout(() => {
+      const timeout = setTimeout(() => {
         if (cameraLoading) {
-          console.log('Camera initialization timeout');
+          console.log('Camera initialization timeout after 5 seconds');
           setCameraLoading(false);
           setCameraError("Camera is taking too long to initialize. Please refresh and try again.");
         }
-      }, 8000);
+      }, 5000);
+      
+      return () => clearTimeout(timeout);
     }
-    
-    return () => {
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
-      }
-    };
   }, [cameraLoading]);
 
   const reset = () => {
@@ -193,7 +188,6 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
     setFaceDetected(false);
     setScanProgress(0);
     setCameraError(null);
-    setFaceAPILoading(false);
     
     if (detectionIntervalRef.current) {
       clearInterval(detectionIntervalRef.current);
@@ -219,9 +213,6 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
       }
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
-      }
-      if (initTimeoutRef.current) {
-        clearTimeout(initTimeoutRef.current);
       }
     };
   }, []);
@@ -419,10 +410,10 @@ const WebcamCapture = ({ onImagesCapture, isLogin = false, autoStart = false }: 
           <Button 
             onClick={startFaceDetection}
             className="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105"
-            disabled={!webcamReady || cameraLoading || faceAPILoading}
+            disabled={!webcamReady || faceAPILoading}
           >
             <Scan className="mr-2 h-5 w-5" />
-            {webcamReady && !cameraLoading && !faceAPILoading ? 'Start Scanning' : 'Loading...'}
+            {faceAPILoading ? 'Loading AI...' : 'Start Scanning'}
           </Button>
         )}
 
