@@ -18,7 +18,7 @@ const Index = () => {
         </div>
         <div className="space-x-4">
           <Link to="/login">
-            <Button variant="ghost" className="text-slate-800 bg-sky-500 hover:bg-sky-400 font-bold">
+            <Button variant="ghost" className="bg-sky-500 hover:bg-sky-400 font-bold text-slate-50">
               Sign In
             </Button>
           </Link>
