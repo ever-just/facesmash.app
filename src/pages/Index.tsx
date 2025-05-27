@@ -14,7 +14,7 @@ const Index = () => {
               <div className="absolute bottom-1.5 left-1/2 transform -translate-x-1/2 w-3 h-1.5 border-t-2 border-black rounded-t-lg"></div>
             </div>
           </div>
-          <span className="text-2xl font-bold">Face Card</span>
+          <span className="text-2xl font-bold">FaceCard</span>
         </div>
         <div className="space-x-4">
           <Link to="/login">
@@ -53,9 +53,7 @@ const Index = () => {
 
           <div className="space-y-4 mb-12">
             <Link to="/register">
-              <Button size="lg" className="bg-white text-black hover:bg-gray-200 text-lg px-8 py-4">
-                Create Face Card
-              </Button>
+              <Button size="lg" className="bg-white text-black hover:bg-gray-200 text-lg px-8 py-4">Create FaceCard</Button>
             </Link>
             
           </div>
@@ -108,7 +106,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-gray-800 py-8 mt-16">
         <div className="container mx-auto px-6 text-center text-gray-500">
-          <p>&copy; 2024 Face Card. Secure facial recognition authentication.</p>
+          <p>© 2024 FaceCard | EVERJUST COMPANY </p>
         </div>
       </footer>
     </div>;
