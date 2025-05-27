@@ -38,19 +38,23 @@ export const getAllUsers = async (): Promise<AdminUserData[]> => {
   try {
     const { data, error } = await supabase
       .from('user_profiles')
-      .select(`
-        *,
-        face_scans(count)
-      `);
+      .select('*');
 
     if (error) {
       console.error('Error fetching all users:', error);
       return [];
     }
 
-    // Get last login for each user
-    const usersWithLogins = await Promise.all(
+    // Get scan count and last login for each user
+    const usersWithData = await Promise.all(
       (data || []).map(async (user) => {
+        // Get scan count
+        const { count: scanCount } = await supabase
+          .from('face_scans')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_email', user.email);
+
+        // Get last login
         const { data: lastLogin } = await supabase
           .from('sign_in_logs')
           .select('sign_in_time')
@@ -58,17 +62,17 @@ export const getAllUsers = async (): Promise<AdminUserData[]> => {
           .eq('success_status', true)
           .order('sign_in_time', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         return {
           ...user,
-          total_scans: user.face_scans?.[0]?.count || 0,
+          total_scans: scanCount || 0,
           last_login: lastLogin?.sign_in_time || null
         };
       })
     );
 
-    return usersWithLogins;
+    return usersWithData;
   } catch (error) {
     console.error('Unexpected error fetching all users:', error);
     return [];
