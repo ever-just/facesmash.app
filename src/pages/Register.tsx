@@ -362,7 +362,7 @@ const Register = () => {
           )}
 
           {/* Step 2: Face Capture - Only show if no duplicate detected */}
-          {step === 2 && !notification?.type === 'duplicate' && (
+          {step === 2 && notification?.type !== 'duplicate' && (
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl text-white flex items-center justify-center">
