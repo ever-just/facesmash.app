@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,50 +9,45 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Star } from "lucide-react";
-
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
   userEmail: string;
 }
-
 interface FeedbackForm {
   feedbackType: string;
   subject: string;
   description: string;
   rating: number;
 }
-
-const FeedbackModal = ({ isOpen, onClose, userEmail }: FeedbackModalProps) => {
+const FeedbackModal = ({
+  isOpen,
+  onClose,
+  userEmail
+}: FeedbackModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
-
   const form = useForm<FeedbackForm>({
     defaultValues: {
       feedbackType: "",
       subject: "",
       description: "",
-      rating: 0,
-    },
+      rating: 0
+    }
   });
-
   const onSubmit = async (data: FeedbackForm) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
-        .from('feedback')
-        .insert([
-          {
-            user_email: userEmail,
-            feedback_type: data.feedbackType,
-            subject: data.subject,
-            description: data.description,
-            rating: selectedRating,
-          }
-        ]);
-
+      const {
+        error
+      } = await supabase.from('feedback').insert([{
+        user_email: userEmail,
+        feedback_type: data.feedbackType,
+        subject: data.subject,
+        description: data.description,
+        rating: selectedRating
+      }]);
       if (error) throw error;
-
       toast.success("Thank you for your feedback!");
       form.reset();
       setSelectedRating(0);
@@ -65,30 +59,12 @@ const FeedbackModal = ({ isOpen, onClose, userEmail }: FeedbackModalProps) => {
       setIsSubmitting(false);
     }
   };
-
-  const StarRating = () => (
-    <div className="flex items-center space-x-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          onClick={() => setSelectedRating(star)}
-          className="focus:outline-none"
-        >
-          <Star
-            className={`h-6 w-6 ${
-              star <= selectedRating
-                ? "text-yellow-400 fill-current"
-                : "text-gray-400"
-            } hover:text-yellow-400 transition-colors`}
-          />
-        </button>
-      ))}
-    </div>
-  );
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+  const StarRating = () => <div className="flex items-center space-x-1">
+      {[1, 2, 3, 4, 5].map(star => <button key={star} type="button" onClick={() => setSelectedRating(star)} className="focus:outline-none">
+          <Star className={`h-6 w-6 ${star <= selectedRating ? "text-yellow-400 fill-current" : "text-gray-400"} hover:text-yellow-400 transition-colors`} />
+        </button>)}
+    </div>;
+  return <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] bg-gray-900 border-gray-700 text-white">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-white">
@@ -101,11 +77,9 @@ const FeedbackModal = ({ isOpen, onClose, userEmail }: FeedbackModalProps) => {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="feedbackType"
-              render={({ field }) => (
-                <FormItem>
+            <FormField control={form.control} name="feedbackType" render={({
+            field
+          }) => <FormItem>
                   <FormLabel className="text-white">Feedback Type</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
@@ -120,45 +94,27 @@ const FeedbackModal = ({ isOpen, onClose, userEmail }: FeedbackModalProps) => {
                     </SelectContent>
                   </Select>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
+                </FormItem>} />
 
-            <FormField
-              control={form.control}
-              name="subject"
-              render={({ field }) => (
-                <FormItem>
+            <FormField control={form.control} name="subject" render={({
+            field
+          }) => <FormItem>
                   <FormLabel className="text-white">Subject</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Brief description of your feedback"
-                      className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400"
-                      {...field}
-                    />
+                    <Input placeholder="Brief description of your feedback" className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400" {...field} />
                   </FormControl>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
+                </FormItem>} />
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
+            <FormField control={form.control} name="description" render={({
+            field
+          }) => <FormItem>
                   <FormLabel className="text-white">Description</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Please provide detailed feedback..."
-                      className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 min-h-[100px]"
-                      {...field}
-                    />
+                    <Textarea placeholder="Please provide detailed feedback..." className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 min-h-[100px]" {...field} />
                   </FormControl>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
+                </FormItem>} />
 
             <div>
               <FormLabel className="text-white">Rating (Optional)</FormLabel>
@@ -168,27 +124,16 @@ const FeedbackModal = ({ isOpen, onClose, userEmail }: FeedbackModalProps) => {
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="border-gray-600 text-white hover:bg-gray-800"
-              >
+              <Button type="button" variant="outline" onClick={onClose} className="border-gray-600 hover:bg-gray-800 text-slate-50">
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-white text-black hover:bg-gray-200"
-              >
+              <Button type="submit" disabled={isSubmitting} className="bg-white text-black hover:bg-gray-200">
                 {isSubmitting ? "Submitting..." : "Submit Feedback"}
               </Button>
             </div>
           </form>
         </Form>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>;
 };
-
 export default FeedbackModal;
