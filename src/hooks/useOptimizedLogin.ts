@@ -33,6 +33,7 @@ export const useOptimizedLogin = () => {
       const img = await faceapi.fetchImage(images[0]);
       const detection = await faceapi
         .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 }))
+        .withFaceLandmarks()
         .withFaceDescriptor();
       
       if (!detection) {
