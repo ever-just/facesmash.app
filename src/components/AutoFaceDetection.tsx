@@ -17,6 +17,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   disabled = false,
 }) => {
   const webcamRef = useRef<Webcam>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -135,7 +136,10 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   return (
     <Card className="bg-gray-900 border-gray-700 overflow-hidden">
       <CardContent className="p-0">
-        <div className="relative w-full h-[360px] bg-gray-800 rounded-t-lg overflow-hidden">
+        <div 
+          ref={videoContainerRef}
+          className="relative w-full h-[360px] bg-gray-800 rounded-t-lg overflow-hidden"
+        >
           {/* Webcam Component */}
           {hasPermission && !error && (
             <Webcam
@@ -166,23 +170,23 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
           {!isLoading && !error && (
             <div className="absolute inset-0 pointer-events-none">
               {facePosition ? (
-                // Dynamic face tracking overlay
+                // Dynamic face tracking overlay - positioned using pixels
                 <div
-                  className="absolute transition-all duration-200 ease-out"
+                  className="absolute transition-all duration-150 ease-out"
                   style={{
-                    left: `${facePosition.x}%`,
-                    top: `${facePosition.y}%`,
-                    width: `${Math.max(facePosition.width * 1.2, 15)}%`,
-                    height: `${Math.max(facePosition.height * 1.3, 20)}%`,
+                    left: `${facePosition.x}px`,
+                    top: `${facePosition.y}px`,
+                    width: `${Math.max(facePosition.width * 1.2, 100)}px`,
+                    height: `${Math.max(facePosition.height * 1.3, 120)}px`,
                     transform: 'translate(-50%, -50%)'
                   }}
                 >
-                  <div className="w-full h-full border-4 border-green-500 border-opacity-70 rounded-full bg-transparent relative">
-                    <div className="absolute inset-2 border-2 border-green-300 border-opacity-50 rounded-full animate-pulse"></div>
+                  <div className="w-full h-full border-4 border-green-500 border-opacity-80 rounded-full bg-transparent relative">
+                    <div className="absolute inset-2 border-2 border-green-300 border-opacity-60 rounded-full animate-pulse"></div>
                   </div>
                   {/* Dynamic instruction text */}
                   <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
-                    <p className="text-white text-xs font-medium bg-black bg-opacity-50 px-2 py-1 rounded">
+                    <p className="text-white text-xs font-medium bg-black bg-opacity-60 px-2 py-1 rounded">
                       Face detected - hold steady
                     </p>
                   </div>

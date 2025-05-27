@@ -38,30 +38,43 @@ export const useFaceTracking = ({
 
       const detection = await faceapi
         .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ 
-          inputSize: 224, 
-          scoreThreshold: 0.4 
+          inputSize: 416, 
+          scoreThreshold: 0.3 
         }))
         .withFaceLandmarks();
 
       if (detection) {
         const box = detection.detection.box;
-        const videoRect = video.getBoundingClientRect();
         
-        // Calculate relative position within the video element
+        // Get the actual displayed video dimensions
+        const videoElement = video.getBoundingClientRect();
+        const videoDisplayWidth = videoElement.width;
+        const videoDisplayHeight = videoElement.height;
+        
+        // Calculate scale factors between actual video and displayed video
+        const scaleX = videoDisplayWidth / video.videoWidth;
+        const scaleY = videoDisplayHeight / video.videoHeight;
+        
+        // Calculate position as pixels relative to the displayed video
         const position: FacePosition = {
-          x: (box.x / video.videoWidth) * 100,
-          y: (box.y / video.videoHeight) * 100,
-          width: (box.width / video.videoWidth) * 100,
-          height: (box.height / video.videoHeight) * 100,
+          x: box.x * scaleX,
+          y: box.y * scaleY,
+          width: box.width * scaleX,
+          height: box.height * scaleY,
           confidence: detection.detection.score
         };
 
+        console.log('Face detected at position:', position);
+        console.log('Video dimensions - actual:', video.videoWidth, 'x', video.videoHeight);
+        console.log('Video dimensions - displayed:', videoDisplayWidth, 'x', videoDisplayHeight);
+        
         setFacePosition(position);
         lastDetectionTimeRef.current = Date.now();
         onFaceDetected?.(position);
       } else {
-        // Clear face position if no detection for more than 500ms
-        if (Date.now() - lastDetectionTimeRef.current > 500) {
+        // Clear face position if no detection for more than 300ms
+        if (Date.now() - lastDetectionTimeRef.current > 300) {
+          console.log('Face lost - clearing position');
           setFacePosition(null);
           onFaceLost?.();
         }
@@ -74,8 +87,9 @@ export const useFaceTracking = ({
   const startTracking = useCallback(() => {
     if (trackingIntervalRef.current) return;
     
+    console.log('Starting face tracking...');
     setIsTracking(true);
-    trackingIntervalRef.current = setInterval(detectFace, 200); // 5 FPS for good performance
+    trackingIntervalRef.current = setInterval(detectFace, 100); // 10 FPS for smoother tracking
   }, [detectFace]);
 
   const stopTracking = useCallback(() => {
@@ -83,6 +97,7 @@ export const useFaceTracking = ({
       clearInterval(trackingIntervalRef.current);
       trackingIntervalRef.current = null;
     }
+    console.log('Stopping face tracking...');
     setIsTracking(false);
     setFacePosition(null);
   }, []);
