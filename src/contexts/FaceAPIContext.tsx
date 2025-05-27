@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { initializeFaceAPI } from '@/utils/faceRecognition';
+import { initializeStorage } from '@/services/storageService';
 
 interface FaceAPIContextType {
   isLoaded: boolean;
@@ -46,6 +47,9 @@ export const FaceAPIProvider = ({ children }: FaceAPIProviderProps) => {
         });
       }, 300);
 
+      // Initialize storage first
+      await initializeStorage();
+      
       const success = await initializeFaceAPI();
       
       clearInterval(progressInterval);
