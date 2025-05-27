@@ -78,12 +78,12 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
   const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   // Get month labels for the 4-week period
-  const getMonthLabels = () => {
+  const getMonthLabels = (): string[] => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 28);
     const endDate = new Date();
     
-    const months = new Set();
+    const months = new Set<string>();
     const currentDate = new Date(startDate);
     
     while (currentDate <= endDate) {
@@ -105,6 +105,8 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
     );
   }
 
+  const monthLabels = getMonthLabels();
+
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader>
@@ -121,7 +123,7 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
           <div className="min-w-[300px] sm:min-w-0">
             {/* Month labels */}
             <div className="flex mb-2 text-xs text-gray-400 justify-center">
-              {getMonthLabels().map((month, index) => (
+              {monthLabels.map((month, index) => (
                 <span key={index} className="mx-2">
                   {month}
                 </span>
