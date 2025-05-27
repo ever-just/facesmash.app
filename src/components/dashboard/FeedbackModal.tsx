@@ -124,7 +124,7 @@ const FeedbackModal = ({
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose} className="border-gray-600 hover:bg-gray-800 text-slate-50">
+              <Button type="button" variant="outline" onClick={onClose} className="border-gray-600 bg-gray-900 hover:bg-gray-800 text-slate-100">
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting} className="bg-white text-black hover:bg-gray-200">
