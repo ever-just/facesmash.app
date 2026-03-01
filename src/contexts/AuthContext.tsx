@@ -1,11 +1,13 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { User, Session } from '@supabase/supabase-js';
+
+interface SimpleUser {
+  email: string;
+}
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: SimpleUser | null;
+  session: null;
   isLoading: boolean;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
@@ -26,42 +28,22 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<SimpleUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Handle session expiration
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('Token refreshed successfully');
-        } else if (event === 'SIGNED_OUT') {
-          localStorage.removeItem('currentUserName');
-        }
-        
-        setIsLoading(false);
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Check for existing face-auth session in localStorage
+    const currentUser = localStorage.getItem('currentUserName');
+    if (currentUser) {
+      setUser({ email: currentUser });
+    }
+    setIsLoading(false);
   }, []);
 
   const signOut = async () => {
     try {
       localStorage.removeItem('currentUserName');
-      await supabase.auth.signOut();
+      setUser(null);
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -69,7 +51,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const value = {
     user,
-    session,
+    session: null,
     isLoading,
     signOut,
     isAuthenticated: !!user

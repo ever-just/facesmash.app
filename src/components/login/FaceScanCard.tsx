@@ -1,6 +1,4 @@
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Square, Loader2 } from "lucide-react";
+import { Loader2, Scan } from "lucide-react";
 import AutoFaceDetection from "@/components/AutoFaceDetection";
 
 interface FaceScanCardProps {
@@ -10,35 +8,29 @@ interface FaceScanCardProps {
 
 const FaceScanCard = ({ isScanning, onImagesCapture }: FaceScanCardProps) => {
   return (
-    <Card className="bg-gray-900 border-gray-800 w-full max-w-2xl mx-auto">
-      <CardHeader className="text-center p-4 sm:p-6">
-        <CardTitle className="text-2xl sm:text-3xl text-white flex items-center justify-center">
-          <Square className="mr-3 h-6 w-6 sm:h-8 sm:w-8 text-white" />
-          FACECARD LOGIN
-        </CardTitle>
-        <CardDescription className="text-gray-400 mt-2">
-          Look at the camera for automatic face recognition
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-4 sm:p-6">
-        {isScanning ? (
-          <div className="text-center py-8 sm:py-12">
-            <Loader2 className="h-12 w-12 sm:h-16 sm:w-16 text-white mx-auto mb-4 sm:mb-6 animate-spin" />
-            <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">
-              Analyzing with Enhanced AI...
-            </h3>
-            <p className="text-sm sm:text-base text-gray-400 px-4">
-              Checking face quality, lighting conditions, and matching against learned patterns
-            </p>
+    <div className="w-full max-w-xl mx-auto">
+      {isScanning ? (
+        <div className="text-center py-16">
+          <div className="relative inline-flex items-center justify-center mb-8">
+            <div className="absolute inset-0 size-20 rounded-full bg-emerald-500/10 blur-xl" />
+            <div className="size-20 rounded-full border border-white/[0.08] bg-white/[0.02] flex items-center justify-center">
+              <Loader2 className="size-8 text-emerald-400 animate-spin" />
+            </div>
           </div>
-        ) : (
+          <h3 className="text-xl font-semibold mb-2">Analyzing...</h3>
+          <p className="text-white/35 text-sm max-w-xs mx-auto">
+            Matching your face against encrypted biometric data
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
           <AutoFaceDetection 
             onImagesCapture={onImagesCapture} 
             isScanning={isScanning}
           />
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+    </div>
   );
 };
 

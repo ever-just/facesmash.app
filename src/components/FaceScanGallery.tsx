@@ -1,7 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getFaceScansByUser } from "@/services/faceScanService";
 
 interface FaceScan {
@@ -36,79 +34,58 @@ const FaceScanGallery = ({ userEmail }: FaceScanGalleryProps) => {
   }, [userEmail]);
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const getQualityColor = (score: number) => {
-    if (score >= 0.8) return 'text-green-400';
-    if (score >= 0.6) return 'text-yellow-400';
+    if (score >= 0.8) return 'text-emerald-400';
+    if (score >= 0.6) return 'text-amber-400';
     return 'text-red-400';
   };
 
   if (loading) {
     return (
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="text-center py-8">
-          <Loader2 className="h-8 w-8 text-white mx-auto mb-4 animate-spin" />
-          <p className="text-white">Loading face scans...</p>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 flex items-center justify-center min-h-[200px]">
+        <Loader2 className="size-5 text-white/20 animate-spin" />
+      </div>
     );
   }
 
   return (
-    <Card className="bg-gray-900 border-gray-800">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center text-lg sm:text-xl">
-          <User className="mr-2 h-5 w-5" />
-          Face Card Log
-        </CardTitle>
-        <CardDescription className="text-gray-400">
-          Your captured face scans and quality metrics
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {faceScans.length === 0 ? (
-          <p className="text-gray-400 text-center py-4">No face scans found</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {faceScans.map((scan) => (
-              <div key={scan.id} className="bg-gray-800 rounded-lg p-3 text-center">
-                <div className="relative mb-2">
-                  <img
-                    src={scan.image_url}
-                    alt={`Face scan from ${formatDate(scan.created_at)}`}
-                    className="w-full h-20 sm:h-24 object-cover rounded border-2 border-white"
-                    style={{
-                      border: '2px solid white',
-                      borderRadius: '4px'
-                    }}
-                  />
-                  {/* Face detection box overlay */}
-                  <div 
-                    className="absolute inset-2 border-2 border-green-400 rounded"
-                    style={{
-                      top: '10%',
-                      left: '20%',
-                      right: '20%',
-                      bottom: '10%'
-                    }}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-gray-300">{formatDate(scan.created_at)}</p>
-                  <p className={`text-xs font-medium ${getQualityColor(scan.quality_score)}`}>
-                    Quality: {(scan.quality_score * 100).toFixed(0)}%
-                  </p>
-                  <p className="text-xs text-gray-400 capitalize">{scan.scan_type}</p>
-                </div>
+    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
+      <p className="text-white/20 uppercase tracking-[0.2em] text-[10px] mb-6">Face scans</p>
+      {faceScans.length === 0 ? (
+        <p className="text-white/25 text-sm text-center py-6">No face scans yet</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {faceScans.map((scan) => (
+            <div key={scan.id} className="group">
+              <div className="relative aspect-square rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
+                <img
+                  src={scan.image_url}
+                  alt={`Face scan from ${formatDate(scan.created_at)}`}
+                  className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                />
+                {/* subtle corner brackets */}
+                <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-emerald-500/30" />
+                <div className="absolute top-2 right-2 w-3 h-3 border-t border-r border-emerald-500/30" />
+                <div className="absolute bottom-2 left-2 w-3 h-3 border-b border-l border-emerald-500/30" />
+                <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-emerald-500/30" />
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              <div className="mt-2 space-y-0.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-white/30 text-[10px]">{formatDate(scan.created_at)}</span>
+                  <span className={`text-[10px] font-medium ${getQualityColor(scan.quality_score)}`}>
+                    {(scan.quality_score * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <p className="text-white/15 text-[10px] capitalize">{scan.scan_type}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

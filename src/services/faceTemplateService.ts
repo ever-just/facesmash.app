@@ -1,5 +1,6 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/supabase/client";
+import * as faceapi from 'face-api.js';
 
 export interface FaceTemplate {
   id: string;
@@ -14,6 +15,8 @@ export interface FaceTemplate {
   usage_count: number;
 }
 
+const MAX_TEMPLATES_PER_USER = 10;
+
 export const manageFaceTemplates = async (
   userEmail: string,
   faceEmbedding: Float32Array,
@@ -23,19 +26,28 @@ export const manageFaceTemplates = async (
 ): Promise<boolean> => {
   try {
     const embeddingArray = Array.from(faceEmbedding);
-    
-    const { error } = await supabase.rpc('manage_face_templates', {
-      p_user_email: userEmail,
-      p_face_embedding: embeddingArray,
-      p_quality_score: qualityScore,
-      p_confidence_score: confidenceScore,
-      p_lighting_conditions: lightingConditions
+
+    // Get existing templates
+    const existing = await pb.collection('face_templates').getList(1, 50, {
+      filter: `user_email="${userEmail}"`,
+      sort: 'quality_score',
     });
 
-    if (error) {
-      console.error('Error managing face templates:', error);
-      return false;
+    // If at max templates, remove the lowest quality one
+    if (existing.items.length >= MAX_TEMPLATES_PER_USER) {
+      const lowest = existing.items[0];
+      await pb.collection('face_templates').delete(lowest.id);
     }
+
+    // Create new template
+    await pb.collection('face_templates').create({
+      user_email: userEmail,
+      face_embedding: embeddingArray,
+      quality_score: qualityScore,
+      confidence: confidenceScore,
+      environmental_conditions: lightingConditions,
+      usage_count: 0,
+    });
 
     return true;
   } catch (error) {
@@ -46,18 +58,12 @@ export const manageFaceTemplates = async (
 
 export const getFaceTemplates = async (userEmail: string): Promise<FaceTemplate[]> => {
   try {
-    const { data, error } = await supabase
-      .from('face_templates')
-      .select('*')
-      .eq('user_email', userEmail)
-      .order('template_rank', { ascending: true });
+    const records = await pb.collection('face_templates').getList(1, 50, {
+      filter: `user_email="${userEmail}"`,
+      sort: '-quality_score',
+    });
 
-    if (error) {
-      console.error('Error fetching face templates:', error);
-      return [];
-    }
-
-    return (data || []) as FaceTemplate[];
+    return records.items as unknown as FaceTemplate[];
   } catch (error) {
     console.error('Unexpected error fetching face templates:', error);
     return [];
@@ -66,31 +72,12 @@ export const getFaceTemplates = async (userEmail: string): Promise<FaceTemplate[
 
 export const updateTemplateUsage = async (templateId: string): Promise<boolean> => {
   try {
-    // First get the current usage count
-    const { data: currentTemplate, error: fetchError } = await supabase
-      .from('face_templates')
-      .select('usage_count')
-      .eq('id', templateId)
-      .single();
+    const current = await pb.collection('face_templates').getOne(templateId);
 
-    if (fetchError) {
-      console.error('Error fetching current template:', fetchError);
-      return false;
-    }
-
-    // Update with incremented usage count and current timestamp
-    const { error } = await supabase
-      .from('face_templates')
-      .update({
-        last_used: new Date().toISOString(),
-        usage_count: (currentTemplate.usage_count || 0) + 1
-      })
-      .eq('id', templateId);
-
-    if (error) {
-      console.error('Error updating template usage:', error);
-      return false;
-    }
+    await pb.collection('face_templates').update(templateId, {
+      last_used: new Date().toISOString(),
+      usage_count: (current.usage_count || 0) + 1,
+    });
 
     return true;
   } catch (error) {
@@ -104,19 +91,24 @@ export const checkDuplicateUsers = async (
   threshold: number = 0.75
 ): Promise<{ existing_email: string; similarity_score: number; user_id: string }[]> => {
   try {
-    const embeddingArray = Array.from(faceEmbedding);
-    
-    const { data, error } = await supabase.rpc('check_duplicate_user', {
-      p_face_embedding: embeddingArray,
-      p_threshold: threshold
-    });
+    // Client-side duplicate check: fetch all profiles and compare embeddings
+    const profiles = await pb.collection('user_profiles').getFullList();
+    const results: { existing_email: string; similarity_score: number; user_id: string }[] = [];
 
-    if (error) {
-      console.error('Error checking duplicate users:', error);
-      return [];
+    for (const profile of profiles) {
+      if (!profile.face_embedding) continue;
+      const storedEmbedding = new Float32Array(profile.face_embedding as number[]);
+      const similarity = 1 - faceapi.euclideanDistance(faceEmbedding, storedEmbedding);
+      if (similarity >= threshold) {
+        results.push({
+          existing_email: profile.email as string,
+          similarity_score: similarity,
+          user_id: profile.id,
+        });
+      }
     }
 
-    return data || [];
+    return results;
   } catch (error) {
     console.error('Unexpected error checking duplicate users:', error);
     return [];

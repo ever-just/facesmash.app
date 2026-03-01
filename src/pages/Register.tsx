@@ -1,19 +1,21 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Square, ArrowLeft, CheckCircle, User, Loader2, AlertCircle } from "lucide-react";
+import { ArrowRight, Check, Loader2, AlertCircle, Scan } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import AppNav from "@/components/AppNav";
 import ContinuousQualityCapture from "@/components/ContinuousQualityCapture";
 import InlineNotification from "@/components/InlineNotification";
 import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import { analyzeFaceQuality, base64ToBlob } from "@/utils/enhancedFaceRecognition";
 import { createUserProfile, getUserProfileByName } from "@/services/userProfileService";
-import { uploadFaceImage, createFaceScan } from "@/services/faceScanService";
+import { prepareImageFile, createFaceScan } from "@/services/faceScanService";
 import { manageFaceTemplates, checkDuplicateUsers } from "@/services/faceTemplateService";
 import { createSignInLog } from "@/services/signInLogService";
+
+const stepLabels = ["Details", "Face scan", "Done"];
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -68,8 +70,8 @@ const Register = () => {
   };
 
   const handleQualityImageCapture = async (imageData: string, quality: number) => {
-    console.log('Image captured for registration:', quality);
-    setCapturedImages([imageData]);
+    console.log(`Image captured for registration: quality=${(quality * 100).toFixed(1)}%`);
+    setCapturedImages(prev => [...prev, imageData]);
     setNotification(null);
     
     // Auto-proceed with registration after a brief delay
@@ -183,29 +185,34 @@ const Register = () => {
         setNotification({
           type: 'error',
           title: 'Registration Failed',
-          message: 'Failed to create Face Card. Please try again.'
+          message: 'Failed to create FaceSmash profile. Please try again.'
         });
         setIsRegistering(false);
         return;
       }
 
-      // Upload and store the registration image
+      // Upload and store the registration image + embedding in a single record
       try {
         const imageBlob = base64ToBlob(imageToUse);
-        const imageUrl = await uploadFaceImage(imageBlob, email, 'registration');
-        if (imageUrl) {
-          await createFaceScan(email, imageUrl, faceAnalysis.descriptor, 'registration', faceAnalysis.confidence, faceAnalysis.qualityScore);
-          console.log('Registration scan stored successfully');
+        const imageFile = await prepareImageFile(imageBlob, 'registration');
+        await createFaceScan(
+          email,
+          faceAnalysis.descriptor,
+          'registration',
+          faceAnalysis.confidence,
+          faceAnalysis.qualityScore,
+          imageFile
+        );
+        console.log('Registration scan stored successfully');
 
-          // Store initial face template
-          await manageFaceTemplates(
-            email,
-            faceAnalysis.descriptor,
-            faceAnalysis.qualityScore,
-            faceAnalysis.confidence,
-            faceAnalysis.environmentalConditions || {}
-          );
-        }
+        // Store initial face template
+        await manageFaceTemplates(
+          email,
+          faceAnalysis.descriptor,
+          faceAnalysis.qualityScore,
+          faceAnalysis.confidence,
+          faceAnalysis.environmentalConditions || {}
+        );
       } catch (storageError) {
         console.error('Error storing registration image:', storageError);
       }
@@ -215,7 +222,7 @@ const Register = () => {
       setNotification({
         type: 'success',
         title: 'Registration Successful!',
-        message: 'Your Enhanced Face Card has been created successfully. You can now sign in using facial recognition.'
+        message: 'Your FaceSmash profile has been created successfully. You can now sign in using facial recognition.'
       });
     } catch (error) {
       console.error('Enhanced registration error:', error);
@@ -243,194 +250,236 @@ const Register = () => {
     setCapturedImages([]);
   };
 
-  return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Navigation */}
-      <nav className="flex items-center justify-between p-6 border-b border-gray-800">
-        <Link to="/" className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-white rounded border-2 border-white flex items-center justify-center">
-            <div className="w-4 h-4 border border-black rounded-full relative">
-              <div className="absolute top-1 left-1 w-1 h-1 bg-black rounded-full"></div>
-              <div className="absolute top-1 right-1 w-1 h-1 bg-black rounded-full"></div>
-              <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-1 border-t border-black rounded-t"></div>
-            </div>
-          </div>
-          <span className="text-2xl font-bold">Face Card</span>
-        </Link>
-        <Link to="/">
-          <Button variant="ghost" className="text-white hover:text-gray-300 hover:bg-gray-900">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
-          </Button>
-        </Link>
-      </nav>
+  /* map internal steps (1-4) to visual steps (0-2) */
+  const visualStep = step <= 1 ? 0 : step <= 2 ? 1 : 2;
 
-      <div className="container mx-auto px-6 py-12">
-        <div className="max-w-2xl mx-auto">
-          {/* Progress Steps */}
-          <div className="flex items-center justify-center mb-8">
-            {[1, 2, 3, 4].map((stepNumber) => (
-              <div key={stepNumber} className="flex items-center">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
-                    stepNumber <= step
-                      ? 'bg-white border-white text-black'
-                      : 'border-gray-600 text-gray-400'
-                  }`}
-                >
-                  {stepNumber < step ? <CheckCircle className="h-5 w-5" /> : stepNumber}
+  return (
+    <div className="min-h-screen bg-[#07080A] text-white flex flex-col">
+      {/* film-grain overlay */}
+      <div className="fixed inset-0 pointer-events-none z-[100] animate-grain opacity-40 mix-blend-overlay" />
+
+      <AppNav showBack backTo="/" backLabel="Home" />
+
+      {/* ambient light */}
+      <div className="fixed top-[-10%] right-[20%] w-[500px] h-[500px] rounded-full bg-emerald-500/[0.04] blur-[140px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] left-[15%] w-[400px] h-[400px] rounded-full bg-teal-400/[0.03] blur-[120px] pointer-events-none" />
+
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-lg relative z-10">
+
+          {/* Step indicator — thin line, not circles */}
+          <div className="flex items-center gap-3 mb-12 max-w-xs mx-auto">
+            {stepLabels.map((label, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full h-[2px] rounded-full overflow-hidden bg-white/[0.06]">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      i < visualStep ? "bg-emerald-400 w-full" :
+                      i === visualStep ? "bg-emerald-400/60 w-1/2" :
+                      "w-0"
+                    }`}
+                    style={{ width: i < visualStep ? "100%" : i === visualStep ? "50%" : "0%" }}
+                  />
                 </div>
-                {stepNumber < 4 && (
-                  <div className={`w-16 h-0.5 ${stepNumber < step ? 'bg-white' : 'bg-gray-600'}`} />
-                )}
+                <span className={`text-[10px] uppercase tracking-wider ${
+                  i <= visualStep ? "text-white/50" : "text-white/15"
+                }`}>{label}</span>
               </div>
             ))}
           </div>
 
           {/* Notifications */}
           {notification && (
-            <InlineNotification
-              type={notification.type}
-              title={notification.title}
-              message={notification.message}
-              userEmail={notification.userEmail}
-              onContinueToDashboard={notification.type === 'duplicate' ? handleContinueToDashboard : undefined}
-              onRetry={notification.type === 'error' && step === 2 ? handleRetryCapture : undefined}
-            />
+            <div className="mb-6">
+              <InlineNotification
+                type={notification.type}
+                title={notification.title}
+                message={notification.message}
+                userEmail={notification.userEmail}
+                onContinueToDashboard={notification.type === 'duplicate' ? handleContinueToDashboard : undefined}
+                onRetry={notification.type === 'error' && step === 2 ? handleRetryCapture : undefined}
+              />
+            </div>
           )}
 
           {/* Face API Error State */}
           {faceAPIError && (
-            <Card className="bg-red-900/20 border-red-800 mb-6">
-              <CardContent className="pt-6">
-                <div className="flex items-center space-x-3 text-red-400">
-                  <AlertCircle className="h-5 w-5" />
-                  <p>Face recognition failed to load. Please refresh the page to try again.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex items-center gap-3 text-red-400 text-sm mb-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
+              <AlertCircle className="size-4 shrink-0" />
+              <p>Face recognition failed to load. Please refresh the page.</p>
+            </div>
           )}
 
-          {/* Step 1: Name and Email Input */}
-          {step === 1 && (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl text-white flex items-center justify-center">
-                  <User className="mr-2 h-6 w-6 text-white" />
-                  Create Your Enhanced Face Card
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Enter your name and email to get started with advanced face recognition
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleNameSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="name" className="text-white">Your Name</Label>
+          <AnimatePresence mode="wait">
+            {/* Step 1: Name and Email Input */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center justify-center size-16 rounded-full border border-white/[0.08] bg-white/[0.02] mb-6">
+                    <Scan className="size-7 text-emerald-400/70" />
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
+                    Create your FaceSmash
+                  </h1>
+                  <p className="text-white/35 text-lg">
+                    Your face becomes your password — everywhere
+                  </p>
+                </div>
+
+                <form onSubmit={handleNameSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-white/50 text-sm">Name</Label>
                     <Input
                       id="name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Enter your name"
-                      className="bg-gray-800 border-gray-700 text-white"
+                      placeholder="Your name"
+                      className="h-12 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl focus:border-emerald-500/40 focus:ring-emerald-500/20"
                       required
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="email" className="text-white">Your Email</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-white/50 text-sm">Email</Label>
                     <Input
                       id="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email"
-                      className="bg-gray-800 border-gray-700 text-white"
+                      placeholder="you@example.com"
+                      className="h-12 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl focus:border-emerald-500/40 focus:ring-emerald-500/20"
                       required
                     />
                   </div>
                   <Button
                     type="submit"
-                    className="w-full bg-white text-black hover:bg-gray-200"
+                    className="w-full h-12 bg-emerald-500 hover:bg-emerald-400 text-black font-medium rounded-full group mt-2"
                     disabled={!name || !email || !isLoaded}
                   >
-                    {!isLoaded ? 'Loading Face Recognition...' : 'Continue to Face Capture'}
+                    {!isLoaded ? (
+                      <>
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                        Loading face recognition...
+                      </>
+                    ) : (
+                      <>
+                        Continue
+                        <ArrowRight className="ml-2 size-4 group-hover:translate-x-0.5 transition-transform" />
+                      </>
+                    )}
                   </Button>
                 </form>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Step 2: Face Capture - Only show if no duplicate detected */}
-          {step === 2 && notification?.type !== 'duplicate' && (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl text-white flex items-center justify-center">
-                  <Square className="mr-2 h-6 w-6 text-white" />
-                  Capture Your Face
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Look at the camera and we'll automatically capture your face
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isRegistering ? (
-                  <div className="text-center py-12">
-                    <Loader2 className="h-16 w-16 text-white mx-auto mb-6 animate-spin" />
-                    <h3 className="text-xl font-semibold text-white mb-2">Processing Registration...</h3>
-                    <p className="text-gray-400">Verifying uniqueness and creating your Face Card</p>
-                  </div>
-                ) : (
-                  <ContinuousQualityCapture 
-                    onImageCapture={handleQualityImageCapture}
-                    qualityThreshold={0.5}
-                    maxAttempts={8}
-                    autoStart={true}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Duplicate Detection Result - Only show notification */}
-          {step === 3 && notification?.type === 'duplicate' && (
-            <div className="text-center py-12">
-              {/* Notification is already shown above */}
-            </div>
-          )}
-
-          {/* Step 4: Success */}
-          {step === 4 && (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader className="text-center">
-                <CheckCircle className="h-16 w-16 text-white mx-auto mb-4" />
-                <CardTitle className="text-2xl text-white">Enhanced Face Card Created!</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Your advanced face profile has been created with learning capabilities
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center space-y-4">
-                <p className="text-gray-300">
-                  You can now sign in using facial recognition. Your face recognition will improve automatically with each login!
+                <p className="text-center text-white/20 text-sm mt-6">
+                  Already have a profile?{" "}
+                  <Link to="/login" className="text-emerald-400/60 hover:text-emerald-400 transition-colors">
+                    Sign in
+                  </Link>
                 </p>
-                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-                  <p className="text-green-400 font-semibold text-sm">✨ Enhanced Features Active</p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    • Unique face verification<br />
-                    • Adaptive recognition threshold<br />
-                    • Continuous learning from logins<br />
-                    • Secure image storage
+              </motion.div>
+            )}
+
+            {/* Step 2: Face Capture */}
+            {step === 2 && notification?.type !== 'duplicate' && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">
+                    {isRegistering ? "Processing..." : "Scan your face"}
+                  </h2>
+                  <p className="text-white/35">
+                    {isRegistering
+                      ? "Verifying uniqueness and creating your profile"
+                      : "Look at the camera — we'll capture automatically"
+                    }
                   </p>
                 </div>
+
+                {isRegistering ? (
+                  <div className="text-center py-16">
+                    <div className="relative inline-flex items-center justify-center mb-6">
+                      <div className="absolute size-20 rounded-full bg-emerald-500/10 blur-xl" />
+                      <div className="size-20 rounded-full border border-white/[0.08] bg-white/[0.02] flex items-center justify-center">
+                        <Loader2 className="size-8 text-emerald-400 animate-spin" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                    <ContinuousQualityCapture 
+                      onImageCapture={handleQualityImageCapture}
+                      qualityThreshold={0.5}
+                      maxAttempts={8}
+                      autoStart={true}
+                    />
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Step 3: Duplicate Detection Result */}
+            {step === 3 && notification?.type === 'duplicate' && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="text-center py-8"
+              >
+                {/* notification already rendered above */}
+              </motion.div>
+            )}
+
+            {/* Step 4: Success */}
+            {step === 4 && (
+              <motion.div
+                key="step4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className="text-center"
+              >
+                <div className="relative inline-flex items-center justify-center mb-8">
+                  <div className="absolute size-24 rounded-full bg-emerald-500/10 blur-2xl" />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, delay: 0.15 }}
+                    className="size-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-xl shadow-emerald-500/30"
+                  >
+                    <Check className="size-10 text-black" strokeWidth={3} />
+                  </motion.div>
+                </div>
+
+                <h2 className="text-3xl font-bold tracking-tight mb-3">You're all set</h2>
+                <p className="text-white/40 text-lg mb-2">
+                  Your FaceSmash profile is ready
+                </p>
+                <p className="text-white/20 text-sm max-w-sm mx-auto mb-10">
+                  You can now sign in to any FaceSmash-enabled site with just a glance. Your face recognition improves with every login.
+                </p>
+
                 <Link to="/login">
-                  <Button className="w-full bg-white text-black hover:bg-gray-200">
-                    <Square className="mr-2 h-4 w-4" />
-                    Sign In with Enhanced Face Recognition
+                  <Button className="h-12 px-8 bg-emerald-500 hover:bg-emerald-400 text-black font-medium rounded-full group">
+                    Sign in now
+                    <ArrowRight className="ml-2 size-4 group-hover:translate-x-0.5 transition-transform" />
                   </Button>
                 </Link>
-              </CardContent>
-            </Card>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

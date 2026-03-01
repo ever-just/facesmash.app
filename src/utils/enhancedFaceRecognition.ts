@@ -1,14 +1,27 @@
 import * as faceapi from 'face-api.js';
 import { calculateSimilarity } from './faceRecognition';
+import {
+  estimateHeadPose,
+  validateFaceSize,
+  getEyeAspectRatios,
+  normalizeDescriptor,
+  type HeadPose,
+  type FaceSizeCheck,
+} from './livenessDetection';
 
 export interface FaceAnalysis {
   descriptor: Float32Array;
+  normalizedDescriptor: Float32Array;
   confidence: number;
   qualityScore: number;
   boundingBox: faceapi.Box;
   landmarks: faceapi.FaceLandmarks68;
   lightingScore: number;
   environmentalConditions: any;
+  headPose: HeadPose;
+  faceSizeCheck: FaceSizeCheck;
+  eyeAspectRatio: number;
+  rejectionReason?: string;
 }
 
 export interface LightingAnalysis {
@@ -145,6 +158,39 @@ export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysi
       return null;
     }
 
+    // ── Head pose validation ──
+    const headPose = estimateHeadPose(detection.landmarks, detection.detection.box);
+    if (!headPose.isFrontal) {
+      console.log(`Face not frontal: yaw=${headPose.yaw.toFixed(2)}, pitch=${headPose.pitch.toFixed(2)}, roll=${headPose.roll.toFixed(2)}`);
+      // Don't hard-reject, but penalize quality score below
+    }
+
+    // ── Face size validation ──
+    const imgWidth = img.width || 640;
+    const imgHeight = img.height || 480;
+    const faceSizeCheck = validateFaceSize(detection.detection.box, imgWidth, imgHeight);
+    if (!faceSizeCheck.isValid) {
+      console.log(`Face size invalid: ${faceSizeCheck.reason} (ratio: ${faceSizeCheck.ratio.toFixed(3)})`);
+      // Return with rejection reason so caller can show appropriate message
+      return {
+        descriptor: detection.descriptor,
+        normalizedDescriptor: normalizeDescriptor(detection.descriptor),
+        confidence: detection.detection.score,
+        qualityScore: 0,
+        boundingBox: detection.detection.box,
+        landmarks: detection.landmarks,
+        lightingScore: 0,
+        environmentalConditions: {},
+        headPose,
+        faceSizeCheck,
+        eyeAspectRatio: 0,
+        rejectionReason: faceSizeCheck.reason,
+      };
+    }
+
+    // ── Eye Aspect Ratio ──
+    const { avgEAR } = getEyeAspectRatios(detection.landmarks);
+
     // Analyze lighting conditions with better error handling
     let lightingAnalysis;
     try {
@@ -172,13 +218,22 @@ export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysi
     const sizeRatio = Math.min(faceArea / imageArea, 0.3) / 0.3;
     qualityScore = qualityScore * (0.8 + sizeRatio * 0.2);
 
+    // Penalize non-frontal faces
+    if (!headPose.isFrontal) {
+      const anglePenalty = Math.max(0.5, 1 - (Math.abs(headPose.yaw) + Math.abs(headPose.pitch)) * 0.3);
+      qualityScore *= anglePenalty;
+    }
+
     // Ensure quality score is in valid range
     qualityScore = Math.max(0, Math.min(1, qualityScore));
 
-    console.log(`Enhanced face quality: ${qualityScore.toFixed(3)}, lighting: ${lightingAnalysis.score.toFixed(3)}`);
+    const normalizedDesc = normalizeDescriptor(detection.descriptor);
+
+    console.log(`Enhanced face quality: ${qualityScore.toFixed(3)}, lighting: ${lightingAnalysis.score.toFixed(3)}, EAR: ${avgEAR.toFixed(3)}, frontal: ${headPose.isFrontal}`);
 
     return {
       descriptor: detection.descriptor,
+      normalizedDescriptor: normalizedDesc,
       confidence: detection.detection.score,
       qualityScore,
       boundingBox: detection.detection.box,
@@ -189,7 +244,10 @@ export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysi
         brightness: lightingAnalysis.brightness,
         contrast: lightingAnalysis.contrast,
         evenness: lightingAnalysis.evenness
-      }
+      },
+      headPose,
+      faceSizeCheck,
+      eyeAspectRatio: avgEAR,
     };
   } catch (error) {
     console.error('Error analyzing face quality:', error);

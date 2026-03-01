@@ -28,6 +28,12 @@ const ContinuousQualityCapture = ({
   const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { isLoaded } = useFaceAPI();
 
+  // Use refs for values the interval callback needs to avoid stale closures
+  const attemptsRef = useRef(0);
+  const bestQualityRef = useRef(0);
+  const bestImageRef = useRef<string | null>(null);
+  const isCapturingRef = useRef(false);
+
   const videoConstraints = {
     width: 640,
     height: 640,
@@ -35,7 +41,7 @@ const ContinuousQualityCapture = ({
   };
 
   const captureAndAnalyze = useCallback(async () => {
-    if (!webcamRef.current || !isLoaded) return;
+    if (!webcamRef.current || !isLoaded || !isCapturingRef.current) return;
 
     const imageSrc = webcamRef.current.getScreenshot();
     if (!imageSrc) return;
@@ -46,17 +52,20 @@ const ContinuousQualityCapture = ({
       if (faceAnalysis) {
         const quality = faceAnalysis.qualityScore;
         
-        // Keep track of best image
-        if (quality > bestQuality) {
+        // Keep track of best image using refs for current values
+        if (quality > bestQualityRef.current) {
+          bestImageRef.current = imageSrc;
+          bestQualityRef.current = quality;
           setBestImage(imageSrc);
           setBestQuality(quality);
         }
 
-        console.log(`Quality ${(quality * 100).toFixed(1)}%`);
+        console.log(`Capture attempt ${attemptsRef.current + 1}/${maxAttempts} — Quality ${(quality * 100).toFixed(1)}%`);
 
         // Check if quality meets threshold
         if (quality >= qualityThreshold) {
           console.log('Quality threshold met!');
+          isCapturingRef.current = false;
           setIsCapturing(false);
           setCaptureSuccess(true);
           if (captureIntervalRef.current) {
@@ -70,20 +79,22 @@ const ContinuousQualityCapture = ({
         console.log('No face detected in current frame');
       }
 
-      const newAttempts = attempts + 1;
+      attemptsRef.current += 1;
+      const newAttempts = attemptsRef.current;
       setAttempts(newAttempts);
 
       // Check if max attempts reached
       if (newAttempts >= maxAttempts) {
-        console.log('Max attempts reached');
+        console.log(`Max attempts (${maxAttempts}) reached. Best quality: ${(bestQualityRef.current * 100).toFixed(1)}%`);
+        isCapturingRef.current = false;
         setIsCapturing(false);
         if (captureIntervalRef.current) {
           clearInterval(captureIntervalRef.current);
           captureIntervalRef.current = null;
         }
         
-        if (bestImage && bestQuality > 0.3) {
-          onImageCapture(bestImage, bestQuality);
+        if (bestImageRef.current && bestQualityRef.current > 0.3) {
+          onImageCapture(bestImageRef.current, bestQualityRef.current);
         } else {
           // Let parent handle error notification
           reset();
@@ -92,12 +103,18 @@ const ContinuousQualityCapture = ({
     } catch (error) {
       console.error('Error during capture and analysis:', error);
     }
-  }, [attempts, bestQuality, bestImage, isLoaded, maxAttempts, onImageCapture, qualityThreshold]);
+  }, [isLoaded, maxAttempts, onImageCapture, qualityThreshold]);
 
   const startContinuousCapture = useCallback(() => {
     if (!webcamReady || !isLoaded) {
       return;
     }
+
+    // Reset all refs and state
+    attemptsRef.current = 0;
+    bestQualityRef.current = 0;
+    bestImageRef.current = null;
+    isCapturingRef.current = true;
 
     setIsCapturing(true);
     setAttempts(0);
@@ -105,13 +122,18 @@ const ContinuousQualityCapture = ({
     setBestQuality(0);
     setCaptureSuccess(false);
     
-    console.log(`Starting continuous capture with ${qualityThreshold * 100}% quality threshold`);
+    console.log(`Starting continuous capture with ${qualityThreshold * 100}% quality threshold, max ${maxAttempts} attempts`);
     
     // Capture every 1.5 seconds
     captureIntervalRef.current = setInterval(captureAndAnalyze, 1500);
-  }, [webcamReady, isLoaded, qualityThreshold, captureAndAnalyze]);
+  }, [webcamReady, isLoaded, qualityThreshold, maxAttempts, captureAndAnalyze]);
 
   const reset = () => {
+    isCapturingRef.current = false;
+    attemptsRef.current = 0;
+    bestQualityRef.current = 0;
+    bestImageRef.current = null;
+
     setIsCapturing(false);
     setAttempts(0);
     setBestImage(null);

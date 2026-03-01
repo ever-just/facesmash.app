@@ -1,6 +1,4 @@
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { User } from "lucide-react";
+import { Check } from "lucide-react";
 
 interface ProfileCardProps {
   userName: string;
@@ -8,40 +6,31 @@ interface ProfileCardProps {
 }
 
 const ProfileCard = ({ userName, userProfile }: ProfileCardProps) => {
+  const rows = [
+    { label: "Name", value: userName.split('@')[0] },
+    { label: "Email", value: userName },
+    { label: "Face profile", value: "Registered", accent: true },
+    ...(userProfile ? [{ label: "Created", value: new Date(userProfile.created_at).toLocaleDateString() }] : []),
+  ];
+
   return (
-    <Card className="bg-gray-900 border-gray-800">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center text-lg sm:text-xl">
-          <User className="mr-3 h-6 w-6 text-white" />
-          Profile Information
-        </CardTitle>
-        <CardDescription className="text-gray-400">
-          Your Face Card details and recognition data
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4 sm:p-6">
-        <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm sm:text-base">Name:</span>
-          <span className="text-white text-sm sm:text-base truncate ml-2">{userName.split('@')[0]}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm sm:text-base">Email:</span>
-          <span className="text-white text-sm sm:text-base truncate ml-2">{userName}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm sm:text-base">Face Profile:</span>
-          <span className="text-white text-sm sm:text-base">✓ Registered</span>
-        </div>
-        {userProfile && (
-          <div className="flex justify-between items-center">
-            <span className="text-gray-400 text-sm sm:text-base">Card Created:</span>
-            <span className="text-white text-sm sm:text-base">
-              {new Date(userProfile.created_at).toLocaleDateString()}
-            </span>
+    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
+      <p className="text-white/20 uppercase tracking-[0.2em] text-[10px] mb-5">Profile</p>
+      <div className="space-y-4">
+        {rows.map((row, i) => (
+          <div key={i} className="flex items-center justify-between">
+            <span className="text-white/30 text-sm">{row.label}</span>
+            {row.accent ? (
+              <span className="inline-flex items-center gap-1.5 text-emerald-400 text-sm">
+                <Check className="size-3.5" /> {row.value}
+              </span>
+            ) : (
+              <span className="text-white/70 text-sm truncate ml-4 max-w-[200px]">{row.value}</span>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+    </div>
   );
 };
 

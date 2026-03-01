@@ -1,4 +1,3 @@
-
 import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import LoginHeader from "@/components/LoginHeader";
 import LoginSuccess from "@/components/LoginSuccess";
@@ -11,6 +10,7 @@ import CurrentUserCard from "@/components/login/CurrentUserCard";
 import LoginFooter from "@/components/login/LoginFooter";
 import { useLoginLogic } from "@/hooks/useLoginLogic";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { Scan } from "lucide-react";
 
 const Login = () => {
   const { isLoaded, isLoading, error: faceAPIError } = useFaceAPI();
@@ -28,10 +28,10 @@ const Login = () => {
   // Show loading state only when Face API is loading
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-[#07080A] text-white">
         <LoginHeader />
-        <div className="container mx-auto px-6 py-12">
-          <div className="max-w-2xl mx-auto">
+        <div className="flex-1 flex items-center justify-center px-6 py-20">
+          <div className="w-full max-w-xl">
             <LoadingSkeleton variant="webcam" />
           </div>
         </div>
@@ -40,12 +40,34 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[#07080A] text-white flex flex-col">
+      {/* film-grain overlay */}
+      <div className="fixed inset-0 pointer-events-none z-[100] animate-grain opacity-40 mix-blend-overlay" />
+
       <LoginHeader />
 
-      <div className="container mx-auto px-6 py-12">
-        <div className="max-w-2xl mx-auto">
+      {/* ambient light */}
+      <div className="fixed top-[-10%] left-[20%] w-[500px] h-[500px] rounded-full bg-emerald-500/[0.04] blur-[140px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[15%] w-[400px] h-[400px] rounded-full bg-teal-400/[0.03] blur-[120px] pointer-events-none" />
+
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-xl relative z-10">
           <ErrorBoundary>
+            {/* Title area — only shown when scanning */}
+            {!showLoginOptions && !scanComplete && isLoaded && !faceAPIError && (
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center size-16 rounded-full border border-white/[0.08] bg-white/[0.02] mb-6">
+                  <Scan className="size-7 text-emerald-400/70" />
+                </div>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
+                  Sign in with your face
+                </h1>
+                <p className="text-white/35 text-lg">
+                  Look at the camera — we'll recognize you instantly
+                </p>
+              </div>
+            )}
+
             {showLoginOptions && currentUser && (
               <CurrentUserCard 
                 currentUser={currentUser}

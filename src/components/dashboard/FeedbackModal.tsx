@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/supabase/client";
 import { Star } from "lucide-react";
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -38,16 +38,12 @@ const FeedbackModal = ({
   const onSubmit = async (data: FeedbackForm) => {
     setIsSubmitting(true);
     try {
-      const {
-        error
-      } = await supabase.from('feedback').insert([{
+      await pb.collection('feedback').create({
         user_email: userEmail,
-        feedback_type: data.feedbackType,
-        subject: data.subject,
-        description: data.description,
+        category: data.feedbackType === 'bug_report' ? 'bug' : data.feedbackType === 'feature_request' ? 'feature' : 'general',
+        message: `[${data.subject}] ${data.description}`,
         rating: selectedRating
-      }]);
-      if (error) throw error;
+      });
       toast.success("Thank you for your feedback!");
       form.reset();
       setSelectedRating(0);
@@ -71,7 +67,7 @@ const FeedbackModal = ({
             Send Feedback
           </DialogTitle>
           <DialogDescription className="text-gray-400">
-            Help us improve FaceCard by sharing your thoughts and suggestions.
+            Help us improve FaceSmash by sharing your thoughts and suggestions.
           </DialogDescription>
         </DialogHeader>
 

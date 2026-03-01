@@ -1,8 +1,6 @@
-
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Clock, Target, Scan, Database, TrendingUp } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+import { pb } from "@/integrations/supabase/client";
 
 interface SecurityStats {
   totalTemplates: number;
@@ -32,41 +30,39 @@ const EnhancedSecurityCard = ({ userName }: EnhancedSecurityCardProps) => {
     const fetchSecurityStats = async () => {
       try {
         // Get user profile data
-        const { data: userProfile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('email', userName)
-          .single();
+        const profiles = await pb.collection('user_profiles').getList(1, 1, {
+          filter: `email="${userName}"`,
+        });
+        const userProfile = profiles.items.length > 0 ? profiles.items[0] : null;
 
         // Get face templates count
-        const { count: templatesCount } = await supabase
-          .from('face_templates')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_email', userName);
+        const templates = await pb.collection('face_templates').getList(1, 1, {
+          filter: `user_email="${userName}"`,
+        });
+        const templatesCount = templates.totalItems;
 
         // Get face scans count and average confidence
-        const { data: scansData, count: scansCount } = await supabase
-          .from('face_scans')
-          .select('confidence_score', { count: 'exact' })
-          .eq('user_email', userName);
+        const scans = await pb.collection('face_scans').getFullList({
+          filter: `user_email="${userName}"`,
+        });
+        const scansCount = scans.length;
 
         // Get last successful login
-        const { data: lastLoginData } = await supabase
-          .from('sign_in_logs')
-          .select('sign_in_time')
-          .eq('user_email', userName)
-          .eq('success_status', true)
-          .order('sign_in_time', { ascending: false })
-          .limit(1)
-          .single();
+        const loginLogs = await pb.collection('sign_in_logs').getList(1, 1, {
+          filter: `user_email="${userName}" && success=true`,
+          sort: '-created',
+        });
+        const lastLoginData = loginLogs.items.length > 0 ? loginLogs.items[0] : null;
 
         // Calculate statistics
-        const successRate = userProfile?.total_logins > 0 
-          ? (userProfile.successful_logins / userProfile.total_logins) * 100 
+        const totalLogins = userProfile?.login_count || 0;
+        const successfulLogins = userProfile?.successful_logins || 0;
+        const successRate = totalLogins > 0 
+          ? (successfulLogins / totalLogins) * 100 
           : 0;
 
-        const avgConfidence = scansData?.length > 0
-          ? scansData.reduce((sum, scan) => sum + (scan.confidence_score || 0), 0) / scansData.length
+        const avgConfidence = scans.length > 0
+          ? scans.reduce((sum: number, scan: any) => sum + (scan.confidence || 0), 0) / scans.length
           : 0;
 
         // Calculate security score (0-100)
@@ -79,7 +75,7 @@ const EnhancedSecurityCard = ({ userName }: EnhancedSecurityCardProps) => {
 
         setStats({
           totalTemplates: templatesCount || 0,
-          lastLogin: lastLoginData?.sign_in_time || null,
+          lastLogin: lastLoginData?.created || null,
           successRate: Math.round(successRate),
           avgConfidence: Math.round(avgConfidence * 100),
           totalScans: scansCount || 0,
@@ -109,95 +105,42 @@ const EnhancedSecurityCard = ({ userName }: EnhancedSecurityCardProps) => {
     return date.toLocaleDateString();
   };
 
-  const getSecurityScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-400';
-    if (score >= 60) return 'text-yellow-400';
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-emerald-400';
+    if (score >= 60) return 'text-amber-400';
     return 'text-red-400';
   };
 
   if (loading) {
     return (
-      <Card className="bg-gray-900 border-gray-800">
-        <CardContent className="text-center py-8">
-          <Shield className="h-8 w-8 text-white mx-auto mb-4 animate-spin" />
-          <p className="text-white">Loading security data...</p>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 flex items-center justify-center min-h-[200px]">
+        <Loader2 className="size-5 text-white/20 animate-spin" />
+      </div>
     );
   }
 
+  const rows = [
+    { label: "Security score", value: `${stats.securityScore}/100`, color: getScoreColor(stats.securityScore) },
+    { label: "Auth method", value: "Face Recognition" },
+    { label: "Success rate", value: `${stats.successRate}%` },
+    { label: "Last login", value: formatLastLogin(stats.lastLogin) },
+    { label: "Face templates", value: String(stats.totalTemplates) },
+    { label: "Total scans", value: String(stats.totalScans) },
+    { label: "Avg. confidence", value: `${stats.avgConfidence}%` },
+  ];
+
   return (
-    <Card className="bg-gray-900 border-gray-800">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center text-lg sm:text-xl">
-          <Shield className="mr-3 h-6 w-6 text-white" />
-          Security Status
-        </CardTitle>
-        <CardDescription className="text-gray-400">
-          Your Face Card security metrics and insights
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4 sm:p-6">
-        {/* Security Score */}
-        <div className="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <TrendingUp className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-400 text-sm sm:text-base">Security Score:</span>
+    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
+      <p className="text-white/20 uppercase tracking-[0.2em] text-[10px] mb-5">Security</p>
+      <div className="space-y-4">
+        {rows.map((row, i) => (
+          <div key={i} className="flex items-center justify-between">
+            <span className="text-white/30 text-sm">{row.label}</span>
+            <span className={`text-sm font-medium ${row.color || 'text-white/70'}`}>{row.value}</span>
           </div>
-          <span className={`font-bold text-lg ${getSecurityScoreColor(stats.securityScore)}`}>
-            {stats.securityScore}/100
-          </span>
-        </div>
-
-        {/* Authentication Method */}
-        <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm sm:text-base">Authentication:</span>
-          <span className="text-white text-sm sm:text-base">Face Recognition</span>
-        </div>
-
-        {/* Success Rate */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Target className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-400 text-sm sm:text-base">Success Rate:</span>
-          </div>
-          <span className="text-white text-sm sm:text-base">{stats.successRate}%</span>
-        </div>
-
-        {/* Last Login */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Clock className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-400 text-sm sm:text-base">Last Login:</span>
-          </div>
-          <span className="text-white text-sm sm:text-base">{formatLastLogin(stats.lastLogin)}</span>
-        </div>
-
-        {/* Face Templates */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Database className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-400 text-sm sm:text-base">Face Templates:</span>
-          </div>
-          <span className="text-white text-sm sm:text-base">{stats.totalTemplates}</span>
-        </div>
-
-        {/* Total Scans */}
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Scan className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-400 text-sm sm:text-base">Total Scans:</span>
-          </div>
-          <span className="text-white text-sm sm:text-base">{stats.totalScans}</span>
-        </div>
-
-        {/* Average Confidence */}
-        <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm sm:text-base">Avg. Confidence:</span>
-          <span className="text-white text-sm sm:text-base">{stats.avgConfidence}%</span>
-        </div>
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+    </div>
   );
 };
 

@@ -1,81 +1,67 @@
-import { CheckCircle, Sparkles, Shield } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Check, ArrowRight, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+
 interface LoginSuccessProps {
   matchedUser: string | null;
   onContinue: () => void;
   onSignInAgain: () => void;
 }
-const LoginSuccess = ({
-  matchedUser,
-  onContinue,
-  onSignInAgain
-}: LoginSuccessProps) => {
-  const [showAnimation, setShowAnimation] = useState(false);
-  useEffect(() => {
-    setShowAnimation(true);
-  }, []);
-  return <Card className="bg-gray-900 border-gray-800 overflow-hidden relative">
-      {/* Animated Background */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 animate-pulse"></div>
-        {Array.from({
-        length: 20
-      }).map((_, i) => <div key={i} className="absolute w-2 h-2 bg-white rounded-full animate-pulse" style={{
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animationDelay: `${Math.random() * 2}s`,
-        animationDuration: `${2 + Math.random() * 2}s`
-      }}></div>)}
+
+const LoginSuccess = ({ matchedUser, onContinue, onSignInAgain }: LoginSuccessProps) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="text-center max-w-md mx-auto"
+    >
+      {/* success icon */}
+      <div className="relative inline-flex items-center justify-center mb-8">
+        <div className="absolute size-24 rounded-full bg-emerald-500/10 blur-2xl" />
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 200, delay: 0.15 }}
+          className="size-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-xl shadow-emerald-500/30"
+        >
+          <Check className="size-10 text-black" strokeWidth={3} />
+        </motion.div>
       </div>
 
-      <CardHeader className="text-center relative z-10">
-        <div className={`transform transition-all duration-1000 ${showAnimation ? 'scale-100 rotate-0' : 'scale-0 rotate-180'}`}>
-          <div className="relative mx-auto mb-6">
-            <CheckCircle className="h-24 w-24 text-green-400 mx-auto animate-bounce" />
-            <div className="absolute -top-2 -right-2">
-              <Sparkles className="h-8 w-8 text-yellow-400 animate-pulse" />
-            </div>
-            <div className="absolute -bottom-2 -left-2">
-              <Shield className="h-8 w-8 text-blue-400 animate-pulse" />
-            </div>
-          </div>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <h2 className="text-3xl font-bold tracking-tight mb-2">You're in</h2>
+        <p className="text-white/40 text-lg mb-2">
+          Welcome back, <span className="text-white/70">{matchedUser?.split('@')[0]}</span>
+        </p>
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs mt-2">
+          <div className="size-1.5 rounded-full bg-emerald-400" />
+          Face verified
         </div>
-        
-        <CardTitle className={`text-4xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent transform transition-all duration-1000 delay-300 ${showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>FACE CARD</CardTitle>
-        
-        
-      </CardHeader>
+      </motion.div>
 
-      <CardContent className="text-center space-y-8 relative z-10">
-        <div className={`transform transition-all duration-1000 delay-700 ${showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-          <div className="bg-gradient-to-r from-gray-800 to-gray-700 border border-gray-600 rounded-2xl p-8 shadow-2xl">
-            <div className="flex items-center justify-center mb-4">
-              <div className="w-4 h-4 bg-green-400 rounded-full animate-pulse mr-3"></div>
-              <p className="text-green-400 font-bold text-lg">Authentication Successful</p>
-            </div>
-            
-            <div className="space-y-3">
-              <p className="text-white text-xl font-semibold">
-                Welcome back, <span className="text-blue-400">{matchedUser}</span>!
-              </p>
-              
-              
-              
-            </div>
-          </div>
-        </div>
-        
-        <div className={`space-y-4 transform transition-all duration-1000 delay-1000 ${showAnimation ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-          <Button onClick={onContinue} className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-black hover:from-green-500 hover:to-blue-600 font-bold py-4 rounded-xl transform transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl">
-            <Sparkles className="mr-2 h-5 w-5" />
-            Continue to Dashboard
-          </Button>
-          
-          <Button variant="outline" onClick={onSignInAgain} className="w-full border-2 border-gray-600 hover:border-white py-4 rounded-xl font-semibold transition-all duration-300 text-gray-50 bg-slate-900 hover:bg-slate-800">Sign Out</Button>
-        </div>
-      </CardContent>
-    </Card>;
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+        className="mt-10 space-y-3"
+      >
+        <Button
+          onClick={onContinue}
+          className="w-full h-12 bg-emerald-500 hover:bg-emerald-400 text-black font-medium rounded-full group"
+        >
+          Continue to dashboard
+          <ArrowRight className="ml-2 size-4 group-hover:translate-x-0.5 transition-transform" />
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={onSignInAgain}
+          className="w-full h-10 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-full text-sm"
+        >
+          <LogOut className="mr-2 size-3.5" />
+          Sign out
+        </Button>
+      </motion.div>
+    </motion.div>
+  );
 };
+
 export default LoginSuccess;

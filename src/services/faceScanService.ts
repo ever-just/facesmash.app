@@ -1,20 +1,20 @@
-import { supabase } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/supabase/client";
 import { FaceScan } from "@/types";
 
-export const uploadFaceImage = async (
-  imageBlob: Blob, 
-  userEmail: string, 
+// Convert image blob to a proper JPEG File for PocketBase upload
+export const prepareImageFile = async (
+  imageBlob: Blob,
   scanType: string
-): Promise<string | null> => {
+): Promise<File | null> => {
   try {
     const timestamp = Date.now();
-    const fileName = `${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}/${scanType}_${timestamp}.jpg`;
-    
+    const fileName = `${scanType}_${timestamp}.jpg`;
+
     // Convert blob to ensure it's a proper JPEG
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
+
     const processedBlob = await new Promise<Blob>((resolve, reject) => {
       img.onload = () => {
         canvas.width = img.width;
@@ -31,91 +31,68 @@ export const uploadFaceImage = async (
       img.onerror = reject;
       img.src = URL.createObjectURL(imageBlob);
     });
-    
-    // Upload the image
-    const { data, error } = await supabase.storage
-      .from('face-images')
-      .upload(fileName, processedBlob, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: 'image/jpeg'
-      });
 
-    if (error) {
-      console.error('Storage upload error:', error);
-      return null;
-    }
-    
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('face-images')
-      .getPublicUrl(data.path);
-      
-    return urlData.publicUrl;
+    return new File([processedBlob], fileName, { type: 'image/jpeg' });
   } catch (error) {
-    console.error('Unexpected error in uploadFaceImage:', error);
+    console.error('Error preparing image file:', error);
     return null;
   }
 };
 
 export const createFaceScan = async (
   userEmail: string,
-  imageUrl: string,
   faceEmbedding: Float32Array,
   scanType: 'registration' | 'login' | 'verification',
   confidenceScore: number = 0.8,
   qualityScore: number = 0.8,
-  lightingScore: number = 0.5,
-  environmentalConditions: any = {},
-  learningWeight: number = 1.0
+  imageFile?: File | null,
 ): Promise<FaceScan | null> => {
   try {
     const embeddingArray = Array.from(faceEmbedding);
-    
-    const { data, error } = await supabase
-      .from('face_scans')
-      .insert([
-        {
-          user_email: userEmail,
-          image_url: imageUrl,
-          face_embedding: embeddingArray,
-          confidence_score: confidenceScore,
-          scan_type: scanType,
-          quality_score: qualityScore,
-          lighting_score: lightingScore,
-          environmental_conditions: environmentalConditions,
-          learning_weight: learningWeight
-        }
-      ])
-      .select()
-      .single();
+    const resolvedScanType = scanType === 'verification' ? 'login' : scanType;
 
-    if (error) {
-      console.error('Error creating enhanced face scan:', error);
-      return null;
+    // Use FormData so we can attach the image file in the same record
+    const formData = new FormData();
+    formData.append('user_email', userEmail);
+    formData.append('face_embedding', JSON.stringify(embeddingArray));
+    formData.append('confidence', String(confidenceScore));
+    formData.append('scan_type', resolvedScanType);
+    formData.append('quality_score', String(qualityScore));
+    if (imageFile) {
+      formData.append('image_file', imageFile);
     }
 
-    return data as FaceScan;
+    const record = await pb.collection('face_scans').create(formData);
+
+    // Build image_url from the stored file if present
+    if (record.image_file) {
+      record.image_url = pb.files.getURL(record, record.image_file);
+    }
+
+    console.log(`Face scan created: type=${resolvedScanType}, quality=${qualityScore.toFixed(3)}, confidence=${confidenceScore.toFixed(3)}`);
+    return record as unknown as FaceScan;
   } catch (error) {
-    console.error('Unexpected error creating enhanced face scan:', error);
+    console.error('Unexpected error creating face scan:', error);
     return null;
   }
 };
 
 export const getFaceScansByUser = async (userEmail: string): Promise<FaceScan[]> => {
   try {
-    const { data, error } = await supabase
-      .from('face_scans')
-      .select('*')
-      .eq('user_email', userEmail)
-      .order('created_at', { ascending: false });
+    const records = await pb.collection('face_scans').getList(1, 50, {
+      filter: `user_email="${userEmail}"`,
+      sort: '-created',
+    });
 
-    if (error) {
-      console.error('Error fetching face scans:', error);
-      return [];
-    }
+    // Build image_url from PocketBase file field for each record
+    const items = records.items.map(record => {
+      if (record.image_file && !record.image_url) {
+        record.image_url = pb.files.getURL(record, record.image_file);
+      }
+      return record;
+    });
 
-    return (data || []) as FaceScan[];
+    return items as unknown as FaceScan[];
   } catch (error) {
     console.error('Unexpected error fetching face scans:', error);
     return [];
@@ -128,18 +105,26 @@ export const updateUserEmbeddingWithScan = async (
   learningWeight: number = 1.0
 ): Promise<boolean> => {
   try {
-    const embeddingArray = Array.from(newEmbedding);
-    
-    const { error } = await supabase.rpc('update_user_embedding_with_scan', {
-      p_user_email: userEmail,
-      p_new_embedding: embeddingArray,
-      p_confidence: learningWeight
+    // Get the user profile
+    const profiles = await pb.collection('user_profiles').getList(1, 1, {
+      filter: `email="${userEmail}"`,
     });
 
-    if (error) {
-      console.error('Error updating user embedding with enhanced learning:', error);
-      return false;
-    }
+    if (profiles.items.length === 0) return false;
+    const profile = profiles.items[0];
+    
+    const oldEmbedding = profile.face_embedding as number[];
+    const newEmbeddingArray = Array.from(newEmbedding);
+    
+    // Weighted average of old and new embeddings
+    const weight = Math.min(learningWeight * 0.1, 0.3); // Cap influence of single scan
+    const blendedEmbedding = oldEmbedding.map((val: number, i: number) => 
+      val * (1 - weight) + newEmbeddingArray[i] * weight
+    );
+
+    await pb.collection('user_profiles').update(profile.id, {
+      face_embedding: blendedEmbedding,
+    });
 
     console.log(`Enhanced embedding update completed for ${userEmail} with weight ${learningWeight.toFixed(2)}`);
     return true;
@@ -155,21 +140,12 @@ export const getHighQualityScans = async (
   limit: number = 10
 ): Promise<FaceScan[]> => {
   try {
-    const { data, error } = await supabase
-      .from('face_scans')
-      .select('*')
-      .eq('user_email', userEmail)
-      .gte('quality_score', minQuality)
-      .order('quality_score', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    const records = await pb.collection('face_scans').getList(1, limit, {
+      filter: `user_email="${userEmail}" && quality_score>=${minQuality}`,
+      sort: '-quality_score,-created',
+    });
 
-    if (error) {
-      console.error('Error fetching high quality scans:', error);
-      return [];
-    }
-
-    return (data || []) as FaceScan[];
+    return records.items as unknown as FaceScan[];
   } catch (error) {
     console.error('Unexpected error fetching high quality scans:', error);
     return [];

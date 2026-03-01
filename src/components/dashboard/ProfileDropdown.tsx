@@ -1,9 +1,7 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, MessageSquare, LogOut } from "lucide-react";
+import { MessageSquare, LogOut } from "lucide-react";
 import { useSignOut } from "@/hooks/useSignOut";
 import FeedbackModal from "./FeedbackModal";
 
@@ -37,44 +35,33 @@ const ProfileDropdown = ({ userName }: ProfileDropdownProps) => {
     <>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
-            <Avatar className="h-10 w-10 border-2 border-white">
-              <AvatarFallback className="bg-gray-700 text-white text-sm font-semibold">
-                {userInitials}
-              </AvatarFallback>
-            </Avatar>
+          <Button variant="ghost" className="relative size-9 rounded-full p-0 hover:bg-white/5">
+            <div className="size-9 rounded-full bg-white/[0.06] border border-white/[0.1] flex items-center justify-center">
+              <span className="text-xs font-semibold text-white/60">{userInitials}</span>
+            </div>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-0 bg-gray-900 border-gray-700" align="end">
-          <div className="p-4 border-b border-gray-700">
-            <div className="flex items-center space-x-3">
-              <Avatar className="h-12 w-12">
-                <AvatarFallback className="bg-gray-700 text-white">
-                  {userInitials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  {userName.split('@')[0]}
-                </p>
-                <p className="text-xs text-gray-400 truncate">{userName}</p>
-              </div>
-            </div>
+        <PopoverContent className="w-56 p-0 bg-[#0E1014] border-white/[0.06] rounded-xl shadow-2xl" align="end">
+          <div className="p-4 border-b border-white/[0.04]">
+            <p className="text-sm font-medium text-white/70 truncate">
+              {userName.split('@')[0]}
+            </p>
+            <p className="text-xs text-white/25 truncate mt-0.5">{userName}</p>
           </div>
-          <div className="py-2">
+          <div className="py-1">
             <button
               onClick={handleFeedbackClick}
-              className="flex w-full items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+              className="flex w-full items-center px-4 py-2.5 text-sm text-white/40 hover:bg-white/[0.04] hover:text-white/70 transition-colors"
             >
-              <MessageSquare className="mr-3 h-4 w-4" />
+              <MessageSquare className="mr-3 size-3.5" />
               Feedback
             </button>
             <button
               onClick={handleSignOutClick}
-              className="flex w-full items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+              className="flex w-full items-center px-4 py-2.5 text-sm text-white/40 hover:bg-white/[0.04] hover:text-white/70 transition-colors"
             >
-              <LogOut className="mr-3 h-4 w-4" />
-              Sign Out
+              <LogOut className="mr-3 size-3.5" />
+              Sign out
             </button>
           </div>
         </PopoverContent>

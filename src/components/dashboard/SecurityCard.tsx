@@ -11,7 +11,7 @@ const SecurityCard = () => {
           Security Status
         </CardTitle>
         <CardDescription className="text-gray-400">
-          Your Face Card security information
+          Your FaceSmash security information
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

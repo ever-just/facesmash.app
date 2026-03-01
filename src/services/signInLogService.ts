@@ -1,5 +1,5 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/supabase/client";
 
 export interface SignInLog {
   id: string;
@@ -14,24 +14,13 @@ export const createSignInLog = async (userEmail: string): Promise<SignInLog | nu
   try {
     console.log('Creating sign-in log for user:', userEmail);
     
-    const { data, error } = await supabase
-      .from('sign_in_logs')
-      .insert([
-        {
-          user_email: userEmail,
-          success_status: true
-        }
-      ])
-      .select()
-      .single();
+    const record = await pb.collection('sign_in_logs').create({
+      user_email: userEmail,
+      success: true,
+    });
 
-    if (error) {
-      console.error('Error creating sign-in log:', error);
-      return null;
-    }
-
-    console.log('Sign-in log created successfully:', data);
-    return data;
+    console.log('Sign-in log created successfully:', record);
+    return record as unknown as SignInLog;
   } catch (error) {
     console.error('Unexpected error creating sign-in log:', error);
     return null;
@@ -40,20 +29,12 @@ export const createSignInLog = async (userEmail: string): Promise<SignInLog | nu
 
 export const getSignInLogsByUser = async (userEmail: string): Promise<SignInLog[]> => {
   try {
-    const { data, error } = await supabase
-      .from('sign_in_logs')
-      .select('*')
-      .eq('user_email', userEmail)
-      .eq('success_status', true)
-      .order('sign_in_time', { ascending: false })
-      .limit(10);
+    const records = await pb.collection('sign_in_logs').getList(1, 10, {
+      filter: `user_email="${userEmail}" && success=true`,
+      sort: '-created',
+    });
 
-    if (error) {
-      console.error('Error fetching sign-in logs:', error);
-      return [];
-    }
-
-    return data || [];
+    return records.items as unknown as SignInLog[];
   } catch (error) {
     console.error('Unexpected error fetching sign-in logs:', error);
     return [];
