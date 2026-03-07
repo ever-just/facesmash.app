@@ -133,7 +133,7 @@ const Register = () => {
       // Enhanced duplicate detection
       console.log('Performing enhanced duplicate detection...');
       try {
-        const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.65);
+        const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.80);
         
         if (duplicates && duplicates.length > 0) {
           console.log('Duplicate face detected:', duplicates);

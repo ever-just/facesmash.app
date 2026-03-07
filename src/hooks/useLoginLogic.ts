@@ -108,18 +108,22 @@ export const useLoginLogic = () => {
       let foundMatch = false;
       let bestMatch = { user: '', similarity: 0, profile: null as any };
       
+      console.log(`Matching against ${userProfiles.length} registered user(s)...`);
+      
       for (const profile of userProfiles) {
         // Get user's face templates for multi-template matching
         const templates = await getFaceTemplates(profile.email);
         const learningStats = await getUserLearningStats(profile.email);
+        const baseThreshold = learningStats?.currentThreshold || 0.45;
         
         let matchResult;
         
         if (templates.length > 0) {
+          console.log(`  ${profile.email}: ${templates.length} template(s), threshold=${baseThreshold.toFixed(2)}`);
           // Use multi-template matching for better accuracy
           const templateData = templates.map(t => ({
             descriptor: new Float32Array(t.face_embedding),
-            quality: t.quality_score,
+            quality: t.quality_score || 0.5,
             weight: learningStats ? getConfidenceBoost(
               learningStats.successfulLogins,
               learningStats.successRate,
@@ -130,16 +134,17 @@ export const useLoginLogic = () => {
           const multiMatch = multiTemplateMatch(
             faceAnalysis.descriptor,
             templateData,
-            learningStats?.currentThreshold || 0.6,
+            baseThreshold,
             faceAnalysis.lightingScore
           );
           
           matchResult = {
             isMatch: multiMatch.isMatch,
             similarity: multiMatch.bestSimilarity,
-            adaptedThreshold: learningStats?.currentThreshold || 0.6
+            adaptedThreshold: baseThreshold
           };
         } else {
+          console.log(`  ${profile.email}: no templates, using profile embedding, threshold=${baseThreshold.toFixed(2)}`);
           // Fallback to single embedding matching
           const storedEmbedding = new Float32Array(profile.face_embedding);
           const confidenceBoost = learningStats ? getConfidenceBoost(
@@ -151,7 +156,7 @@ export const useLoginLogic = () => {
           matchResult = enhancedFaceMatch(
             faceAnalysis.descriptor, 
             storedEmbedding, 
-            learningStats?.currentThreshold || 0.6,
+            baseThreshold,
             confidenceBoost,
             faceAnalysis.lightingScore
           );

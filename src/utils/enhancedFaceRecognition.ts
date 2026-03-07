@@ -272,7 +272,7 @@ export const base64ToBlob = (base64Data: string): Blob => {
 export const enhancedFaceMatch = (
   descriptor1: Float32Array, 
   descriptor2: Float32Array, 
-  userThreshold: number = 0.6,
+  userThreshold: number = 0.45,
   confidenceBoost: number = 0,
   lightingScore: number = 0.5
 ): { isMatch: boolean; similarity: number; adaptedThreshold: number } => {
@@ -283,13 +283,13 @@ export const enhancedFaceMatch = (
   
   // Adjust for lighting conditions
   if (lightingScore < 0.4) {
-    adaptedThreshold = Math.max(0.4, adaptedThreshold - 0.05); // More lenient in poor lighting
+    adaptedThreshold = Math.max(0.35, adaptedThreshold - 0.05); // More lenient in poor lighting
   } else if (lightingScore > 0.8) {
-    adaptedThreshold = Math.min(0.7, adaptedThreshold + 0.02); // Slightly stricter in good lighting
+    adaptedThreshold = Math.min(0.6, adaptedThreshold + 0.02); // Slightly stricter in good lighting
   }
   
   // Apply confidence boost for experienced users
-  adaptedThreshold = Math.max(0.4, adaptedThreshold - (confidenceBoost * 0.05));
+  adaptedThreshold = Math.max(0.35, adaptedThreshold - (confidenceBoost * 0.05));
   
   const isMatch = similarity >= adaptedThreshold;
   

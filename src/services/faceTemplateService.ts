@@ -5,7 +5,8 @@ import * as faceapi from '@vladmandic/face-api';
 export interface FaceTemplate {
   id: string;
   user_email: string;
-  face_embedding: number[];
+  descriptor: number[];
+  face_embedding: number[]; // alias for descriptor (backward compat)
   quality_score: number;
   confidence_score: number;
   lighting_conditions: any;
@@ -39,14 +40,12 @@ export const manageFaceTemplates = async (
       await pb.collection('face_templates').delete(lowest.id);
     }
 
-    // Create new template
+    // Create new template (field is 'descriptor' in PocketBase schema)
     await pb.collection('face_templates').create({
       user_email: userEmail,
-      face_embedding: embeddingArray,
+      descriptor: embeddingArray,
       quality_score: qualityScore,
-      confidence: confidenceScore,
-      environmental_conditions: lightingConditions,
-      usage_count: 0,
+      label: 'auto',
     });
 
     return true;
@@ -63,7 +62,11 @@ export const getFaceTemplates = async (userEmail: string): Promise<FaceTemplate[
       sort: '-quality_score',
     });
 
-    return records.items as unknown as FaceTemplate[];
+    // Map PocketBase 'descriptor' field to 'face_embedding' alias for backward compat
+    return records.items.map((item: any) => ({
+      ...item,
+      face_embedding: item.descriptor || item.face_embedding || [],
+    })) as unknown as FaceTemplate[];
   } catch (error) {
     console.error('Unexpected error fetching face templates:', error);
     return [];
