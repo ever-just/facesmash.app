@@ -32,8 +32,16 @@ export const useFaceTracking = ({
 
   const busyRef = useRef(false);
 
+  // Keep callback refs stable to avoid re-render churn
+  const onFaceDetectedRef = useRef(onFaceDetected);
+  onFaceDetectedRef.current = onFaceDetected;
+  const onFaceLostRef = useRef(onFaceLost);
+  onFaceLostRef.current = onFaceLost;
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+
   const detectFace = useCallback(async () => {
-    if (!webcamRef.current || !isActive || busyRef.current) return;
+    if (!webcamRef.current || !isActiveRef.current || busyRef.current) return;
     busyRef.current = true;
 
     try {
@@ -68,12 +76,12 @@ export const useFaceTracking = ({
         
         setFacePosition(position);
         lastDetectionTimeRef.current = Date.now();
-        onFaceDetected?.(position);
+        onFaceDetectedRef.current?.(position);
       } else {
         // Clear face position if no detection for more than 500ms
         if (Date.now() - lastDetectionTimeRef.current > 500) {
           setFacePosition(null);
-          onFaceLost?.();
+          onFaceLostRef.current?.();
         }
       }
     } catch (error) {
@@ -81,7 +89,7 @@ export const useFaceTracking = ({
     } finally {
       busyRef.current = false;
     }
-  }, [webcamRef, isActive, onFaceDetected, onFaceLost]);
+  }, [webcamRef]);
 
   const startTracking = useCallback(() => {
     if (trackingIntervalRef.current) return;
@@ -92,10 +100,9 @@ export const useFaceTracking = ({
   }, [detectFace]);
 
   const stopTracking = useCallback(() => {
-    if (trackingIntervalRef.current) {
-      clearInterval(trackingIntervalRef.current);
-      trackingIntervalRef.current = null;
-    }
+    if (!trackingIntervalRef.current) return;
+    clearInterval(trackingIntervalRef.current);
+    trackingIntervalRef.current = null;
     console.log('Stopping face tracking...');
     setIsTracking(false);
     setFacePosition(null);
