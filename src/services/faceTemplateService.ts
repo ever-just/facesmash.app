@@ -1,6 +1,6 @@
 
 import { pb } from "@/integrations/supabase/client";
-import * as faceapi from 'face-api.js';
+import * as faceapi from '@vladmandic/face-api';
 
 export interface FaceTemplate {
   id: string;

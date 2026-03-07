@@ -23,6 +23,9 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [faceDetected, setFaceDetected] = useState(false);
   const [detectionProgress, setDetectionProgress] = useState(0);
+  const onImagesCaptureRef = useRef(onImagesCapture);
+  onImagesCaptureRef.current = onImagesCapture;
+  const hasCapturedRef = useRef(false);
 
   const videoConstraints = {
     width: 640,
@@ -66,14 +69,16 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
 
   // Auto-detection logic
   useEffect(() => {
-    if (!hasPermission || isLoading || isScanning || disabled || !faceDetected) return;
+    if (!hasPermission || isLoading || isScanning || disabled || !faceDetected || hasCapturedRef.current) return;
 
+    let cancelled = false;
     let detectionCount = 0;
     const maxDetections = 3;
     const detectionInterval = 1500;
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
     const autoDetect = async () => {
-      if (!webcamRef.current) return;
+      if (cancelled || !webcamRef.current || hasCapturedRef.current) return;
 
       const image = webcamRef.current.getScreenshot();
       if (image) {
@@ -81,10 +86,13 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         setDetectionProgress((detectionCount / maxDetections) * 100);
 
         if (detectionCount >= maxDetections) {
+          if (cancelled || hasCapturedRef.current) return;
+          hasCapturedRef.current = true;
           // Capture multiple images for better accuracy
-          const images = [];
+          const images: string[] = [];
           for (let i = 0; i < 3; i++) {
-            const capturedImage = webcamRef.current.getScreenshot();
+            if (cancelled) return;
+            const capturedImage = webcamRef.current?.getScreenshot();
             if (capturedImage) {
               images.push(capturedImage);
             }
@@ -92,22 +100,28 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
               await new Promise(resolve => setTimeout(resolve, 500));
             }
           }
-          onImagesCapture(images);
+          if (!cancelled && images.length > 0) {
+            onImagesCaptureRef.current(images);
+          }
           return;
         }
       }
 
-      setTimeout(autoDetect, detectionInterval);
+      if (!cancelled) {
+        pendingTimer = setTimeout(autoDetect, detectionInterval);
+      }
     };
 
     // Start auto-detection after face is stable
     const startTimer = setTimeout(autoDetect, 2000);
 
     return () => {
+      cancelled = true;
       clearTimeout(startTimer);
+      if (pendingTimer) clearTimeout(pendingTimer);
       setDetectionProgress(0);
     };
-  }, [hasPermission, isLoading, isScanning, disabled, faceDetected, onImagesCapture]);
+  }, [hasPermission, isLoading, isScanning, disabled, faceDetected]);
 
   const handleRetry = () => {
     window.location.reload();

@@ -48,7 +48,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
-    "face-api.js": "^0.22.2",
+    "@vladmandic/face-api": "^1.7.15",
     "framer-motion": "^12.34.3",
     "input-otp": "^1.2.4",
     "lottie-react": "^2.4.1",

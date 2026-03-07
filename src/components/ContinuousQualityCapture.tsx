@@ -25,7 +25,9 @@ const ContinuousQualityCapture = ({
   const [bestQuality, setBestQuality] = useState(0);
   const [webcamReady, setWebcamReady] = useState(false);
   const [captureSuccess, setCaptureSuccess] = useState(false);
-  const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const captureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const busyRef = useRef(false);
+  const captureAndAnalyzeRef = useRef<() => Promise<void>>();
   const { isLoaded } = useFaceAPI();
 
   // Use refs for values the interval callback needs to avoid stale closures
@@ -40,19 +42,32 @@ const ContinuousQualityCapture = ({
     facingMode: "user"
   };
 
+  const scheduleNextCapture = useCallback(() => {
+    if (!isCapturingRef.current) return;
+    captureTimerRef.current = setTimeout(() => captureAndAnalyzeRef.current?.(), 2000);
+  }, []);
+
   const captureAndAnalyze = useCallback(async () => {
-    if (!webcamRef.current || !isLoaded || !isCapturingRef.current) return;
+    if (!webcamRef.current || !isLoaded || !isCapturingRef.current || busyRef.current) {
+      if (isCapturingRef.current && busyRef.current) scheduleNextCapture();
+      return;
+    }
+    busyRef.current = true;
 
     const imageSrc = webcamRef.current.getScreenshot();
-    if (!imageSrc) return;
+    if (!imageSrc) {
+      busyRef.current = false;
+      scheduleNextCapture();
+      return;
+    }
 
     try {
+      console.log(`Capture attempt ${attemptsRef.current + 1}/${maxAttempts} — analyzing...`);
       const faceAnalysis = await analyzeFaceQuality(imageSrc);
       
       if (faceAnalysis) {
         const quality = faceAnalysis.qualityScore;
         
-        // Keep track of best image using refs for current values
         if (quality > bestQualityRef.current) {
           bestImageRef.current = imageSrc;
           bestQualityRef.current = quality;
@@ -60,50 +75,48 @@ const ContinuousQualityCapture = ({
           setBestQuality(quality);
         }
 
-        console.log(`Capture attempt ${attemptsRef.current + 1}/${maxAttempts} — Quality ${(quality * 100).toFixed(1)}%`);
+        console.log(`  → Quality ${(quality * 100).toFixed(1)}% (best: ${(bestQualityRef.current * 100).toFixed(1)}%, threshold: ${(qualityThreshold * 100).toFixed(1)}%)`);
 
-        // Check if quality meets threshold
         if (quality >= qualityThreshold) {
           console.log('Quality threshold met!');
           isCapturingRef.current = false;
+          busyRef.current = false;
           setIsCapturing(false);
           setCaptureSuccess(true);
-          if (captureIntervalRef.current) {
-            clearInterval(captureIntervalRef.current);
-            captureIntervalRef.current = null;
-          }
           onImageCapture(imageSrc, quality);
           return;
         }
       } else {
-        console.log('No face detected in current frame');
+        console.log('  → No face detected in current frame');
       }
 
       attemptsRef.current += 1;
       const newAttempts = attemptsRef.current;
       setAttempts(newAttempts);
 
-      // Check if max attempts reached
       if (newAttempts >= maxAttempts) {
         console.log(`Max attempts (${maxAttempts}) reached. Best quality: ${(bestQualityRef.current * 100).toFixed(1)}%`);
         isCapturingRef.current = false;
+        busyRef.current = false;
         setIsCapturing(false);
-        if (captureIntervalRef.current) {
-          clearInterval(captureIntervalRef.current);
-          captureIntervalRef.current = null;
-        }
         
-        if (bestImageRef.current && bestQualityRef.current > 0.3) {
+        if (bestImageRef.current && bestQualityRef.current > 0.15) {
+          setCaptureSuccess(true);
           onImageCapture(bestImageRef.current, bestQualityRef.current);
         } else {
-          // Let parent handle error notification
           reset();
         }
+        return;
       }
     } catch (error) {
       console.error('Error during capture and analysis:', error);
     }
-  }, [isLoaded, maxAttempts, onImageCapture, qualityThreshold]);
+    busyRef.current = false;
+    scheduleNextCapture();
+  }, [isLoaded, maxAttempts, onImageCapture, qualityThreshold, scheduleNextCapture]);
+
+  // Keep ref in sync so scheduleNextCapture always calls latest version
+  captureAndAnalyzeRef.current = captureAndAnalyze;
 
   const startContinuousCapture = useCallback(() => {
     if (!webcamReady || !isLoaded) {
@@ -124,8 +137,8 @@ const ContinuousQualityCapture = ({
     
     console.log(`Starting continuous capture with ${qualityThreshold * 100}% quality threshold, max ${maxAttempts} attempts`);
     
-    // Capture every 1.5 seconds
-    captureIntervalRef.current = setInterval(captureAndAnalyze, 1500);
+    // Start first capture after a short delay, then chain subsequent captures
+    captureTimerRef.current = setTimeout(captureAndAnalyze, 1000);
   }, [webcamReady, isLoaded, qualityThreshold, maxAttempts, captureAndAnalyze]);
 
   const reset = () => {
@@ -140,9 +153,9 @@ const ContinuousQualityCapture = ({
     setBestQuality(0);
     setCaptureSuccess(false);
     
-    if (captureIntervalRef.current) {
-      clearInterval(captureIntervalRef.current);
-      captureIntervalRef.current = null;
+    if (captureTimerRef.current) {
+      clearTimeout(captureTimerRef.current);
+      captureTimerRef.current = null;
     }
   };
 
@@ -160,8 +173,8 @@ const ContinuousQualityCapture = ({
 
   useEffect(() => {
     return () => {
-      if (captureIntervalRef.current) {
-        clearInterval(captureIntervalRef.current);
+      if (captureTimerRef.current) {
+        clearTimeout(captureTimerRef.current);
       }
     };
   }, []);
@@ -236,7 +249,7 @@ const ContinuousQualityCapture = ({
           {!isLoaded 
             ? "Waiting for face recognition to load..."
             : isCapturing 
-            ? "Hold still and look at the camera"
+            ? `Attempt ${attempts + 1}/${maxAttempts} — Hold still and look at the camera${bestQuality > 0 ? ` (best: ${(bestQuality * 100).toFixed(0)}%)` : ''}`
             : "Will automatically capture when your face is detected"
           }
         </p>

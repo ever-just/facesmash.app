@@ -1,5 +1,5 @@
-import * as faceapi from 'face-api.js';
-import { calculateSimilarity } from './faceRecognition';
+import * as faceapi from '@vladmandic/face-api';
+import { calculateSimilarity, getSsdOptions, getTinyOptions } from './faceRecognition';
 import {
   estimateHeadPose,
   validateFaceSize,
@@ -138,17 +138,17 @@ export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysi
     console.log('Analyzing face quality with enhanced detection...');
     const img = await faceapi.fetchImage(imageData);
     
-    // Try multiple detection options for better reliability
+    // Use SsdMobilenetv1 as primary detector (more reliable, fewer null-box errors)
     let detection = await faceapi
-      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 }))
+      .detectSingleFace(img, getSsdOptions())
       .withFaceLandmarks()
       .withFaceDescriptor();
     
-    // Fallback to more sensitive detection if first attempt fails
+    // Fallback to TinyFaceDetector if SSD misses
     if (!detection) {
-      console.log('Retrying with more sensitive detection...');
+      console.log('SSD missed, retrying with TinyFaceDetector...');
       detection = await faceapi
-        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.2 }))
+        .detectSingleFace(img, getTinyOptions())
         .withFaceLandmarks()
         .withFaceDescriptor();
     }

@@ -1,41 +1,74 @@
 
-import * as faceapi from 'face-api.js';
+import * as faceapi from '@vladmandic/face-api';
 
-// Initialize face-api.js models
+// Shared SSD detection options — used across the app for reliable detection
+const SSD_MIN_CONFIDENCE = 0.3;
+export const getSsdOptions = () => new faceapi.SsdMobilenetv1Options({ minConfidence: SSD_MIN_CONFIDENCE });
+export const getTinyOptions = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
+
+// Initialize face-api models + TF.js backend
 export const initializeFaceAPI = async () => {
-  // Use CDN for easier setup - change back to '/models' when you have local models
   const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
   
   try {
+    // Initialize TF.js backend with optimizations (vladmandic demo pattern)
+    try {
+      if (faceapi.tf) {
+        await faceapi.tf.setBackend('webgl');
+        await faceapi.tf.ready();
+        if (faceapi.tf.env().flagRegistry?.CANVAS2D_WILL_READ_FREQUENTLY) {
+          faceapi.tf.env().set('CANVAS2D_WILL_READ_FREQUENTLY', true);
+        }
+        if (faceapi.tf.env().flagRegistry?.WEBGL_EXP_CONV) {
+          faceapi.tf.env().set('WEBGL_EXP_CONV', true);
+        }
+        console.log(`TF.js backend: ${faceapi.tf.getBackend()}, version: ${faceapi.tf.version_core}`);
+      }
+    } catch (tfError) {
+      console.warn('TF.js backend init skipped (non-fatal):', tfError);
+    }
+
+    // Load models — SsdMobilenetv1 is the primary detector (more reliable than TinyFaceDetector)
     await Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
       faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL)
     ]);
-    console.log('Face-api.js models loaded successfully');
+    const tensorCount = faceapi.tf?.engine()?.state?.numTensors ?? 'unknown';
+    console.log(`FaceAPI models loaded — tensors: ${tensorCount}`);
     return true;
   } catch (error) {
-    console.error('Failed to load face-api.js models:', error);
+    console.error('Failed to load FaceAPI models:', error);
     return false;
   }
 };
 
-// Extract face descriptor from image
-export const extractFaceDescriptor = async (imageData: string): Promise<Float32Array | null> => {
+// Extract face descriptor from an image data URL or HTMLVideoElement
+export const extractFaceDescriptor = async (input: string | HTMLVideoElement): Promise<Float32Array | null> => {
   try {
-    console.log('Extracting face descriptor from image...');
-    const img = await faceapi.fetchImage(imageData);
-    const detection = await faceapi
-      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+    const media = typeof input === 'string' ? await faceapi.fetchImage(input) : input;
+    
+    // Use SsdMobilenetv1 for reliable detection
+    let detection = await faceapi
+      .detectSingleFace(media, getSsdOptions())
       .withFaceLandmarks()
       .withFaceDescriptor();
     
+    // Fallback to TinyFaceDetector if SSD misses
+    if (!detection) {
+      detection = await faceapi
+        .detectSingleFace(media, getTinyOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+    }
+
     if (detection) {
-      console.log('Face descriptor extracted successfully');
+      console.log(`Face descriptor extracted (score: ${detection.detection.score.toFixed(3)})`);
       return detection.descriptor;
     }
-    console.log('No face detected in image');
+    console.log('No face detected in input');
     return null;
   } catch (error) {
     console.error('Error extracting face descriptor:', error);

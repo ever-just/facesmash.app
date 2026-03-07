@@ -1,4 +1,4 @@
-import * as faceapi from 'face-api.js';
+import * as faceapi from '@vladmandic/face-api';
 
 // ─── Eye Aspect Ratio (EAR) ────────────────────────────────
 // Based on the 68-point landmark model:

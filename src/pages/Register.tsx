@@ -419,8 +419,8 @@ const Register = () => {
                   <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
                     <ContinuousQualityCapture 
                       onImageCapture={handleQualityImageCapture}
-                      qualityThreshold={0.5}
-                      maxAttempts={8}
+                      qualityThreshold={0.35}
+                      maxAttempts={15}
                       autoStart={true}
                     />
                   </div>
