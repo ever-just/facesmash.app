@@ -8,6 +8,10 @@
 
 1. [System Overview](#1-system-overview)
 2. [Repositories](#2-repositories)
+   - [2.1 Main App + Docs Monorepo](#21-main-app--docs-monorepo-ever-justfacesmashapp)
+   - [2.2 Developer Portal](#22-developer-portal-ever-justfacesmash-dev-portal)
+   - [2.3 API Gateway (in development)](#23-api-gateway-facesmash-api--in-development)
+   - [2.4 Inactive / Legacy Directories](#24-inactive--legacy-directories)
 3. [Services & Subdomains](#3-services--subdomains)
 4. [Main App — facesmash.app](#4-main-app--facesmashapp)
 5. [Documentation Site — docs.facesmash.app](#5-documentation-site--docsfacesmashapp)
@@ -48,18 +52,381 @@ FaceSmash is a passwordless facial recognition authentication platform. The syst
 
 ## 2. Repositories
 
-| Repo | GitHub | Local Path | Branch |
-|---|---|---|---|
-| **Main App** | `ever-just/facesmash.app` | `/Users/cloudaistudio/Documents/EVERJUST PROJECTS/face-login-gateway` | `main` |
-| **Dev Portal** | `ever-just/facesmash-dev-portal` (private) | `/Users/cloudaistudio/Documents/EVERJUST PROJECTS/facesmash-dev-portal` | `main` |
+### Overview
 
-> The docs site lives inside the main app repo at `docs/` — it's a monorepo subdirectory, not a separate repo.
+| # | Repo | GitHub | Local Path | Status |
+|---|---|---|---|---|
+| 1 | **Main App + Docs** (monorepo) | `ever-just/facesmash.app` | `face-login-gateway/` | Active, deployed |
+| 2 | **Developer Portal** | `ever-just/facesmash-dev-portal` (private) | `facesmash-dev-portal/` | Active, deployed |
+| 3 | **API Gateway** | No GitHub repo yet | `facesmash-api/` | In development, not deployed |
+| 4 | **Main App (backup)** | — | `face-login-gateway.old/` | Stale copy, not used |
+| 5 | **FaceCard v1 (archived)** | — | `facecard-v1-16-2f3a0ede/` | Empty/abandoned predecessor |
+
+> All local paths are relative to `/Users/cloudaistudio/Documents/EVERJUST PROJECTS/`.
 
 ### Git Notes
 
 - GitHub auth uses keyring credentials for `ever-just` (not token-based).
 - **Always run `unset GITHUB_TOKEN`** before any `git push` or `gh` command — the env var contains an invalid token that will cause auth failures.
 - The main repo was originally named `face-login-gateway` and was renamed to `facesmash.app` on GitHub. The local directory still uses the old name.
+- Homebrew git (`/opt/homebrew/bin/git` v2.53.0) is preferred over Apple git (`/usr/bin/git` v2.50.1).
+
+---
+
+### 2.1 Main App + Docs Monorepo (`ever-just/facesmash.app`)
+
+**Purpose**: Contains the end-user-facing FaceSmash web app AND the documentation site in a single repo.
+
+**GitHub**: https://github.com/ever-just/facesmash.app  
+**Branch**: `main`  
+**Local**: `/Users/cloudaistudio/Documents/EVERJUST PROJECTS/face-login-gateway/`
+
+#### Top-Level Structure
+
+```
+face-login-gateway/
+├── INFRASTRUCTURE.md          ← This file
+├── README.md                  ← Project readme
+├── index.html                 ← Vite SPA entry point
+├── netlify.toml               ← Netlify deploy config for main app
+├── package.json               ← npm dependencies (React, face-api, PocketBase, etc.)
+├── vite.config.ts             ← Vite build config (React SWC, port 8080)
+├── tailwind.config.ts         ← TailwindCSS configuration
+├── tsconfig.json              ← TypeScript config
+├── components.json            ← shadcn/ui component config
+├── public/                    ← Static assets served at root
+│   ├── facesmash-logo.png     ← Official logo
+│   ├── facesmash-wordmark.png ← Wordmark logo
+│   ├── landing-promo.mp4      ← Promo video for landing page
+│   ├── facesmash-promo.mp4    ← Secondary promo video
+│   ├── og-image.png           ← Open Graph social image
+│   ├── favicon.svg            ← Favicon
+│   ├── apple-touch-icon.png   ← iOS icon
+│   ├── sitemap.xml            ← SEO sitemap
+│   ├── robots.txt             ← Search engine directives
+│   ├── llms.txt               ← LLM-readable site summary
+│   ├── llms-full.txt          ← LLM-readable full content
+│   ├── .well-known/           ← AI plugin manifest + OpenAPI spec
+│   └── models/                ← (README only; models loaded from CDN)
+├── src/                       ← React application source
+│   ├── main.tsx               ← App entry point
+│   ├── App.tsx                ← Router, providers, routes
+│   ├── index.css              ← Global styles + Tailwind imports
+│   ├── pages/                 ← Route-level page components
+│   ├── components/            ← Shared UI components
+│   ├── contexts/              ← React contexts
+│   ├── hooks/                 ← Custom React hooks
+│   ├── services/              ← Business logic (PocketBase CRUD)
+│   ├── utils/                 ← Face recognition + utility functions
+│   ├── integrations/          ← External service clients
+│   ├── types/                 ← TypeScript type definitions
+│   └── lib/                   ← Utility (cn helper)
+└── docs/                      ← Documentation site (separate Next.js app)
+    ├── netlify.toml           ← Netlify deploy config for docs site
+    ├── package.json           ← Docs-specific dependencies (Fumadocs, Next.js 16)
+    ├── next.config.mjs        ← Next.js config (static export)
+    ├── source.config.ts       ← Fumadocs MDX config
+    ├── content/docs/          ← MDX documentation content
+    └── src/                   ← Docs site source (layouts, components)
+```
+
+#### `src/pages/` — Route Components
+
+| File | Route | Purpose |
+|---|---|---|
+| `Index.tsx` | `/` | Landing page (hero, features, ecosystem, FAQ, mega-menu nav) |
+| `Register.tsx` | `/register` | Face registration flow (webcam → capture → store) |
+| `Login.tsx` | `/login` | Face login flow (webcam → match → authenticate) |
+| `Dashboard.tsx` | `/dashboard` | User dashboard (after login) |
+| `Status.tsx` | `/status` | System status page (API health, uptime metrics) |
+| `Privacy.tsx` | `/privacy` | Privacy policy |
+| `Terms.tsx` | `/terms` | Terms of service |
+| `NotFound.tsx` | `*` | 404 page |
+
+#### `src/components/` — Key Components
+
+| File | Purpose |
+|---|---|
+| `GlobalLoadingScreen.tsx` | Full-screen overlay while face-api models load (~12.5 MB) |
+| `StatusIndicator.tsx` | Live green/red dot in footer pinging API health |
+| `AnnouncementBanner.tsx` | Dismissible top banner (localStorage-persisted) |
+| `CookieConsentBanner.tsx` | Cookie consent UI |
+| `SEOHead.tsx` | SEO metadata via react-helmet-async |
+| `AutoFaceDetection.tsx` | Automatic face capture component (webcam + detection loop) |
+| `dashboard/` | Dashboard sub-components (settings, security, feedback) |
+| `ui/` | shadcn/ui primitives (40+ components: button, dialog, toast, etc.) |
+
+#### `src/services/` — PocketBase Data Layer
+
+| File | Purpose |
+|---|---|
+| `userProfileService.ts` | CRUD for `user_profiles` collection |
+| `faceTemplateService.ts` | CRUD for `face_templates` collection |
+| `faceScanService.ts` | Create `face_scans` audit entries |
+| `signInLogService.ts` | Create `sign_in_logs` entries |
+| `learningService.ts` | Adaptive template learning (updates embeddings on successful logins) |
+
+#### `src/utils/` — Face Recognition Core
+
+| File | Purpose |
+|---|---|
+| `faceRecognition.ts` | Model initialization, SSD/Tiny detection options, `extractFaceDescriptor()` |
+| `enhancedFaceRecognition.ts` | `analyzeFaceQuality()`, `enhancedMatch()`, `multiTemplateMatch()` |
+| `livenessDetection.ts` | Anti-spoofing: eye aspect ratio, head pose, quality checks |
+| `storageTest.ts` | Browser storage capability detection |
+
+#### `src/hooks/` — Custom Hooks
+
+| File | Purpose |
+|---|---|
+| `useFaceTracking.ts` | Real-time face detection loop (300ms interval, SSD primary, busy guard) |
+| `useLoginLogic.ts` | Login orchestration (capture → match → redirect) |
+| `useCurrentUser.ts` | Current authenticated user state |
+| `useSignOut.ts` | Sign-out logic |
+| `useUserSettings.ts` | User preferences |
+
+#### `src/contexts/` — React Contexts
+
+| File | Purpose |
+|---|---|
+| `FaceAPIContext.tsx` | Manages face-api.js model loading state (`isLoading`, `loadProgress`, `error`) |
+| `AuthContext.tsx` | Authentication state (current user, login/logout) |
+
+#### `docs/content/docs/` — Documentation Content
+
+```
+docs/content/docs/
+├── index.mdx                       ← Introduction (what is FaceSmash, architecture, SDK overview)
+├── quickstart.mdx                  ← 5-minute quickstart guide
+├── meta.json                       ← Top-level sidebar navigation order
+├── sdk/
+│   ├── index.mdx                   ← SDK overview (architecture, neural networks, exports)
+│   ├── react-components.mdx        ← <FaceSmashProvider>, <FaceLogin>, <FaceRegister>, hooks
+│   ├── vanilla-js.mdx              ← FaceSmashClient API, event system, Vue/Svelte/Angular
+│   ├── configuration.mdx           ← Every option, threshold tuning, self-hosting
+│   └── meta.json
+├── api-reference/
+│   ├── index.mdx                   ← API overview
+│   ├── authentication.mdx          ← Auth endpoints
+│   ├── faces.mdx                   ← Face detection/matching endpoints
+│   ├── users.mdx                   ← User management endpoints
+│   ├── webhooks.mdx                ← Webhook events
+│   └── meta.json
+├── guides/
+│   ├── index.mdx                   ← Guides overview
+│   ├── react-integration.mdx       ← Step-by-step React setup
+│   ├── custom-ui.mdx               ← Build custom face login UI
+│   ├── improving-accuracy.mdx      ← Threshold tuning, lighting, multi-template
+│   ├── developer-portal.mdx        ← Developer Portal guide (NEW)
+│   └── meta.json
+└── security/
+    ├── index.mdx                   ← Security overview
+    ├── biometric-data.mdx          ← How biometric data is handled
+    ├── compliance.mdx              ← Compliance & regulatory
+    └── meta.json
+```
+
+#### `docs/src/` — Docs Site Source
+
+```
+docs/src/
+├── app/
+│   ├── layout.tsx                  ← Root layout (Fumadocs RootProvider, Banner, Inter font)
+│   ├── global.css                  ← Global styles
+│   ├── (home)/
+│   │   ├── layout.tsx              ← Home page layout
+│   │   └── page.tsx                ← Docs landing page
+│   └── docs/
+│       ├── layout.tsx              ← Docs sidebar layout
+│       └── [[...slug]]/page.tsx    ← Dynamic MDX page renderer
+├── components/ai/
+│   └── page-actions.tsx            ← AI-related page actions
+├── lib/
+│   ├── layout.shared.tsx           ← Nav config (links to Docs, SDK, API, Guides, Portal, App, npm, GitHub)
+│   ├── source.ts                   ← Fumadocs content source loader
+│   └── cn.ts                       ← Tailwind class merge utility
+└── mdx-components.tsx              ← Custom MDX component overrides
+```
+
+---
+
+### 2.2 Developer Portal (`ever-just/facesmash-dev-portal`)
+
+**Purpose**: Developer-facing dashboard for managing API keys, applications, billing, and usage analytics. This is where developers sign up and get credentials to integrate FaceSmash into their apps.
+
+**GitHub**: https://github.com/ever-just/facesmash-dev-portal (private)  
+**Branch**: `main`  
+**Local**: `/Users/cloudaistudio/Documents/EVERJUST PROJECTS/facesmash-dev-portal/`  
+**Forked from**: `nextjs/saas-starter` template (remote updated to own repo)
+
+#### Structure
+
+```
+facesmash-dev-portal/
+├── .env                        ← Environment variables (GITIGNORED — contains secrets)
+├── .env.example                ← Template for .env
+├── netlify.toml                ← Netlify deploy config (pnpm, @netlify/plugin-nextjs)
+├── package.json                ← pnpm dependencies
+├── next.config.ts              ← Next.js config (PPR, clientSegmentCache)
+├── middleware.ts                ← Auth middleware (JWT session refresh, route protection)
+├── drizzle.config.ts           ← Drizzle ORM config (PostgreSQL)
+├── components.json             ← shadcn/ui config
+├── public/
+│   └── facesmash-logo.png      ← Official logo (copied from main app)
+├── app/
+│   ├── layout.tsx              ← Root layout (Manrope font, SWR provider)
+│   ├── globals.css             ← Global styles
+│   ├── not-found.tsx           ← 404 page
+│   ├── (login)/                ← Auth routes (sign-in, sign-up)
+│   │   ├── actions.ts          ← Server actions (signIn, signUp, signOut)
+│   │   ├── login.tsx           ← Shared login/signup form component
+│   │   ├── sign-in/page.tsx    ← Sign in page
+│   │   └── sign-up/page.tsx    ← Sign up page
+│   ├── (dashboard)/            ← Dashboard routes
+│   │   ├── layout.tsx          ← Dashboard header (logo, Docs/App/GitHub links, user menu)
+│   │   ├── page.tsx            ← Landing page (hero, features, ecosystem, promo video)
+│   │   ├── pricing/page.tsx    ← Stripe pricing page
+│   │   └── dashboard/          ← Authenticated dashboard
+│   │       ├── layout.tsx      ← Sidebar nav (Overview, Apps, Keys, Usage, Billing, etc.)
+│   │       ├── page.tsx        ← Dashboard index (redirects to overview)
+│   │       ├── overview/       ← Welcome + quick actions + docs links
+│   │       ├── apps/           ← Application registry (CRUD)
+│   │       ├── keys/           ← API key management (via Unkey)
+│   │       ├── usage/          ← Usage analytics
+│   │       ├── billing/        ← Stripe subscription management
+│   │       ├── general/        ← Team settings (name, members)
+│   │       ├── activity/       ← Activity audit log
+│   │       └── security/       ← Security settings
+│   └── api/                    ← API routes
+│       ├── user/route.ts       ← GET current user
+│       ├── team/route.ts       ← GET current team
+│       ├── apps/route.ts       ← GET/POST applications
+│       ├── keys/route.ts       ← GET/POST API keys (delegates to Unkey)
+│       ├── usage/route.ts      ← GET usage stats
+│       └── stripe/
+│           ├── checkout/route.ts  ← Stripe checkout session handler
+│           └── webhook/route.ts   ← Stripe webhook handler
+├── components/ui/              ← shadcn/ui primitives (avatar, button, card, dropdown, input, label, radio-group)
+├── lib/
+│   ├── auth/
+│   │   ├── session.ts          ← JWT sign/verify, password hash/compare, cookie management
+│   │   └── middleware.ts       ← Auth helper middleware
+│   ├── db/
+│   │   ├── drizzle.ts          ← Drizzle DB client
+│   │   ├── schema.ts           ← All table definitions (users, teams, team_members, etc.)
+│   │   ├── queries.ts          ← Database query functions
+│   │   ├── seed.ts             ← Seed script (admin user + default team)
+│   │   ├── setup.ts            ← DB setup script
+│   │   └── migrations/         ← Drizzle migration files
+│   ├── payments/
+│   │   ├── stripe.ts           ← Stripe client, checkout, portal, webhook handlers
+│   │   └── actions.ts          ← Payment server actions
+│   ├── apps/
+│   │   └── actions.ts          ← App CRUD server actions
+│   ├── keys/
+│   │   └── actions.ts          ← API key server actions (create/revoke via Unkey)
+│   ├── unkey.ts                ← Unkey client initialization
+│   └── utils.ts                ← Utility functions
+└── tsconfig.json
+```
+
+---
+
+### 2.3 API Gateway (`facesmash-api`) — IN DEVELOPMENT
+
+**Purpose**: Public REST API gateway that sits in front of PocketBase. Provides authenticated API access for third-party developers with rate limiting, usage metering, and structured responses. This is what developers hit when they use the `@facesmash/sdk`.
+
+**GitHub**: Not yet pushed (no `.git` directory)  
+**Local**: `/Users/cloudaistudio/Documents/EVERJUST PROJECTS/facesmash-api/`  
+**Status**: Code written, not deployed
+
+#### Stack
+
+- **Framework**: Hono ^4.7.0 (lightweight, edge-compatible web framework)
+- **Server**: @hono/node-server (Node.js adapter)
+- **OpenAPI**: @hono/zod-openapi (auto-generated API docs from Zod schemas)
+- **Database**: PocketBase JS SDK ^0.26.8 (proxies to the existing PocketBase instance)
+- **Build**: tsup (ESM output with DTS)
+- **Runtime**: tsx (dev), Node.js 20+ (production)
+- **Container**: Dockerfile (node:22-alpine, multi-stage build, port 3100)
+
+#### Structure
+
+```
+facesmash-api/
+├── .env.example                ← Env template (PocketBase URL, Stripe keys, rate limits)
+├── Dockerfile                  ← Multi-stage Docker build (node:22-alpine → port 3100)
+├── package.json                ← Dependencies (hono, pocketbase, zod, nanoid)
+├── tsconfig.json
+└── src/
+    ├── index.ts                ← Hono app setup, route mounting, server start
+    ├── config.ts               ← Environment config loader
+    ├── types.ts                ← TypeScript types (API responses, requests)
+    ├── middleware/
+    │   ├── auth.ts             ← API key authentication middleware
+    │   ├── rate-limit.ts       ← Per-plan rate limiting
+    │   └── request-context.ts  ← Request ID, timing, context injection
+    ├── routes/
+    │   ├── health.ts           ← GET /health
+    │   ├── face.ts             ← POST /v1/face/detect, /match, /register, /login, /analyze
+    │   ├── keys.ts             ← POST/GET/DELETE /v1/keys
+    │   ├── apps.ts             ← CRUD /v1/apps
+    │   └── usage.ts            ← GET /v1/usage, /v1/usage/breakdown
+    ├── lib/
+    │   ├── pocketbase.ts       ← PocketBase client wrapper
+    │   ├── api-keys.ts         ← API key creation, validation, hashing
+    │   ├── usage.ts            ← Usage metering and tracking
+    │   └── errors.ts           ← Structured error responses
+    └── scripts/
+        └── setup-collections.ts ← PocketBase collection setup script
+```
+
+#### API Endpoints
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/` | Public | API info |
+| GET | `/health` | Public | Health check |
+| POST | `/v1/face/detect` | API Key | Detect faces in an image |
+| POST | `/v1/face/match` | API Key | Compare two face descriptors |
+| POST | `/v1/face/register` | API Key | Register face templates for a user |
+| POST | `/v1/face/login` | API Key | Authenticate via face matching |
+| POST | `/v1/face/analyze` | API Key | Analyze face (age, gender, quality) |
+| POST | `/v1/keys` | API Key | Create a new API key |
+| GET | `/v1/keys` | API Key | List your API keys |
+| DELETE | `/v1/keys/:id` | API Key | Revoke an API key |
+| POST | `/v1/apps` | API Key | Create an application |
+| GET | `/v1/apps` | API Key | List your applications |
+| GET | `/v1/apps/:id` | API Key | Get application details |
+| PATCH | `/v1/apps/:id` | API Key | Update an application |
+| DELETE | `/v1/apps/:id` | API Key | Delete an application |
+| GET | `/v1/usage` | API Key | Get usage summary |
+| GET | `/v1/usage/breakdown` | API Key | Get per-endpoint breakdown |
+
+#### Rate Limits
+
+| Plan | Calls/Month | Apps |
+|---|---|---|
+| Free | 1,000 | 2 |
+| Pro ($29/mo) | 50,000 | 10 |
+| Enterprise | Unlimited | 100 |
+
+#### TODO for this repo
+
+- [ ] Create GitHub repo (`ever-just/facesmash-api`)
+- [ ] Deploy to DigitalOcean droplet (Docker or systemd service)
+- [ ] Wire up to Caddy reverse proxy on a new subdomain or path
+- [ ] Connect to Unkey for API key validation
+- [ ] Connect to the dev portal for usage reporting
+
+---
+
+### 2.4 Inactive / Legacy Directories
+
+| Directory | Purpose | Status |
+|---|---|---|
+| `face-login-gateway.old/` | Backup copy of the main app before a major refactor | **Stale** — can be deleted. Contains the old `setup-pocketbase.cjs` that leaked credentials. |
+| `facecard-v1-16-2f3a0ede/` | Empty git repo from an earlier prototype (pre-FaceSmash naming) | **Abandoned** — only contains `.git/`. Safe to delete. |
 
 ---
 
@@ -165,6 +532,15 @@ docs/content/docs/
 - **Build**: `npm run build` → publishes `out/`
 - **Fallback**: `/* → /404.html` (404)
 - Docs site is deployed as a **separate Netlify site** with its own custom domain (`docs.facesmash.app`)
+
+### Netlify Site
+
+- **Site name**: `facesmash-docs`
+- **Site ID**: `6ee68400-b428-44c9-9807-29f388cce919`
+- **Admin**: https://app.netlify.com/projects/facesmash-docs
+- **Custom domain**: `docs.facesmash.app` (CNAME → `facesmash-docs.netlify.app`)
+- **Auto-deploy**: NOT connected to GitHub — requires manual `npx netlify-cli deploy --prod` from `docs/` dir
+- **Search**: Orama (built-in Fumadocs search)
 
 ### Nav Links (layout.shared.tsx)
 
@@ -332,9 +708,9 @@ PocketBase stores face authentication data:
 | Type | Name | Value | Purpose |
 |---|---|---|---|
 | A | `api` | `142.93.78.220` | PocketBase API on DigitalOcean |
-| CNAME | `@` | Netlify-managed | Main app |
-| CNAME | `docs` | Netlify-managed | Docs site |
-| CNAME | `developers` | Netlify-managed | Dev portal |
+| CNAME | `@` | Netlify-managed (`facesmash1.netlify.app`) | Main app |
+| CNAME | `docs` | `facesmash-docs.netlify.app` | Docs site |
+| CNAME | `developers` | Netlify-managed (`facesmash-developers.netlify.app`) | Dev portal |
 
 > Netlify manages the CNAME/ALIAS records for the three frontend sites. The only A record pointing to the droplet is `api.facesmash.app`.
 
@@ -347,7 +723,7 @@ PocketBase stores face authentication data:
 | Site | Site Name | Site ID | Publish Dir | Build |
 |---|---|---|---|---|
 | Main App | `facesmash1` | `ee5748c1-ab9a-44b0-8dd5-22742c42b4cd` | `dist/` | `npm run build` (Vite) |
-| Docs | (separate site) | — | `out/` | `npm run build` (Next.js static) |
+| Docs | `facesmash-docs` | `6ee68400-b428-44c9-9807-29f388cce919` | `out/` | `npm run build` (Next.js static) |
 | Dev Portal | `facesmash-developers` | `31682fc2-cc0f-4bf2-aad5-d9bcbc77eaa3` | `.next/` | `pnpm build` (Next.js SSR) |
 
 ### DigitalOcean (1 droplet)
@@ -675,6 +1051,15 @@ pnpm db:generate      # Generate migrations
 pnpm db:migrate       # Apply migrations
 pnpm db:seed          # Seed initial admin user
 pnpm dev              # → http://localhost:3000 (Turbopack)
+```
+
+### API Gateway (facesmash-api)
+
+```bash
+cd "/Users/cloudaistudio/Documents/EVERJUST PROJECTS/facesmash-api"
+npm install
+cp .env.example .env  # Fill in PocketBase URL, Stripe keys, rate limits
+npm run dev            # → http://localhost:3100 (tsx watch)
 ```
 
 ### PocketBase API

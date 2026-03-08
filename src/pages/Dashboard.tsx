@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, ExternalLink } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import { useNavigate } from "react-router-dom";
 import { getUserProfileByName } from "@/services/userProfileService";
@@ -82,6 +82,20 @@ const Dashboard = () => {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 relative z-10">
         <WelcomeSection userName={userName} />
+
+        {/* Dev Portal CTA */}
+        <a
+          href="https://developers.facesmash.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-4 mb-4 px-5 py-4 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] transition-colors group"
+        >
+          <div>
+            <p className="text-sm font-medium text-white/80">Developer Portal</p>
+            <p className="text-xs text-white/30 mt-0.5">Manage API keys, view usage analytics, and integrate FaceSmash into your app.</p>
+          </div>
+          <ExternalLink className="size-4 text-emerald-400/60 group-hover:text-emerald-400 transition-colors shrink-0" />
+        </a>
 
         {/* Profile + Security — side by side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
