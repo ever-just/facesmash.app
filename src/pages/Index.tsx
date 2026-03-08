@@ -26,8 +26,13 @@ import {
   Code2,
   Cpu,
   ScanFace,
+  Menu,
+  X,
+  Activity,
+  LayoutDashboard,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import StatusIndicator from "@/components/StatusIndicator";
 
 /* ─── Brand SVG logos ─── */
 const AppleLogo = ({ className }: { className?: string }) => (
@@ -78,6 +83,8 @@ const Index = () => {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [devDropdown, setDevDropdown] = useState(false);
 
   /* face-mesh landmark coordinates (normalised 0-100) */
   const landmarks = [
@@ -96,28 +103,140 @@ const Index = () => {
       {/* ══════════════════════════ NAV ══════════════════════════ */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#07080A]/70 border-b border-white/[0.04]">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16">
-          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group shrink-0">
             <img src="/facesmash-logo.png" alt="FaceSmash" className="size-8 rounded-lg shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-shadow" />
             <span className="text-[15px] sm:text-[17px] font-semibold tracking-tight">FaceSmash</span>
           </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-white/40 hover:text-white/70 text-sm transition-colors">
-              <BookOpen className="size-4" />
-              Docs
-            </a>
-            <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-white/70 transition-colors">
+
+          {/* Desktop menu */}
+          <div className="hidden lg:flex items-center gap-1">
+            <Link to="/login" className="text-white/40 hover:text-white/70 text-sm px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">
+              Sign in
+            </Link>
+            <Link to="/register" className="text-white/40 hover:text-white/70 text-sm px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">
+              Register
+            </Link>
+
+            {/* Developers dropdown */}
+            <div className="relative" onMouseEnter={() => setDevDropdown(true)} onMouseLeave={() => setDevDropdown(false)}>
+              <button className="flex items-center gap-1 text-white/40 hover:text-white/70 text-sm px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">
+                Developers
+                <ChevronDown className={`size-3.5 transition-transform duration-200 ${devDropdown ? "rotate-180" : ""}`} />
+              </button>
+              {devDropdown && (
+                <div className="absolute top-full left-0 mt-1 w-72 rounded-xl border border-white/[0.08] bg-[#0D0F12]/95 backdrop-blur-xl shadow-2xl shadow-black/40 p-2 z-50">
+                  <a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors group">
+                    <div className="size-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
+                      <BookOpen className="size-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">Documentation</p>
+                      <p className="text-[11px] text-white/25">Guides, SDK reference, API docs</p>
+                    </div>
+                  </a>
+                  <a href="https://www.npmjs.com/package/@facesmash/sdk" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors group">
+                    <div className="size-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                      <Package className="size-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">SDK on npm</p>
+                      <p className="text-[11px] text-white/25">@facesmash/sdk — React & vanilla JS</p>
+                    </div>
+                  </a>
+                  <a href="https://docs.facesmash.app/docs/quickstart" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors group">
+                    <div className="size-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
+                      <Zap className="size-4 text-teal-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">Quickstart</p>
+                      <p className="text-[11px] text-white/25">Ship face login in 5 minutes</p>
+                    </div>
+                  </a>
+                  <div className="border-t border-white/[0.04] mt-1 pt-1">
+                    <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] transition-colors group">
+                      <div className="size-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
+                        <Github className="size-4 text-white/40" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">GitHub</p>
+                        <p className="text-[11px] text-white/25">Source code, issues, contributions</p>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Link to="/status" className="text-white/40 hover:text-white/70 text-sm px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all flex items-center gap-1.5">
+              <Activity className="size-3.5" />
+              Status
+            </Link>
+          </div>
+
+          {/* Desktop right side */}
+          <div className="hidden lg:flex items-center gap-2">
+            <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-white/70 transition-colors p-2">
               <Github className="size-5" />
             </a>
-            <Link to="/login">
-              <Button variant="ghost" className="text-white/50 hover:text-white text-sm h-9 px-3 sm:px-4">Sign in</Button>
-            </Link>
             <Link to="/register">
-              <Button className="h-9 px-4 sm:px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full">
+              <Button className="h-9 px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full">
                 Get started
               </Button>
             </Link>
           </div>
+
+          {/* Mobile hamburger */}
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="lg:hidden text-white/50 hover:text-white transition-colors p-2">
+            {mobileOpen ? <X className="size-6" /> : <Menu className="size-6" />}
+          </button>
         </div>
+
+        {/* Mobile menu overlay */}
+        {mobileOpen && (
+          <div className="lg:hidden border-t border-white/[0.04] bg-[#07080A]/95 backdrop-blur-xl">
+            <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
+              <p className="text-[10px] uppercase tracking-wider text-white/20 px-3 pt-2 pb-1">Product</p>
+              <Link to="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
+                <Scan className="size-4" /> Sign in with face
+              </Link>
+              <Link to="/register" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
+                <ScanFace className="size-4" /> Register your face
+              </Link>
+
+              <p className="text-[10px] uppercase tracking-wider text-white/20 px-3 pt-4 pb-1">Developers</p>
+              <a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
+                <BookOpen className="size-4" /> Documentation
+                <ExternalLink className="size-3 ml-auto text-white/15" />
+              </a>
+              <a href="https://www.npmjs.com/package/@facesmash/sdk" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
+                <Package className="size-4" /> SDK on npm
+                <ExternalLink className="size-3 ml-auto text-white/15" />
+              </a>
+              <a href="https://docs.facesmash.app/docs/quickstart" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
+                <Zap className="size-4" /> Quickstart guide
+                <ExternalLink className="size-3 ml-auto text-white/15" />
+              </a>
+              <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
+                <Github className="size-4" /> GitHub
+                <ExternalLink className="size-3 ml-auto text-white/15" />
+              </a>
+
+              <p className="text-[10px] uppercase tracking-wider text-white/20 px-3 pt-4 pb-1">More</p>
+              <Link to="/status" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
+                <Activity className="size-4" /> System status
+              </Link>
+
+              <div className="pt-4 px-3">
+                <Link to="/register" onClick={() => setMobileOpen(false)}>
+                  <Button className="w-full h-11 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full">
+                    Get started — it's free
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ══════════════════════════ HERO ══════════════════════════ */}
@@ -735,12 +854,14 @@ const Index = () => {
           {/* data flow arrow */}
           <motion.div
             initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.3 }}
-            className="flex items-center justify-center gap-4 mt-8 text-sm text-white/25"
+            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-8 text-xs sm:text-sm text-white/25"
           >
             <span>128-D numeric vectors only</span>
-            <ArrowRight className="size-4" />
+            <ArrowRight className="size-3.5 shrink-0 hidden sm:block" />
+            <span className="sm:hidden">→</span>
             <span>REST API (HTTPS)</span>
-            <ArrowRight className="size-4" />
+            <ArrowRight className="size-3.5 shrink-0 hidden sm:block" />
+            <span className="sm:hidden">→</span>
             <span>Encrypted at rest</span>
           </motion.div>
         </div>
@@ -871,6 +992,92 @@ const Index = () => {
         </div>
       </section>
 
+      {/* ══════════════ ECOSYSTEM — bridge between properties ══════════════ */}
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6 border-t border-white/[0.04]">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="text-white/20 uppercase tracking-[0.25em] text-xs mb-8"
+          >Explore the ecosystem</motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-bold leading-snug max-w-3xl mb-6"
+          >
+            One platform.{" "}
+            <span className="text-white/30">Multiple entry points.</span>
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
+            className="text-white/40 text-lg leading-relaxed max-w-2xl mb-14"
+          >
+            Whether you're a user signing in with your face, a developer integrating the SDK, 
+            or exploring the API — there's a dedicated experience for you.
+          </motion.p>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* FaceSmash App */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0 }}
+              className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/[0.10] transition-all"
+            >
+              <div className="size-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5">
+                <ScanFace className="size-5 text-emerald-400" />
+              </div>
+              <h3 className="font-semibold mb-2">FaceSmash App</h3>
+              <p className="text-sm text-white/30 leading-relaxed mb-5">Sign in or register your face. The main product experience — works on any device.</p>
+              <Link to="/register" className="inline-flex items-center gap-1.5 text-sm text-emerald-400 hover:text-emerald-300 transition-colors group-hover:gap-2">
+                Get started <ArrowRight className="size-3.5 transition-all" />
+              </Link>
+            </motion.div>
+
+            {/* Documentation */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.08 }}
+              className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/[0.10] transition-all"
+            >
+              <div className="size-11 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-5">
+                <BookOpen className="size-5 text-purple-400" />
+              </div>
+              <h3 className="font-semibold mb-2">Documentation</h3>
+              <p className="text-sm text-white/30 leading-relaxed mb-5">Guides, API reference, security architecture. Everything you need to understand FaceSmash.</p>
+              <a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300 transition-colors group-hover:gap-2">
+                Read the docs <ExternalLink className="size-3.5 transition-all" />
+              </a>
+            </motion.div>
+
+            {/* SDK */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.16 }}
+              className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/[0.10] transition-all"
+            >
+              <div className="size-11 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-5">
+                <Package className="size-5 text-teal-400" />
+              </div>
+              <h3 className="font-semibold mb-2">SDK on npm</h3>
+              <p className="text-sm text-white/30 leading-relaxed mb-5">@facesmash/sdk — React components, hooks, and a vanilla JS client. TypeScript-first.</p>
+              <a href="https://www.npmjs.com/package/@facesmash/sdk" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-teal-400 hover:text-teal-300 transition-colors group-hover:gap-2">
+                View on npm <ExternalLink className="size-3.5 transition-all" />
+              </a>
+            </motion.div>
+
+            {/* GitHub */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.24 }}
+              className="group rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 hover:bg-white/[0.04] hover:border-white/[0.10] transition-all"
+            >
+              <div className="size-11 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-5">
+                <Github className="size-5 text-white/50" />
+              </div>
+              <h3 className="font-semibold mb-2">Open Source</h3>
+              <p className="text-sm text-white/30 leading-relaxed mb-5">Fork it, extend it, self-host it. Every line of code is public and auditable on GitHub.</p>
+              <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-white/50 hover:text-white/70 transition-colors group-hover:gap-2">
+                View source <ExternalLink className="size-3.5 transition-all" />
+              </a>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* ══════════════ CTA ══════════════ */}
       <section className="relative py-24 sm:py-40 px-4 sm:px-6 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center">
@@ -964,8 +1171,14 @@ const Index = () => {
                 <li><Link to="/privacy" className="text-sm text-white/30 hover:text-white/60 transition-colors">Privacy Policy</Link></li>
                 <li><Link to="/terms" className="text-sm text-white/30 hover:text-white/60 transition-colors">Terms of Service</Link></li>
                 <li><a href="https://docs.facesmash.app/docs/security" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">Security</a></li>
+                <li><Link to="/status" className="text-sm text-white/30 hover:text-white/60 transition-colors">System Status</Link></li>
               </ul>
             </div>
+          </div>
+
+          {/* status indicator */}
+          <div className="mb-8">
+            <StatusIndicator />
           </div>
 
           {/* bottom bar */}
@@ -974,6 +1187,7 @@ const Index = () => {
             <div className="flex items-center gap-4 text-xs text-white/20">
               <Link to="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
               <Link to="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
+              <Link to="/status" className="hover:text-white/50 transition-colors">Status</Link>
               <a href="https://docs.facesmash.app/docs/security" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">Security</a>
             </div>
           </div>
