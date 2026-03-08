@@ -162,7 +162,100 @@ Camera → Browser ML (TensorFlow.js) → 128D Vector → AES-256 Encryption →
 
 ---
 
-## 7. Development
+## 7. SDK (@facesmash/sdk)
+
+### Installation
+```bash
+npm install @facesmash/sdk
+```
+
+### Entry Points
+- `@facesmash/sdk` — Core client (vanilla JS, framework-agnostic)
+- `@facesmash/sdk/react` — React components and hooks
+
+### React Integration
+```tsx
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+function App() {
+  return (
+    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+      <FaceLogin
+        onResult={(result) => {
+          if (result.success) {
+            console.log('Welcome back,', result.user.name);
+          }
+        }}
+        className="w-full h-80 rounded-xl overflow-hidden"
+      />
+    </FaceSmashProvider>
+  );
+}
+```
+
+### Vanilla JS Integration
+```js
+import { createFaceSmash } from '@facesmash/sdk';
+
+const client = createFaceSmash({
+  apiUrl: 'https://api.facesmash.app',
+  matchThreshold: 0.45,
+  debug: false,
+});
+
+await client.init((progress) => console.log(`Loading: ${progress}%`));
+
+// Login
+const loginResult = await client.login(base64Images);
+// { success: boolean, user?: UserProfile, similarity?: number, error?: string }
+
+// Register
+const regResult = await client.register('John Doe', base64Images, 'john@example.com');
+// { success: boolean, user?: UserProfile, error?: string }
+```
+
+### Configuration Options
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiUrl` | string | `https://api.facesmash.app` | PocketBase API URL |
+| `modelUrl` | string | jsdelivr CDN | Face-api.js model URL |
+| `matchThreshold` | number | `0.45` | Similarity threshold (0-1) |
+| `minQualityScore` | number | `0.2` | Minimum face quality to accept |
+| `minDetectionConfidence` | number | `0.3` | SSD MobileNet confidence |
+| `maxTemplatesPerUser` | number | `10` | Max stored templates per user |
+| `debug` | boolean | `false` | Enable console logging |
+
+### React Components
+- `<FaceSmashProvider>` — Context provider, loads ML models
+- `<FaceLogin>` — Drop-in login with webcam + face detection
+- `<FaceRegister>` — Drop-in registration with webcam + face capture
+
+### React Hooks
+- `useFaceSmash()` — Access client, loading state, errors
+- `useFaceLogin()` — `{ login, isScanning, result, reset, isReady }`
+- `useFaceRegister()` — `{ register, isRegistering, result, reset, isReady }`
+- `useFaceAnalysis()` — `{ analyze, analysis, isAnalyzing, isReady }`
+
+### Events
+| Event | Payload |
+|-------|---------|
+| `models-loading` | `{ progress: number }` |
+| `models-loaded` | — |
+| `login-success` | `{ user: UserProfile, similarity: number }` |
+| `login-failed` | `{ error: string, bestSimilarity?: number }` |
+| `register-success` | `{ user: UserProfile }` |
+| `register-failed` | `{ error: string }` |
+| `face-detected` | `{ analysis: FaceAnalysis }` |
+| `face-lost` | — |
+
+### npm
+- Package: https://www.npmjs.com/package/@facesmash/sdk
+- Version: 0.1.0
+- License: MIT
+
+---
+
+## 8. Development
 
 ### Quick Start
 ```bash
@@ -190,7 +283,7 @@ npm run dev
 
 ---
 
-## 8. Frequently Asked Questions
+## 9. Frequently Asked Questions
 
 **Q: What is FaceSmash?**
 A: FaceSmash is a passwordless authentication platform that lets you sign in to websites using facial recognition. It works on any device and any browser — unlike Apple Face ID or Windows Hello which are locked to their ecosystems.
@@ -218,7 +311,7 @@ A: FaceSmash is built by EVERJUST COMPANY. Source code is available at https://g
 
 ---
 
-## 9. Contact
+## 10. Contact
 
 - Website: https://facesmash.app
 - Privacy inquiries: privacy@facesmash.app

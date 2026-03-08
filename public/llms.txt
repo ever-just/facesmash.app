@@ -64,12 +64,41 @@ Unlike Apple Face ID (iOS only), Windows Hello (Windows only), or Samsung Face R
 - vs Samsung Face Recognition: FaceSmash uses 128D vectors (not 2D), works on competitor devices.
 - vs Passwords: Nothing to remember, can't be phished, can't be reused across sites.
 
+## SDK
+
+- npm: @facesmash/sdk
+- Install: `npm install @facesmash/sdk`
+- Version: 0.1.0
+- Entry points: `@facesmash/sdk` (core, vanilla JS) and `@facesmash/sdk/react` (React bindings)
+
+### Quick Start (React)
+```tsx
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+function App() {
+  return (
+    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+      <FaceLogin onResult={(result) => console.log(result)} />
+    </FaceSmashProvider>
+  );
+}
+```
+
+### Quick Start (Vanilla JS)
+```js
+import { createFaceSmash } from '@facesmash/sdk';
+const client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+await client.init();
+const result = await client.login(images);
+```
+
 ## Source Code
 
 - GitHub: https://github.com/ever-just/facesmash.app
-- License: Proprietary
-- Open source: Yes (source available)
+- License: MIT
+- Open source: Yes
 
 ## Documentation
 
+- Docs site: https://docs.facesmash.app
 - For detailed technical documentation, see: https://facesmash.app/llms-full.txt
