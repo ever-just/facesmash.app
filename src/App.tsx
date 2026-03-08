@@ -19,6 +19,8 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Status from "./pages/Status";
 import Pricing from "./pages/Pricing";
+import PricingSuccess from "./pages/PricingSuccess";
+import PricingCancel from "./pages/PricingCancel";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +51,8 @@ const App = () => (
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/status" element={<Status />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/pricing/success" element={<PricingSuccess />} />
+                <Route path="/pricing/cancel" element={<PricingCancel />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <CookieConsentBanner />

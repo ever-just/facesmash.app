@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = "dist"
 
+[functions]
+  directory = "netlify/functions"
+
 # Prerendering: Netlify's built-in prerendering must be enabled in the Netlify dashboard
 # (Site Settings → Build & deploy → Post processing → Prerendering → Enable)
 # This serves pre-rendered HTML to bots (Googlebot, Bingbot, etc.) for better SEO

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import SEOHead from "@/components/SEOHead";
 import { motion } from "framer-motion";
@@ -10,6 +11,7 @@ import {
   Building2,
   Sparkles,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 
 const tiers = [
@@ -41,8 +43,9 @@ const tiers = [
     description: "For startups and growing products.",
     accent: "teal",
     cta: "Start free trial",
-    ctaLink: "https://developers.facesmash.app",
-    external: true,
+    ctaLink: "checkout",
+    external: false,
+    checkout: true,
     popular: true,
     icon: <Sparkles className="size-5 text-teal-400" />,
     features: [
@@ -109,6 +112,27 @@ const accentMap: Record<string, { border: string; bg: string; text: string; badg
 };
 
 const Pricing = () => {
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/.netlify/functions/create-checkout-session", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("No checkout URL returned:", data);
+        setCheckoutLoading(false);
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      setCheckoutLoading(false);
+    }
+  };
+
   return (
     <div className="bg-[#07080A] text-white min-h-screen selection:bg-emerald-500/30">
       <SEOHead
@@ -187,7 +211,27 @@ const Pricing = () => {
 
                   <p className="text-sm text-white/40 mb-6">{tier.description}</p>
 
-                  {tier.external ? (
+                  {(tier as any).checkout ? (
+                    <div className="mb-6">
+                      <Button
+                        onClick={handleCheckout}
+                        disabled={checkoutLoading}
+                        className={`w-full h-11 rounded-full font-medium ${a.btn}`}
+                      >
+                        {checkoutLoading ? (
+                          <>
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                            Redirecting to Stripe…
+                          </>
+                        ) : (
+                          <>
+                            {tier.cta}
+                            <ArrowRight className="ml-2 size-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : tier.external ? (
                     <a href={tier.ctaLink} target="_blank" rel="noopener noreferrer" className="mb-6">
                       <Button className={`w-full h-11 rounded-full font-medium ${tier.popular ? a.btn : "bg-white/[0.06] hover:bg-white/[0.10] text-white"}`}>
                         {tier.cta}
