@@ -1,0 +1,163 @@
+---
+title: React Components
+description: Pre-built React components for face registration and login
+---
+
+## Installation
+
+```bash
+npm install @facesmash/react
+```
+
+<Callout type="info">
+  `@facesmash/react` is coming soon. This page documents the planned component API.
+</Callout>
+
+## `<FaceLogin />`
+
+A complete face login UI with camera preview, face tracking overlay, and authentication flow.
+
+```tsx
+import { FaceLogin } from '@facesmash/react';
+
+function LoginPage() {
+  return (
+    <FaceLogin
+      apiKey="fs_live_..."
+      onAuthenticated={(result) => {
+        console.log('Logged in as', result.user.email);
+        console.log('Similarity:', result.similarity);
+        console.log('Quality:', result.qualityScore);
+        window.location.href = '/dashboard';
+      }}
+      onError={(error) => {
+        console.error('Login failed:', error.message);
+      }}
+      theme="dark"
+      showConfidence
+    />
+  );
+}
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `apiKey` | `string` | *required* | Your FaceSmash API key |
+| `onAuthenticated` | `(result: AuthResult) => void` | *required* | Called on successful authentication |
+| `onError` | `(error: FaceSmashError) => void` | `undefined` | Called on error |
+| `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | UI theme |
+| `showConfidence` | `boolean` | `false` | Display confidence score to user |
+| `maxAttempts` | `number` | `3` | Max scan attempts before failure |
+| `qualityThreshold` | `number` | `0.35` | Minimum face quality score (0-1) |
+| `matchThreshold` | `number` | `0.45` | Minimum similarity for a match (0-1) |
+| `className` | `string` | `''` | Additional CSS classes |
+
+### AuthResult
+
+```typescript
+interface AuthResult {
+  user: {
+    email: string;
+    id: string;
+    lastLogin: string;
+  };
+  similarity: number;       // 0-1 match similarity
+  qualityScore: number;     // 0-1 face quality
+  lightingScore: number;    // 0-1 lighting conditions
+  matchedTemplate: string;  // Template ID that matched
+}
+```
+
+## `<FaceRegister />`
+
+A step-by-step registration flow with face capture, quality feedback, and account creation.
+
+```tsx
+import { FaceRegister } from '@facesmash/react';
+
+function RegisterPage() {
+  return (
+    <FaceRegister
+      apiKey="fs_live_..."
+      onRegistered={(result) => {
+        console.log('Registered:', result.user.email);
+        window.location.href = '/welcome';
+      }}
+      onDuplicate={(match) => {
+        console.log('Already registered as', match.email);
+      }}
+      fields={['email', 'fullName']}
+    />
+  );
+}
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `apiKey` | `string` | *required* | Your FaceSmash API key |
+| `onRegistered` | `(result: RegisterResult) => void` | *required* | Called after successful registration |
+| `onDuplicate` | `(match: DuplicateMatch) => void` | `undefined` | Called if face is already registered |
+| `onError` | `(error: FaceSmashError) => void` | `undefined` | Called on error |
+| `fields` | `string[]` | `['email']` | User info fields to collect |
+| `duplicateThreshold` | `number` | `0.80` | Similarity threshold for duplicate detection |
+| `qualityThreshold` | `number` | `0.35` | Minimum face quality for capture |
+| `maxCaptures` | `number` | `15` | Max capture attempts |
+| `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | UI theme |
+
+## `<FaceCamera />`
+
+Low-level camera component with face tracking overlay. Use this to build custom UIs.
+
+```tsx
+import { FaceCamera, useFaceDetection } from '@facesmash/react';
+
+function CustomUI() {
+  const { isTracking, facePosition, confidence } = useFaceDetection();
+
+  return (
+    <div>
+      <FaceCamera
+        onFaceDetected={(position) => console.log('Face at', position)}
+        onFaceLost={() => console.log('Face lost')}
+        trackingInterval={300}
+        showOverlay
+      />
+      {isTracking && (
+        <p>Face detected! Confidence: {(confidence * 100).toFixed(0)}%</p>
+      )}
+    </div>
+  );
+}
+```
+
+## Hooks
+
+### `useFaceDetection()`
+
+Access face detection state without rendering a camera UI.
+
+```typescript
+const {
+  isTracking,     // boolean — is a face currently detected?
+  facePosition,   // { x, y, width, height, confidence } | null
+  confidence,     // number 0-1
+  isModelLoaded,  // boolean — are ML models ready?
+} = useFaceDetection(webcamRef);
+```
+
+### `useFaceAuth()`
+
+Programmatic access to the authentication flow.
+
+```typescript
+const {
+  register,       // (email: string) => Promise<RegisterResult>
+  verify,         // () => Promise<AuthResult>
+  isProcessing,   // boolean
+  error,          // FaceSmashError | null
+} = useFaceAuth({ apiKey: 'fs_live_...' });
+```

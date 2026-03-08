@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { Camera, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ interface AutoFaceDetectionProps {
   isScanning?: boolean;
   disabled?: boolean;
 }
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   onImagesCapture,
@@ -26,6 +28,9 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   const onImagesCaptureRef = useRef(onImagesCapture);
   onImagesCaptureRef.current = onImagesCapture;
   const hasCapturedRef = useRef(false);
+  const smoothPositionRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [smoothPosition, setSmoothPosition] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const videoConstraints = {
     width: 640,
@@ -43,8 +48,48 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     onFaceLost: () => {
       setFaceDetected(false);
       setDetectionProgress(0);
+      smoothPositionRef.current = null;
+      setSmoothPosition(null);
     }
   });
+
+  // Smooth the oval position with lerp so it doesn't jump between frames
+  useEffect(() => {
+    if (!facePosition) {
+      return;
+    }
+    const target = {
+      x: facePosition.x,
+      y: facePosition.y,
+      w: facePosition.width * 1.4,
+      h: facePosition.height * 1.6,
+    };
+    if (!smoothPositionRef.current) {
+      // First detection — snap immediately
+      smoothPositionRef.current = target;
+      setSmoothPosition(target);
+      return;
+    }
+    const animate = () => {
+      const cur = smoothPositionRef.current!;
+      const t = 0.35; // smoothing factor (0 = no movement, 1 = snap)
+      const next = {
+        x: lerp(cur.x, target.x, t),
+        y: lerp(cur.y, target.y, t),
+        w: lerp(cur.w, target.w, t),
+        h: lerp(cur.h, target.h, t),
+      };
+      smoothPositionRef.current = next;
+      setSmoothPosition({ ...next });
+    };
+    // Run a few interpolation frames
+    const id1 = requestAnimationFrame(animate);
+    const id2 = requestAnimationFrame(() => requestAnimationFrame(animate));
+    return () => {
+      cancelAnimationFrame(id1);
+      cancelAnimationFrame(id2);
+    };
+  }, [facePosition]);
 
   useEffect(() => {
     const initializeCamera = async () => {
@@ -161,6 +206,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
               audio={false}
               screenshotFormat="image/jpeg"
               videoConstraints={videoConstraints}
+              mirrored={true}
               className="w-full h-full object-cover"
               onUserMediaError={(error) => {
                 console.error('Webcam error:', error);
@@ -183,16 +229,17 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
           {/* Dynamic Face Guide Overlay */}
           {!isLoading && !error && (
             <div className="absolute inset-0 pointer-events-none">
-              {facePosition ? (
-                // Dynamic face tracking overlay - positioned using pixels
+              {smoothPosition ? (
+                // Dynamic face tracking overlay - positioned at face center
                 <div
-                  className="absolute transition-all duration-150 ease-out"
+                  className="absolute"
                   style={{
-                    left: `${facePosition.x}px`,
-                    top: `${facePosition.y}px`,
-                    width: `${Math.max(facePosition.width * 1.2, 100)}px`,
-                    height: `${Math.max(facePosition.height * 1.3, 120)}px`,
-                    transform: 'translate(-50%, -50%)'
+                    left: `${smoothPosition.x}px`,
+                    top: `${smoothPosition.y}px`,
+                    width: `${Math.max(smoothPosition.w, 100)}px`,
+                    height: `${Math.max(smoothPosition.h, 130)}px`,
+                    transform: 'translate(-50%, -50%)',
+                    willChange: 'left, top, width, height'
                   }}
                 >
                   <div className="w-full h-full border-4 border-green-500 border-opacity-80 rounded-full bg-transparent relative">
@@ -255,7 +302,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         
         <div className="p-4 text-center">
           <p className="text-gray-400 text-sm">
-            {isScanning ? 'Processing...' : isLoading ? 'Getting ready...' : facePosition ? 'Face detected - hold steady' : 'Look directly at the camera'}
+            {isScanning ? 'Processing...' : isLoading ? 'Getting ready...' : smoothPosition ? 'Face detected - hold steady' : 'Look directly at the camera'}
           </p>
         </div>
       </CardContent>

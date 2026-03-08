@@ -1,0 +1,97 @@
+---
+title: Security Overview
+description: How FaceSmash protects biometric data and user privacy
+---
+
+## Security Architecture
+
+FaceSmash is designed with a **privacy-first architecture** where biometric processing happens client-side in the browser. Raw face images never leave the user's device.
+
+### Data Flow
+
+```
+User's Device                          FaceSmash Server
+┌────────────────────┐                ┌──────────────────┐
+│ Camera captures    │                │                  │
+│ face image         │                │                  │
+│       │            │                │                  │
+│       ▼            │                │                  │
+│ TF.js processes    │                │                  │
+│ face → 128-d       │   encrypted   │  Stores only:    │
+│ descriptor         │──────────────▶│  • 128-d vector  │
+│       │            │   (HTTPS)     │  • email         │
+│       ▼            │                │  • quality score │
+│ Raw image is       │                │                  │
+│ DISCARDED          │                │  Raw images are  │
+│                    │                │  NEVER stored    │
+└────────────────────┘                └──────────────────┘
+```
+
+### What We Store
+
+| Data | Stored? | Where | Purpose |
+|---|---|---|---|
+| Raw face images | **No** | Never stored | — |
+| 128-d face descriptor | Yes | Server (encrypted) | Matching |
+| Email address | Yes | Server | User identification |
+| Quality scores | Yes | Server | Adaptive matching |
+| Sign-in logs | Yes | Server | Security audit |
+| Camera feed | **No** | Device only | Real-time processing |
+
+### What We Don't Store
+
+- Raw photographs or video frames
+- Full facial geometry or landmarks
+- Biometric data that could reconstruct a face
+- Data from failed authentication attempts (beyond logs)
+
+## Encryption
+
+- **In transit** — All API communication uses TLS 1.3 (HTTPS)
+- **At rest** — Face descriptors are stored as JSON arrays in the database
+- **Face descriptors** — 128-dimensional float arrays that cannot be reverse-engineered into a face image
+
+## Authentication Security
+
+### Anti-Spoofing
+
+FaceSmash includes built-in liveness detection to prevent:
+
+- **Photo attacks** — Holding up a photo of someone's face
+- **Video replay** — Playing a video of someone's face
+- **Deepfake** — Synthetic face generation
+
+Liveness checks include:
+- Blink detection (eye aspect ratio monitoring)
+- Head movement tracking
+- Texture analysis (detecting screen artifacts)
+
+### Adaptive Thresholds
+
+Match thresholds adjust automatically based on:
+- Environmental conditions (lighting, camera quality)
+- User authentication history
+- Template quality and diversity
+
+This prevents both:
+- **False positives** — A stranger being authenticated as you
+- **False negatives** — You being rejected by your own account
+
+## Data Retention
+
+| Data Type | Retention | Deletion |
+|---|---|---|
+| Face descriptors | Until user deletes account | Immediate on request |
+| Face templates | Until user deletes account | Immediate on request |
+| Sign-in logs | 90 days | Automatic |
+| Quality metrics | Until user deletes account | Immediate on request |
+
+## User Rights
+
+Users can:
+- **View** all stored biometric data via the dashboard
+- **Delete** their account and all biometric data at any time
+- **Export** their data in machine-readable format
+- **Revoke** consent and have all data purged
+
+See [Compliance](/docs/security/compliance) for GDPR, BIPA, and CCPA details.

@@ -1,0 +1,236 @@
+---
+title: Faces
+description: Face registration, verification, and identification endpoints
+---
+
+## Register a Face
+
+Register a new face descriptor for a user.
+
+```
+POST /v1/faces/register
+```
+
+### Request Body
+
+```json
+{
+  "email": "user@example.com",
+  "descriptor": [0.0234, -0.0891, 0.1456, ...],
+  "qualityScore": 0.85,
+  "lightingConditions": {
+    "brightness": 0.72,
+    "contrast": 0.65
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | `string` | Yes | User's email address |
+| `descriptor` | `number[]` | Yes | 128-dimensional face descriptor |
+| `qualityScore` | `number` | No | Quality score from face analysis (0-1) |
+| `lightingConditions` | `object` | No | Lighting metadata for adaptive matching |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "abc123def456",
+    "email": "user@example.com",
+    "templateId": "tpl_789xyz",
+    "qualityScore": 0.85,
+    "createdAt": "2026-03-08T00:00:00.000Z"
+  }
+}
+```
+
+---
+
+## Verify a Face (1:1)
+
+Compare a face descriptor against a specific user's stored templates.
+
+```
+POST /v1/faces/verify
+```
+
+### Request Body
+
+```json
+{
+  "descriptor": [0.0234, -0.0891, 0.1456, ...],
+  "userId": "abc123def456",
+  "lightingScore": 0.72
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `descriptor` | `number[]` | Yes | 128-dimensional face descriptor to verify |
+| `userId` | `string` | Yes | User ID to verify against |
+| `lightingScore` | `number` | No | Current lighting score for adaptive threshold |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "isMatch": true,
+    "similarity": 0.73,
+    "adaptedThreshold": 0.45,
+    "matchedTemplate": "tpl_789xyz",
+    "user": {
+      "id": "abc123def456",
+      "email": "user@example.com"
+    }
+  }
+}
+```
+
+---
+
+## Identify a Face (1:N)
+
+Search for a matching face across all registered users.
+
+```
+POST /v1/faces/identify
+```
+
+### Request Body
+
+```json
+{
+  "descriptor": [0.0234, -0.0891, 0.1456, ...],
+  "lightingScore": 0.72,
+  "maxResults": 1
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `descriptor` | `number[]` | Yes | 128-dimensional face descriptor |
+| `lightingScore` | `number` | No | Current lighting conditions |
+| `maxResults` | `number` | No | Max matches to return (default: 1) |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "matches": [
+      {
+        "userId": "abc123def456",
+        "email": "user@example.com",
+        "similarity": 0.73,
+        "templateId": "tpl_789xyz"
+      }
+    ],
+    "totalCompared": 42,
+    "processingTimeMs": 12
+  }
+}
+```
+
+---
+
+## Detect a Face
+
+Analyze an image for face detection and quality without matching.
+
+```
+POST /v1/faces/detect
+```
+
+### Request Body
+
+```json
+{
+  "image": "data:image/jpeg;base64,/9j/4AAQ..."
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "detected": true,
+    "confidence": 0.97,
+    "quality": {
+      "overallScore": 0.82,
+      "lightingScore": 0.75,
+      "sharpness": 0.88,
+      "faceSize": 0.35,
+      "headPose": { "yaw": -2.1, "pitch": 3.4, "roll": 0.5 },
+      "eyeAspectRatio": 0.31
+    },
+    "boundingBox": {
+      "x": 120,
+      "y": 80,
+      "width": 200,
+      "height": 240
+    },
+    "descriptor": [0.0234, -0.0891, 0.1456, ...]
+  }
+}
+```
+
+---
+
+## Get Templates
+
+Retrieve stored face templates for a user.
+
+```
+GET /v1/faces/templates/:userId
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "templates": [
+      {
+        "id": "tpl_789xyz",
+        "qualityScore": 0.85,
+        "createdAt": "2026-03-08T00:00:00.000Z",
+        "usageCount": 12,
+        "lastUsed": "2026-03-08T12:00:00.000Z"
+      }
+    ],
+    "totalTemplates": 1,
+    "maxTemplates": 5
+  }
+}
+```
+
+---
+
+## Delete a Template
+
+Remove a specific face template.
+
+```
+DELETE /v1/faces/templates/:templateId
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "deleted": true,
+    "templateId": "tpl_789xyz"
+  }
+}
+```

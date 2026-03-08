@@ -8,12 +8,12 @@ const WelcomeSection = ({ userName }: WelcomeSectionProps) => {
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="mb-12">
+    <div className="mb-8 sm:mb-12">
       <p className="text-white/20 uppercase tracking-[0.2em] text-xs mb-3">{greeting}</p>
-      <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight break-all sm:break-normal">
         {displayName}
       </h1>
-      <p className="text-white/30 mt-2 text-sm">{userName}</p>
+      <p className="text-white/30 mt-2 text-sm truncate">{userName}</p>
     </div>
   );
 };

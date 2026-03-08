@@ -1,0 +1,103 @@
+---
+title: Webhooks
+description: Real-time event notifications for face authentication events
+---
+
+## Overview
+
+Webhooks allow your application to receive real-time notifications when authentication events occur. When an event triggers, FaceSmash sends an HTTP POST request to your configured endpoint.
+
+<Callout type="info">
+  Webhooks are coming soon. This page documents the planned webhook API.
+</Callout>
+
+## Events
+
+| Event | Description |
+|---|---|
+| `face.registered` | A new face was registered |
+| `face.verified` | A face was successfully verified (login) |
+| `face.failed` | A verification attempt failed |
+| `user.deleted` | A user and their biometric data were deleted |
+| `template.created` | A new face template was stored |
+| `template.deleted` | A face template was removed |
+
+## Webhook Payload
+
+All webhook payloads follow a consistent format:
+
+```json
+{
+  "id": "evt_abc123",
+  "event": "face.verified",
+  "createdAt": "2026-03-08T12:00:00.000Z",
+  "data": {
+    "userId": "abc123def456",
+    "email": "user@example.com",
+    "similarity": 0.73,
+    "qualityScore": 0.82,
+    "ipAddress": "203.0.113.42"
+  }
+}
+```
+
+## Signature Verification
+
+Each webhook includes an `X-FaceSmash-Signature` header for verifying authenticity:
+
+```javascript
+import crypto from 'crypto';
+
+function verifyWebhook(payload, signature, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+
+// In your Express handler
+app.post('/webhooks/facesmash', (req, res) => {
+  const signature = req.headers['x-facesmash-signature'];
+  const isValid = verifyWebhook(
+    JSON.stringify(req.body),
+    signature,
+    process.env.FACESMASH_WEBHOOK_SECRET
+  );
+
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  const { event, data } = req.body;
+
+  switch (event) {
+    case 'face.verified':
+      console.log(`${data.email} logged in`);
+      break;
+    case 'face.registered':
+      console.log(`New user: ${data.email}`);
+      break;
+  }
+
+  res.status(200).json({ received: true });
+});
+```
+
+## Retry Policy
+
+Failed webhook deliveries are retried with exponential backoff:
+
+| Attempt | Delay |
+|---|---|
+| 1 | Immediate |
+| 2 | 1 minute |
+| 3 | 5 minutes |
+| 4 | 30 minutes |
+| 5 | 2 hours |
+
+After 5 failed attempts, the webhook is marked as failing and no further retries are attempted until the endpoint is verified again.

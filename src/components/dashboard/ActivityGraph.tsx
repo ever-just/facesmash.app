@@ -28,24 +28,40 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
 
     const now = new Date();
     const totalLogins = signInLogs.length;
-    
-    let streak = 0;
-    const today = new Date().toDateString();
-    const yesterday = new Date(Date.now() - 86400000).toDateString();
-    
+
+    // Build a set of unique login dates (YYYY-MM-DD in local time)
+    const toDateKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    const uniqueDays = new Set<string>();
     for (const log of signInLogs) {
-      const logDate = new Date(log.sign_in_time).toDateString();
-      if (logDate === today || logDate === yesterday) {
+      uniqueDays.add(toDateKey(new Date(log.created)));
+    }
+
+    // Streak: walk backwards from today through consecutive days
+    let streak = 0;
+    const cursor = new Date(now);
+    // If the user hasn't logged in today, start from yesterday
+    if (!uniqueDays.has(toDateKey(cursor))) {
+      cursor.setDate(cursor.getDate() - 1);
+      // If they didn't log in yesterday either, streak is 0
+      if (!uniqueDays.has(toDateKey(cursor))) {
+        streak = 0;
+      }
+    }
+    if (streak === 0 && uniqueDays.has(toDateKey(cursor))) {
+      while (uniqueDays.has(toDateKey(cursor))) {
         streak++;
-      } else {
-        break;
+        cursor.setDate(cursor.getDate() - 1);
       }
     }
 
-    const firstLogin = new Date(signInLogs[signInLogs.length - 1].sign_in_time);
+    // Frequency (avg per week)
+    const firstLogin = new Date(signInLogs[signInLogs.length - 1].created);
     const daysSinceFirst = Math.max(1, (now.getTime() - firstLogin.getTime()) / (1000 * 60 * 60 * 24));
     const avgPerWeek = Math.round((totalLogins / daysSinceFirst) * 7);
-    const lastLogin = signInLogs[0] ? new Date(signInLogs[0].sign_in_time) : null;
+
+    const lastLogin = signInLogs[0] ? new Date(signInLogs[0].created) : null;
 
     return { totalLogins, streak, avgPerWeek, lastLogin };
   };
@@ -64,9 +80,9 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
   const getRecentSessions = () => {
     return signInLogs.slice(0, 5).map(log => ({
       ...log,
-      timeAgo: formatTimeAgo(new Date(log.sign_in_time)),
-      time: new Date(log.sign_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      date: new Date(log.sign_in_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      timeAgo: formatTimeAgo(new Date(log.created)),
+      time: new Date(log.created).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      date: new Date(log.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     }));
   };
 
@@ -86,7 +102,7 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
       <p className="text-white/20 uppercase tracking-[0.2em] text-[10px] mb-6">Activity</p>
 
       {/* stat strip */}
-      <div className="flex flex-wrap gap-8 mb-8 pb-6 border-b border-white/[0.04]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 mb-8 pb-6 border-b border-white/[0.04]">
         {[
           { val: String(stats.totalLogins), label: "Total logins" },
           { val: String(stats.streak), label: "Streak" },
@@ -94,7 +110,7 @@ const ActivityGraph = ({ userEmail, userCreatedAt }: ActivityGraphProps) => {
           { val: stats.lastLogin ? formatTimeAgo(stats.lastLogin) : "—", label: "Last login" },
         ].map((s, i) => (
           <div key={i}>
-            <div className="text-xl font-bold tracking-tight text-white">{s.val}</div>
+            <div className="text-lg sm:text-xl font-bold tracking-tight text-white">{s.val}</div>
             <div className="text-[10px] text-white/25 uppercase tracking-wider mt-0.5">{s.label}</div>
           </div>
         ))}

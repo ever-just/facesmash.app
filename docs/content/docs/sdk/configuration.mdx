@@ -1,0 +1,126 @@
+---
+title: Configuration
+description: SDK options, thresholds, and customization
+---
+
+## Initialization Options
+
+```typescript
+const facesmash = new FaceSmash({
+  // Required
+  apiKey: 'fs_live_...',
+
+  // Optional
+  apiUrl: 'https://api.facesmash.app',  // Custom API endpoint
+  debug: false,                          // Enable console logging
+  modelUrl: undefined,                   // Custom model CDN URL
+});
+```
+
+## Detection Options
+
+Control how faces are detected in the camera feed:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `detector` | `'ssd' \| 'tiny'` | `'ssd'` | Detection model. SSD is more accurate, Tiny is faster |
+| `detectionInterval` | `number` | `300` | Milliseconds between detection passes |
+| `minConfidence` | `number` | `0.5` | Minimum detection confidence (0-1) |
+| `inputSize` | `number` | `416` | Input tensor size (higher = more accurate, slower) |
+
+```typescript
+facesmash.configure({
+  detection: {
+    detector: 'ssd',
+    detectionInterval: 300,
+    minConfidence: 0.5,
+  },
+});
+```
+
+## Quality Thresholds
+
+Control the minimum quality required for face captures:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `qualityThreshold` | `number` | `0.35` | Minimum overall quality score (0-1) |
+| `minFaceSize` | `number` | `0.15` | Minimum face size relative to frame |
+| `maxHeadAngle` | `number` | `30` | Maximum head rotation in degrees |
+| `minLightingScore` | `number` | `0.2` | Minimum lighting quality |
+
+```typescript
+facesmash.configure({
+  quality: {
+    qualityThreshold: 0.35,
+    minFaceSize: 0.15,
+    maxHeadAngle: 30,
+    minLightingScore: 0.2,
+  },
+});
+```
+
+## Matching Thresholds
+
+Control how strictly faces are matched during login:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `matchThreshold` | `number` | `0.45` | Base similarity threshold for a match (0-1) |
+| `adaptiveThreshold` | `boolean` | `true` | Auto-adjust threshold based on lighting and user history |
+| `duplicateThreshold` | `number` | `0.80` | Threshold for duplicate detection during registration |
+| `maxTemplates` | `number` | `5` | Max stored face templates per user |
+
+```typescript
+facesmash.configure({
+  matching: {
+    matchThreshold: 0.45,
+    adaptiveThreshold: true,
+    duplicateThreshold: 0.80,
+    maxTemplates: 5,
+  },
+});
+```
+
+### Understanding Thresholds
+
+Similarity scores range from 0 (completely different) to 1 (identical):
+
+| Score Range | Meaning |
+|---|---|
+| `0.80 - 1.00` | Almost certainly the same person |
+| `0.60 - 0.80` | Very likely the same person |
+| `0.45 - 0.60` | Probably the same person (default match zone) |
+| `0.30 - 0.45` | Uncertain — could be same or different |
+| `0.00 - 0.30` | Almost certainly different people |
+
+<Callout type="warn">
+  Setting `matchThreshold` too low (below 0.35) increases false positives — strangers may be incorrectly identified.
+  Setting it too high (above 0.65) increases false negatives — legitimate users may fail to login.
+  The default of 0.45 with adaptive thresholds provides the best balance.
+</Callout>
+
+## Camera Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `facingMode` | `'user' \| 'environment'` | `'user'` | Front or rear camera |
+| `width` | `number` | `640` | Preferred video width |
+| `height` | `number` | `480` | Preferred video height |
+| `showOverlay` | `boolean` | `true` | Show face detection bounding box |
+| `showQualityIndicator` | `boolean` | `true` | Show real-time quality feedback |
+| `mirrored` | `boolean` | `true` | Mirror the camera preview |
+
+## Error Codes
+
+| Code | Description |
+|---|---|
+| `CAMERA_DENIED` | User denied camera permission |
+| `CAMERA_UNAVAILABLE` | No camera found on device |
+| `MODEL_LOAD_FAILED` | ML models failed to load |
+| `NO_FACE_DETECTED` | No face found in capture |
+| `LOW_QUALITY` | Face quality below threshold |
+| `NO_MATCH` | No matching user found |
+| `DUPLICATE_FACE` | Face already registered (during registration) |
+| `API_ERROR` | Server communication error |
+| `DESCRIPTOR_MISMATCH` | Stored descriptor has unexpected format |

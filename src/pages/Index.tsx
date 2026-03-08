@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import SEOHead from "@/components/SEOHead";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   ArrowRight,
@@ -27,25 +28,26 @@ const Index = () => {
 
   return (
     <div className="bg-[#07080A] text-white selection:bg-emerald-500/30 selection:text-white">
+      <SEOHead path="/" />
 
       {/* film-grain overlay */}
       <div className="fixed inset-0 pointer-events-none z-[100] animate-grain opacity-40 mix-blend-overlay" />
 
       {/* ══════════════════════════ NAV ══════════════════════════ */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#07080A]/70 border-b border-white/[0.04]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
-          <Link to="/" className="flex items-center gap-2.5 group">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16">
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group">
             <div className="size-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-shadow">
               <Scan className="size-4 text-white" strokeWidth={2.5} />
             </div>
-            <span className="text-[17px] font-semibold tracking-tight">FaceSmash</span>
+            <span className="text-[15px] sm:text-[17px] font-semibold tracking-tight">FaceSmash</span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link to="/login">
-              <Button variant="ghost" className="text-white/50 hover:text-white text-sm h-9 px-4">Sign in</Button>
+              <Button variant="ghost" className="text-white/50 hover:text-white text-sm h-9 px-3 sm:px-4">Sign in</Button>
             </Link>
             <Link to="/register">
-              <Button className="h-9 px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full">
+              <Button className="h-9 px-4 sm:px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full">
                 Get started
               </Button>
             </Link>
@@ -59,7 +61,7 @@ const Index = () => {
         <div className="absolute top-[-20%] left-[15%] w-[700px] h-[700px] rounded-full bg-emerald-500/[0.07] blur-[160px]" />
         <div className="absolute bottom-[-10%] right-[10%] w-[500px] h-[500px] rounded-full bg-teal-400/[0.05] blur-[140px]" />
 
-        <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 flex flex-col items-center text-center px-6 max-w-5xl">
+        <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 flex flex-col items-center text-center px-4 sm:px-6 max-w-5xl">
           {/* big face visualisation */}
           <div className="relative w-[280px] h-[280px] md:w-[360px] md:h-[360px] mb-12">
             {/* outer orbit ring */}
@@ -130,33 +132,33 @@ const Index = () => {
             on your phone, your laptop, anywhere you sign in.
           </p>
 
-          <div className="flex items-center gap-4 mt-10">
-            <Link to="/register">
-              <Button className="h-12 px-8 text-base font-medium bg-emerald-500 hover:bg-emerald-400 text-black rounded-full group shadow-xl shadow-emerald-500/20">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 mt-10 w-full sm:w-auto">
+            <Link to="/register" className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto h-12 px-8 text-base font-medium bg-emerald-500 hover:bg-emerald-400 text-black rounded-full group shadow-xl shadow-emerald-500/20">
                 Create your FaceSmash
                 <ArrowRight className="ml-2 size-4 group-hover:translate-x-0.5 transition-transform" />
               </Button>
             </Link>
-            <Link to="/login">
-              <Button variant="ghost" className="h-12 px-6 text-base text-white/50 hover:text-white hover:bg-white/5 rounded-full">
+            <Link to="/login" className="w-full sm:w-auto">
+              <Button variant="ghost" className="w-full sm:w-auto h-12 px-6 text-base text-white/50 hover:text-white hover:bg-white/5 rounded-full">
                 Try it now
               </Button>
             </Link>
           </div>
 
           {/* device icons strip */}
-          <div className="mt-14 flex items-center gap-6 text-white/20">
+          <div className="mt-10 sm:mt-14 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-white/20">
             <Smartphone className="size-5" />
             <Tablet className="size-5" />
             <Monitor className="size-5" />
             <Globe className="size-5" />
-            <span className="text-xs tracking-widest uppercase text-white/30 ml-2">Works everywhere</span>
+            <span className="text-xs tracking-widest uppercase text-white/30">Works everywhere</span>
           </div>
         </motion.div>
       </section>
 
       {/* ══════════════ "THE PROBLEM" — editorial layout ══════════════ */}
-      <section className="relative py-32 px-6">
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <motion.p
             initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
@@ -187,7 +189,7 @@ const Index = () => {
       </section>
 
       {/* ══════════════ CROSS-PLATFORM VISUAL ══════════════ */}
-      <section className="relative py-24 px-6 overflow-hidden">
+      <section className="relative py-16 sm:py-24 px-4 sm:px-6 overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="relative">
             {/* three "screens" side by side, slightly overlapping */}
@@ -269,7 +271,7 @@ const Index = () => {
       </section>
 
       {/* ══════════════ COMPETITOR COMPARISON — editorial, not a table ══════════════ */}
-      <section className="relative py-32 px-6">
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <motion.p
             initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
@@ -348,7 +350,7 @@ const Index = () => {
       </section>
 
       {/* ══════════════ HOW IT WORKS — horizontal timeline, not cards ══════════════ */}
-      <section className="relative py-32 px-6 overflow-hidden">
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6 overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <motion.p
             initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
@@ -394,8 +396,8 @@ const Index = () => {
       </section>
 
       {/* ══════════════ FEATURES — staggered alternating layout ══════════════ */}
-      <section className="relative py-32 px-6">
-        <div className="max-w-5xl mx-auto space-y-32">
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto space-y-20 sm:space-y-32">
           {[
             {
               label: "Security",
@@ -432,8 +434,8 @@ const Index = () => {
       </section>
 
       {/* ══════════════ QUICK SPEC STRIP ══════════════ */}
-      <section className="relative py-20 px-6 border-y border-white/[0.04]">
-        <div className="max-w-6xl mx-auto flex flex-wrap justify-between gap-12">
+      <section className="relative py-16 sm:py-20 px-4 sm:px-6 border-y border-white/[0.04]">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-8 sm:gap-12">
           {[
             ["99.97%", "Recognition accuracy"],
             ["<2s", "Authentication time"],
@@ -447,15 +449,15 @@ const Index = () => {
               transition={{ delay: i * 0.06 }}
               className="text-center"
             >
-              <div className="text-3xl md:text-4xl font-bold tracking-tight text-white">{val}</div>
-              <div className="text-xs text-white/25 mt-1 uppercase tracking-wider">{label}</div>
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white">{val}</div>
+              <div className="text-[10px] sm:text-xs text-white/25 mt-1 uppercase tracking-wider">{label}</div>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* ══════════════ CTA ══════════════ */}
-      <section className="relative py-40 px-6 flex items-center justify-center overflow-hidden">
+      <section className="relative py-24 sm:py-40 px-4 sm:px-6 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-[600px] h-[600px] rounded-full bg-emerald-500/[0.04] blur-[120px]" />
         </div>
@@ -479,7 +481,7 @@ const Index = () => {
       </section>
 
       {/* ══════════════ FOOTER ══════════════ */}
-      <footer className="border-t border-white/[0.04] py-10 px-6">
+      <footer className="border-t border-white/[0.04] py-8 sm:py-10 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="size-6 rounded bg-emerald-500 flex items-center justify-center">

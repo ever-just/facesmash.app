@@ -1,0 +1,197 @@
+---
+title: React Integration
+description: Add face login to a React application step by step
+---
+
+## Overview
+
+This guide walks you through adding FaceSmash face authentication to an existing React application. By the end, you'll have a working face login and registration flow.
+
+<Callout type="info">
+  This guide uses the upcoming `@facesmash/react` package. During the preview period, you can reference the [FaceSmash source code](https://github.com/ever-just/facesmash.app) to see how the components work internally.
+</Callout>
+
+## Step 1: Install Dependencies
+
+```bash
+npm install @facesmash/react
+```
+
+## Step 2: Add the Provider
+
+Wrap your app with the `FaceSmashProvider` to initialize models once:
+
+```tsx
+// src/App.tsx
+import { FaceSmashProvider } from '@facesmash/react';
+
+function App() {
+  return (
+    <FaceSmashProvider apiKey="fs_live_...">
+      <Router>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Router>
+    </FaceSmashProvider>
+  );
+}
+```
+
+The provider handles:
+- Loading TensorFlow.js and face detection models
+- Initializing the WebGL backend
+- Managing camera permissions
+- Providing context to child components
+
+## Step 3: Add Face Login
+
+```tsx
+// src/pages/LoginPage.tsx
+import { FaceLogin } from '@facesmash/react';
+import { useNavigate } from 'react-router-dom';
+
+function LoginPage() {
+  const navigate = useNavigate();
+
+  return (
+    <div className="max-w-md mx-auto mt-20">
+      <h1 className="text-2xl font-bold mb-6">Sign In</h1>
+      <FaceLogin
+        onAuthenticated={(result) => {
+          // Store user session
+          localStorage.setItem('user', JSON.stringify(result.user));
+          navigate('/dashboard');
+        }}
+        onError={(error) => {
+          if (error.code === 'NO_MATCH') {
+            alert('Face not recognized. Please register first.');
+          }
+        }}
+        showConfidence
+      />
+    </div>
+  );
+}
+```
+
+## Step 4: Add Face Registration
+
+```tsx
+// src/pages/RegisterPage.tsx
+import { FaceRegister } from '@facesmash/react';
+import { useNavigate } from 'react-router-dom';
+
+function RegisterPage() {
+  const navigate = useNavigate();
+
+  return (
+    <div className="max-w-md mx-auto mt-20">
+      <h1 className="text-2xl font-bold mb-6">Register</h1>
+      <FaceRegister
+        fields={['email', 'fullName']}
+        onRegistered={(result) => {
+          alert(`Welcome, ${result.user.email}!`);
+          navigate('/login');
+        }}
+        onDuplicate={(match) => {
+          alert(`This face is already registered as ${match.email}`);
+          navigate('/login');
+        }}
+      />
+    </div>
+  );
+}
+```
+
+## Step 5: Protect Routes
+
+Use the `useFaceAuth` hook to check authentication status:
+
+```tsx
+// src/components/ProtectedRoute.tsx
+import { useFaceAuth } from '@facesmash/react';
+import { Navigate } from 'react-router-dom';
+
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, isLoading } = useFaceAuth();
+
+  if (isLoading) return <div>Loading...</div>;
+  if (!isAuthenticated) return <Navigate to="/login" />;
+
+  return children;
+}
+```
+
+## Customizing the UI
+
+### Theme
+
+```tsx
+<FaceLogin
+  theme="dark"
+  className="rounded-xl shadow-lg"
+/>
+```
+
+### Custom Camera Overlay
+
+```tsx
+import { FaceCamera, useFaceDetection } from '@facesmash/react';
+
+function CustomLogin() {
+  const { facePosition, confidence } = useFaceDetection();
+
+  return (
+    <div className="relative">
+      <FaceCamera showOverlay={false} />
+      {facePosition && (
+        <div
+          className="absolute border-2 border-green-500 rounded-lg"
+          style={{
+            left: facePosition.x,
+            top: facePosition.y,
+            width: facePosition.width,
+            height: facePosition.height,
+          }}
+        >
+          <span className="text-green-500 text-xs">
+            {(confidence * 100).toFixed(0)}%
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Error Handling
+
+Handle all possible error states:
+
+```tsx
+<FaceLogin
+  onError={(error) => {
+    switch (error.code) {
+      case 'CAMERA_DENIED':
+        // Show instructions to enable camera
+        break;
+      case 'CAMERA_UNAVAILABLE':
+        // Show alternative login method
+        break;
+      case 'NO_FACE_DETECTED':
+        // Prompt user to face the camera
+        break;
+      case 'LOW_QUALITY':
+        // Suggest better lighting
+        break;
+      case 'NO_MATCH':
+        // Offer registration
+        break;
+      case 'MODEL_LOAD_FAILED':
+        // Show fallback or retry
+        break;
+    }
+  }}
+/>
+```

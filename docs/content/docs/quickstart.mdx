@@ -1,0 +1,85 @@
+---
+title: Quickstart
+description: Get FaceSmash running in your app in 5 minutes
+---
+
+## Prerequisites
+
+- A modern browser with WebGL support (Chrome, Firefox, Safari, Edge)
+- A device with a camera (webcam, phone camera, tablet)
+- Node.js 18+ (for the JavaScript SDK)
+
+## Installation
+
+```bash
+npm install @facesmash/sdk
+```
+
+<Callout type="info">
+  The SDK is coming soon. Currently, FaceSmash is available as a hosted application at [facesmash.app](https://facesmash.app).
+  Sign up for early access to the SDK at [everjust.co](https://everjust.co).
+</Callout>
+
+## Quick Integration (Preview)
+
+Once the SDK is available, integration will look like this:
+
+### React
+
+```tsx
+import { FaceSmash } from '@facesmash/react';
+
+function LoginPage() {
+  return (
+    <FaceSmash
+      apiKey="your-api-key"
+      onAuthenticated={(user) => {
+        console.log('Welcome back,', user.email);
+        // Redirect to dashboard
+      }}
+      onError={(error) => {
+        console.error('Authentication failed:', error);
+      }}
+    />
+  );
+}
+```
+
+### Vanilla JavaScript
+
+```html
+<div id="facesmash-container"></div>
+
+<script type="module">
+  import { FaceSmash } from '@facesmash/sdk';
+
+  const fs = new FaceSmash({
+    apiKey: 'your-api-key',
+    container: '#facesmash-container',
+  });
+
+  fs.on('authenticated', (user) => {
+    console.log('Welcome back,', user.email);
+  });
+
+  fs.on('error', (error) => {
+    console.error('Authentication failed:', error);
+  });
+
+  fs.mount();
+</script>
+```
+
+## Try It Now
+
+Visit [facesmash.app](https://facesmash.app) to see FaceSmash in action:
+
+1. Click **Register** and follow the prompts to capture your face
+2. Enter your email and complete registration
+3. Click **Sign In** and look at your camera — you'll be authenticated in seconds
+
+## Next Steps
+
+- [SDK Reference](/docs/sdk) — Full SDK documentation
+- [API Reference](/docs/api-reference) — REST API endpoints
+- [Integration Guides](/docs/guides) — Step-by-step tutorials

@@ -1,0 +1,9 @@
+{
+  "title": "JavaScript SDK",
+  "pages": [
+    "index",
+    "react-components",
+    "vanilla-js",
+    "configuration"
+  ]
+}

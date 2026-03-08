@@ -1,6 +1,7 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
+import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 
 const NotFound = () => {
@@ -15,6 +16,7 @@ const NotFound = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#07080A] text-white">
+      <SEOHead title="Page Not Found" description="This page doesn't exist on FaceSmash." noindex={true} />
       <div className="fixed inset-0 pointer-events-none z-[100] animate-grain opacity-40 mix-blend-overlay" />
       <div className="text-center relative z-10">
         <p className="text-white/10 text-[120px] md:text-[180px] font-bold leading-none select-none">404</p>

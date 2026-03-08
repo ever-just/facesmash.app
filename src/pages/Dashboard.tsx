@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import SEOHead from "@/components/SEOHead";
 import { useNavigate } from "react-router-dom";
 import { getUserProfileByName } from "@/services/userProfileService";
 import FaceScanGallery from "@/components/FaceScanGallery";
@@ -8,12 +9,15 @@ import WelcomeSection from "@/components/dashboard/WelcomeSection";
 import ProfileCard from "@/components/dashboard/ProfileCard";
 import EnhancedSecurityCard from "@/components/dashboard/EnhancedSecurityCard";
 import ActivityGraph from "@/components/dashboard/ActivityGraph";
+import UserSettings from "@/components/dashboard/UserSettings";
+import { useUserSettings } from "@/hooks/useUserSettings";
 import { testStorageSetup } from "@/utils/storageTest";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const settings = useUserSettings();
 
   useEffect(() => {
     const name = localStorage.getItem('currentUserName');
@@ -33,6 +37,29 @@ const Dashboard = () => {
     testStorageSetup();
   }, [navigate]);
 
+  // Auto-lock after inactivity
+  useEffect(() => {
+    if (!settings.autoLockMinutes || settings.autoLockMinutes <= 0) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        localStorage.removeItem('currentUserName');
+        navigate('/login');
+      }, settings.autoLockMinutes * 60 * 1000);
+    };
+
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, [settings.autoLockMinutes, navigate]);
+
   if (!userName) {
     return (
       <div className="min-h-screen bg-[#07080A] text-white flex items-center justify-center">
@@ -43,6 +70,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#07080A] text-white">
+      <SEOHead title="Dashboard" description="Your FaceSmash dashboard." path="/dashboard" noindex={true} />
       {/* film-grain overlay */}
       <div className="fixed inset-0 pointer-events-none z-[100] animate-grain opacity-40 mix-blend-overlay" />
 
@@ -52,7 +80,7 @@ const Dashboard = () => {
 
       <DashboardHeader userName={userName} />
 
-      <div className="max-w-6xl mx-auto px-6 py-10 relative z-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 relative z-10">
         <WelcomeSection userName={userName} />
 
         {/* Profile + Security — side by side */}
@@ -62,16 +90,23 @@ const Dashboard = () => {
         </div>
 
         {/* Activity */}
-        <div className="mb-4">
-          <ActivityGraph 
-            userEmail={userName} 
-            userCreatedAt={userProfile?.created_at}
-          />
-        </div>
+        {settings.showActivityHistory && (
+          <div className="mb-4">
+            <ActivityGraph 
+              userEmail={userName} 
+              userCreatedAt={userProfile?.created_at}
+            />
+          </div>
+        )}
 
         {/* Face Scan Gallery */}
         <div className="mb-4">
           <FaceScanGallery userEmail={userName} />
+        </div>
+
+        {/* Settings */}
+        <div className="mb-4">
+          <UserSettings userName={userName} />
         </div>
       </div>
     </div>

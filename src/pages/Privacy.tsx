@@ -1,9 +1,18 @@
 import { Link } from "react-router-dom";
 import { Scan, ArrowLeft, Shield, Eye, Database, Trash2, Lock, Globe, Mail } from "lucide-react";
+import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 const Privacy = () => {
+  const seoHead = (
+    <SEOHead
+      title="Privacy Policy"
+      description="FaceSmash Privacy Policy — Learn how we protect your biometric data. No photos stored, AES-256 encryption, browser-native processing. Your face data never leaves your device unencrypted."
+      path="/privacy"
+    />
+  );
+
   const lastUpdated = "March 7, 2026";
 
   const sections = [
@@ -141,6 +150,7 @@ const Privacy = () => {
 
   return (
     <div className="min-h-screen bg-[#07080A] text-white selection:bg-emerald-500/30 selection:text-white">
+      {seoHead}
       {/* film-grain overlay */}
       <div className="fixed inset-0 pointer-events-none z-[100] animate-grain opacity-40 mix-blend-overlay" />
 

@@ -1,0 +1,106 @@
+---
+title: API Overview
+description: FaceSmash REST API for server-side face recognition operations
+---
+
+## Base URL
+
+```
+https://api.facesmash.app/v1
+```
+
+<Callout type="warn">
+  The REST API is currently in development. The endpoints below describe the planned API surface.
+  The current backend uses PocketBase for data storage. A public REST API with API key authentication is coming soon.
+</Callout>
+
+## Authentication
+
+All API requests require an API key passed in the `Authorization` header:
+
+```bash
+curl https://api.facesmash.app/v1/faces/verify \
+  -H "Authorization: Bearer fs_live_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{"descriptor": [0.1, 0.2, ...]}'
+```
+
+See [Authentication](/docs/api-reference/authentication) for details on obtaining and managing API keys.
+
+## Endpoints
+
+### Faces
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/v1/faces/register` | Register a new face |
+| `POST` | `/v1/faces/verify` | Verify a face against a specific user (1:1) |
+| `POST` | `/v1/faces/identify` | Identify a face against all users (1:N) |
+| `POST` | `/v1/faces/detect` | Detect and analyze face quality |
+| `GET` | `/v1/faces/templates/:userId` | Get stored templates for a user |
+| `DELETE` | `/v1/faces/templates/:templateId` | Delete a specific template |
+
+### Users
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/v1/users` | List all registered users |
+| `GET` | `/v1/users/:id` | Get a user profile |
+| `DELETE` | `/v1/users/:id` | Delete a user and all their biometric data |
+| `GET` | `/v1/users/:id/logs` | Get sign-in history |
+
+### Webhooks
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/v1/webhooks` | Create a webhook |
+| `GET` | `/v1/webhooks` | List webhooks |
+| `DELETE` | `/v1/webhooks/:id` | Delete a webhook |
+
+## Response Format
+
+All responses follow a consistent JSON format:
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "meta": {
+    "requestId": "req_abc123",
+    "timestamp": "2026-03-08T00:00:00.000Z"
+  }
+}
+```
+
+### Error Responses
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NO_FACE_DETECTED",
+    "message": "No face was detected in the provided image",
+    "details": {}
+  },
+  "meta": {
+    "requestId": "req_abc123",
+    "timestamp": "2026-03-08T00:00:00.000Z"
+  }
+}
+```
+
+## Rate Limits
+
+| Plan | Requests/min | Requests/month |
+|---|---|---|
+| Free | 10 | 1,000 |
+| Pro | 100 | 50,000 |
+| Enterprise | Unlimited | Unlimited |
+
+Rate limit headers are included in every response:
+
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 97
+X-RateLimit-Reset: 1709856000
+```

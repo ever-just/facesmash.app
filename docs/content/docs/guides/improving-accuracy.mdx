@@ -1,0 +1,138 @@
+---
+title: Improving Accuracy
+description: Tips and best practices for better face recognition results
+---
+
+## Overview
+
+Face recognition accuracy depends on several factors — lighting, camera quality, face angle, and matching thresholds. This guide covers practical techniques to maximize recognition reliability.
+
+## Registration Best Practices
+
+### Capture Multiple Templates
+
+Store 3-5 face templates per user captured under different conditions:
+
+- **Lighting** — One in bright light, one in dim light
+- **Angle** — Straight on, slight left, slight right
+- **Distance** — Close up and at normal distance
+
+FaceSmash's multi-template matching automatically uses the best-matching template, so variety improves reliability.
+
+### Enforce Quality Minimums
+
+Reject low-quality captures during registration. A bad registration template leads to all future logins failing.
+
+```typescript
+// Recommended minimum quality settings for registration
+{
+  qualityThreshold: 0.5,   // Higher than login (0.35)
+  minFaceSize: 0.2,        // Face should be at least 20% of frame
+  maxHeadAngle: 20,        // Stricter than login
+  minLightingScore: 0.4,   // Require decent lighting
+}
+```
+
+### Guide the User
+
+Show real-time quality feedback during registration:
+
+- "Move closer" — Face too small
+- "Face the camera" — Head angle too large
+- "Find better lighting" — Lighting score low
+- "Hold still" — Blur detected
+
+## Login Optimization
+
+### Adaptive Thresholds
+
+FaceSmash automatically adjusts match thresholds based on:
+
+| Factor | Effect |
+|---|---|
+| **Poor lighting** | Threshold lowered by 0.05 (more lenient) |
+| **Good lighting** | Threshold raised by 0.02 (slightly stricter) |
+| **Many successful logins** | Confidence boost applied |
+| **High success rate** | Model trusts the match more |
+
+### Understanding Similarity Scores
+
+```
+1.0  ┃ Perfect match (same image)
+     ┃
+0.8  ┃ Very strong match
+     ┃
+0.6  ┃ Strong match — recommended for high-security
+     ┃
+0.45 ┃ ← Default threshold (balanced)
+     ┃
+0.35 ┃ ← Minimum threshold (poor lighting fallback)
+     ┃
+0.2  ┃ Weak — likely different people
+     ┃
+0.0  ┃ No similarity
+```
+
+### When Login Fails
+
+If a legitimate user fails to login, check these in order:
+
+1. **Lighting** — Is the room well-lit? Avoid backlighting (window behind user)
+2. **Camera** — Is the webcam clean and focused?
+3. **Face angle** — Is the user facing the camera directly?
+4. **Glasses/mask** — Significant face occlusion reduces accuracy
+5. **Template quality** — Were registration templates captured in good conditions?
+
+## Environment Tips
+
+### Lighting
+
+| Condition | Impact | Solution |
+|---|---|---|
+| **Backlit** (window behind) | Very bad — face appears dark | Face the light source |
+| **Overhead fluorescent** | Moderate — harsh shadows | Add a desk lamp |
+| **Natural daylight** | Best — even illumination | Ideal for registration |
+| **Very dim** | Bad — low contrast | Turn on more lights |
+
+### Camera
+
+- **Built-in webcam** — Usually sufficient, 720p or higher
+- **External webcam** — Often better quality and angle
+- **Phone camera** — Excellent quality, good for registration
+
+### Distance
+
+The ideal face-to-camera distance is **40-80cm** (roughly arm's length). The face should fill about **25-35%** of the frame.
+
+## Technical Tuning
+
+### Threshold Selection Guide
+
+| Use Case | Match Threshold | Duplicate Threshold |
+|---|---|---|
+| **Consumer app** (convenience) | 0.40 - 0.45 | 0.75 |
+| **Business app** (balanced) | 0.45 - 0.55 | 0.80 |
+| **High security** (strict) | 0.55 - 0.65 | 0.85 |
+
+### Descriptor Quality
+
+The 128-dimensional face descriptor is the core of matching. Quality depends on:
+
+- **Detection model** — SSD MobileNet v1 (default) is more accurate than TinyFaceDetector
+- **Input resolution** — Higher resolution captures more facial detail
+- **Face alignment** — Landmarks-based alignment improves descriptor quality
+- **Multiple captures** — Averaging descriptors from multiple frames reduces noise
+
+### Multi-Template Matching
+
+When a user has multiple templates, FaceSmash compares against all of them and uses the best match:
+
+```
+Template 1 (bright lighting):  similarity = 0.52
+Template 2 (dim lighting):     similarity = 0.67  ← best
+Template 3 (slight angle):     similarity = 0.48
+
+Result: similarity = 0.67, isMatch = true (threshold 0.45)
+```
+
+This is why storing templates from different conditions dramatically improves reliability.

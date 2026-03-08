@@ -56,21 +56,35 @@ export const useFaceTracking = ({
       if (detection) {
         const box = detection.detection.box;
         
-        // Get the actual displayed video dimensions
-        const videoElement = video.getBoundingClientRect();
-        const videoDisplayWidth = videoElement.width;
-        const videoDisplayHeight = videoElement.height;
+        // Get the displayed container dimensions
+        const rect = video.getBoundingClientRect();
+        const containerW = rect.width;
+        const containerH = rect.height;
+        const videoW = video.videoWidth;
+        const videoH = video.videoHeight;
         
-        // Calculate scale factors between actual video and displayed video
-        const scaleX = videoDisplayWidth / video.videoWidth;
-        const scaleY = videoDisplayHeight / video.videoHeight;
+        // object-cover scales & crops: compute the effective scale and offsets
+        const scale = Math.max(containerW / videoW, containerH / videoH);
+        const scaledW = videoW * scale;
+        const scaledH = videoH * scale;
+        // object-cover centers the overflow, so the crop offset is:
+        const offsetX = (scaledW - containerW) / 2;
+        const offsetY = (scaledH - containerH) / 2;
         
-        // Calculate position as pixels relative to the displayed video
+        // Map detection box center to container pixel coords
+        const centerX = (box.x + box.width / 2) * scale - offsetX;
+        const centerY = (box.y + box.height / 2) * scale - offsetY;
+        const w = box.width * scale;
+        const h = box.height * scale;
+        
+        // Mirror X axis because the front camera video is displayed mirrored via CSS scaleX(-1)
+        const mirroredCenterX = containerW - centerX;
+        
         const position: FacePosition = {
-          x: box.x * scaleX,
-          y: box.y * scaleY,
-          width: box.width * scaleX,
-          height: box.height * scaleY,
+          x: mirroredCenterX,
+          y: centerY,
+          width: w,
+          height: h,
           confidence: detection.detection.score
         };
         

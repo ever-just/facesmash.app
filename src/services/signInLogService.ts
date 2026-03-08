@@ -4,10 +4,7 @@ import { pb } from "@/integrations/pocketbase/client";
 export interface SignInLog {
   id: string;
   user_email: string;
-  sign_in_time: string;
-  ip_address: string | null;
-  success_status: boolean;
-  created_at: string;
+  created: string;
 }
 
 export const createSignInLog = async (userEmail: string): Promise<SignInLog | null> => {
@@ -29,7 +26,7 @@ export const createSignInLog = async (userEmail: string): Promise<SignInLog | nu
 
 export const getSignInLogsByUser = async (userEmail: string): Promise<SignInLog[]> => {
   try {
-    const records = await pb.collection('sign_in_logs').getList(1, 10, {
+    const records = await pb.collection('sign_in_logs').getList(1, 500, {
       filter: `user_email="${userEmail}" && success=true`,
       sort: '-created',
     });

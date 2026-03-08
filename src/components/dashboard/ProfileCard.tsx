@@ -25,7 +25,7 @@ const ProfileCard = ({ userName, userProfile }: ProfileCardProps) => {
                 <Check className="size-3.5" /> {row.value}
               </span>
             ) : (
-              <span className="text-white/70 text-sm truncate ml-4 max-w-[200px]">{row.value}</span>
+              <span className="text-white/70 text-sm truncate ml-4 max-w-[140px] sm:max-w-[200px]">{row.value}</span>
             )}
           </div>
         ))}

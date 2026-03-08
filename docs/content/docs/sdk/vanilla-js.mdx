@@ -1,0 +1,207 @@
+---
+title: Vanilla JavaScript
+description: Framework-agnostic integration for any web application
+---
+
+## Installation
+
+```bash
+npm install @facesmash/sdk
+```
+
+Or via CDN:
+
+```html
+<script type="module">
+  import { FaceSmash } from 'https://cdn.facesmash.app/sdk/latest/index.mjs';
+</script>
+```
+
+<Callout type="info">
+  The SDK is coming soon. This page documents the planned JavaScript API.
+</Callout>
+
+## Basic Usage
+
+### Initialize
+
+```javascript
+import { FaceSmash } from '@facesmash/sdk';
+
+const facesmash = new FaceSmash({
+  apiKey: 'fs_live_...',
+  apiUrl: 'https://api.facesmash.app',
+});
+
+// Load ML models (call once on app start)
+await facesmash.init();
+console.log('Models loaded, ready to detect faces');
+```
+
+### Register a User
+
+```javascript
+const container = document.getElementById('camera-container');
+
+// Mount the camera UI
+const camera = facesmash.createCamera(container, {
+  showOverlay: true,
+  showQuality: true,
+});
+
+// Start registration flow
+const result = await facesmash.register({
+  email: 'user@example.com',
+  fullName: 'Jane Doe',  // optional
+});
+
+if (result.success) {
+  console.log('Registered!', result.userId);
+  console.log('Quality score:', result.qualityScore);
+} else {
+  console.error('Registration failed:', result.error);
+}
+
+// Clean up
+camera.destroy();
+```
+
+### Verify / Login
+
+```javascript
+const container = document.getElementById('camera-container');
+const camera = facesmash.createCamera(container);
+
+const result = await facesmash.verify();
+
+if (result.success) {
+  console.log('Welcome back,', result.user.email);
+  console.log('Match similarity:', result.similarity);
+} else {
+  console.log('No match found');
+}
+
+camera.destroy();
+```
+
+## Event-Driven API
+
+For more control, use the event-driven approach:
+
+```javascript
+const facesmash = new FaceSmash({ apiKey: 'fs_live_...' });
+await facesmash.init();
+
+// Listen for events
+facesmash.on('face:detected', (position) => {
+  console.log('Face at', position.x, position.y);
+  console.log('Confidence:', position.confidence);
+});
+
+facesmash.on('face:lost', () => {
+  console.log('No face detected');
+});
+
+facesmash.on('quality:update', (score) => {
+  document.getElementById('quality').textContent =
+    `Quality: ${(score * 100).toFixed(0)}%`;
+});
+
+facesmash.on('match:found', (result) => {
+  console.log('Matched:', result.user.email);
+});
+
+facesmash.on('match:failed', (details) => {
+  console.log('Best similarity:', details.bestSimilarity);
+  console.log('Threshold was:', details.threshold);
+});
+
+facesmash.on('error', (error) => {
+  console.error('Error:', error.code, error.message);
+});
+
+// Start scanning
+const container = document.getElementById('camera');
+facesmash.mount(container);
+facesmash.startVerification();
+```
+
+## Low-Level API
+
+For full control over the face recognition pipeline:
+
+```javascript
+import {
+  initModels,
+  detectFace,
+  extractDescriptor,
+  analyzeFaceQuality,
+  matchDescriptors,
+} from '@facesmash/sdk/core';
+
+// Load models
+await initModels();
+
+// Detect face in a video element
+const video = document.getElementById('webcam');
+const detection = await detectFace(video);
+
+if (detection) {
+  // Extract 128-d face descriptor
+  const descriptor = await extractDescriptor(video, detection);
+
+  // Analyze quality
+  const quality = analyzeFaceQuality(detection, video);
+  console.log('Quality:', quality.overallScore);
+  console.log('Lighting:', quality.lightingScore);
+  console.log('Sharpness:', quality.sharpness);
+
+  // Match against stored descriptors
+  const storedDescriptors = [/* from your backend */];
+  const match = matchDescriptors(descriptor, storedDescriptors, {
+    threshold: 0.45,
+    adaptiveThreshold: true,
+    lightingScore: quality.lightingScore,
+  });
+
+  console.log('Best match:', match.bestSimilarity);
+  console.log('Is match:', match.isMatch);
+}
+```
+
+## TypeScript Support
+
+The SDK is fully typed. Key types:
+
+```typescript
+interface FaceSmashConfig {
+  apiKey: string;
+  apiUrl?: string;
+  debug?: boolean;
+}
+
+interface FacePosition {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+}
+
+interface QualityScore {
+  overallScore: number;    // 0-1
+  lightingScore: number;   // 0-1
+  sharpness: number;       // 0-1
+  headPose: { yaw: number; pitch: number; roll: number };
+  eyeAspectRatio: number;
+  faceSize: number;        // relative to frame
+}
+
+interface MatchResult {
+  isMatch: boolean;
+  bestSimilarity: number;  // 0-1
+  adaptedThreshold: number;
+  matchCount: number;
+  avgSimilarity: number;
+}
+```

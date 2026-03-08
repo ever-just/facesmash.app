@@ -1,9 +1,18 @@
 import { Link } from "react-router-dom";
 import { Scan, ArrowLeft, FileText, Scale, AlertTriangle, UserCheck, Ban, RefreshCw, Gavel, Mail } from "lucide-react";
+import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 const Terms = () => {
+  const seoHead = (
+    <SEOHead
+      title="Terms of Service"
+      description="FaceSmash Terms of Service — Read the terms governing your use of FaceSmash passwordless facial recognition authentication service."
+      path="/terms"
+    />
+  );
+
   const lastUpdated = "March 7, 2026";
 
   const sections = [
@@ -147,6 +156,7 @@ const Terms = () => {
 
   return (
     <div className="min-h-screen bg-[#07080A] text-white selection:bg-emerald-500/30 selection:text-white">
+      {seoHead}
       {/* film-grain overlay */}
       <div className="fixed inset-0 pointer-events-none z-[100] animate-grain opacity-40 mix-blend-overlay" />
 

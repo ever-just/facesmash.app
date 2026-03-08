@@ -1,0 +1,83 @@
+---
+title: SDK Overview
+description: The FaceSmash JavaScript SDK for browser-based facial recognition
+---
+
+## Overview
+
+The FaceSmash SDK provides everything you need to add facial recognition authentication to your web application. It runs entirely in the browser using WebGL-accelerated TensorFlow.js models.
+
+<Callout type="warn">
+  The SDK package (`@facesmash/sdk`) is currently in development. This documentation describes the planned API surface. Sign up at [everjust.co](https://everjust.co) for early access.
+</Callout>
+
+## Core Capabilities
+
+| Capability | Description |
+|---|---|
+| **Face Detection** | SSD MobileNet v1 neural network for reliable face detection |
+| **Descriptor Extraction** | 128-dimensional face descriptor via face-api.js (vladmandic fork) |
+| **Quality Analysis** | Lighting, blur, head pose, eye aspect ratio, and face size scoring |
+| **Template Matching** | Multi-template weighted matching with adaptive thresholds |
+| **Liveness Detection** | Blink detection, head movement, texture analysis for anti-spoofing |
+
+## Packages
+
+| Package | Description | Status |
+|---|---|---|
+| `@facesmash/sdk` | Core SDK — detection, matching, templates | Coming Soon |
+| `@facesmash/react` | React components — `<FaceLogin>`, `<FaceRegister>` | Coming Soon |
+| `@facesmash/api` | REST API client for server-side operations | Coming Soon |
+
+## Browser Requirements
+
+- **WebGL** — Required for TensorFlow.js GPU acceleration
+- **getUserMedia** — Camera access via the MediaDevices API
+- **Web Workers** — Optional, for offloading face processing
+
+### Supported Browsers
+
+| Browser | Min Version |
+|---|---|
+| Chrome | 80+ |
+| Firefox | 78+ |
+| Safari | 14+ |
+| Edge | 80+ |
+
+## Quick Example
+
+```typescript
+import { FaceSmash } from '@facesmash/sdk';
+
+// Initialize
+const facesmash = new FaceSmash({
+  apiKey: 'fs_live_...',
+  apiUrl: 'https://api.facesmash.app',
+});
+
+// Wait for models to load
+await facesmash.init();
+
+// Register a user
+const registration = await facesmash.register({
+  email: 'user@example.com',
+  videoElement: document.getElementById('webcam'),
+});
+
+console.log(registration);
+// { success: true, userId: 'abc123', qualityScore: 0.85 }
+
+// Verify / Login
+const login = await facesmash.verify({
+  videoElement: document.getElementById('webcam'),
+});
+
+console.log(login);
+// { success: true, user: { email: 'user@example.com', similarity: 0.78 } }
+```
+
+## Next Steps
+
+- [React Components](/docs/sdk/react-components) — Drop-in UI components
+- [Vanilla JS](/docs/sdk/vanilla-js) — Framework-agnostic integration
+- [Configuration](/docs/sdk/configuration) — Options, thresholds, and callbacks

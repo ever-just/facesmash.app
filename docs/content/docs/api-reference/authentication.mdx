@@ -1,0 +1,68 @@
+---
+title: Authentication
+description: API key management and authentication methods
+---
+
+## API Keys
+
+Every request to the FaceSmash API requires an API key. Keys are scoped to your organization and can have different permission levels.
+
+<Callout type="info">
+  API key management is coming soon. During the beta period, contact [support@everjust.co](mailto:support@everjust.co) to obtain an API key.
+</Callout>
+
+## Key Types
+
+| Type | Prefix | Use Case |
+|---|---|---|
+| **Live** | `fs_live_` | Production applications |
+| **Test** | `fs_test_` | Development and testing (rate-limited) |
+
+## Using Your API Key
+
+Pass the API key in the `Authorization` header:
+
+```bash
+curl https://api.facesmash.app/v1/faces/detect \
+  -H "Authorization: Bearer fs_live_your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{"image": "base64..."}'
+```
+
+Or in the SDK:
+
+```typescript
+const facesmash = new FaceSmash({
+  apiKey: 'fs_live_your_api_key',
+});
+```
+
+## Security Best Practices
+
+- **Never expose live keys in client-side code** — Use test keys for browser-side SDK operations and live keys only on your server
+- **Rotate keys regularly** — Generate new keys and deprecate old ones
+- **Use environment variables** — Store keys in `.env` files, never commit them to source control
+- **Restrict by domain** — Configure allowed origins for each key in the dashboard
+
+```bash
+# .env
+FACESMASH_API_KEY=fs_live_your_api_key
+```
+
+```typescript
+// Server-side only
+const facesmash = new FaceSmash({
+  apiKey: process.env.FACESMASH_API_KEY,
+});
+```
+
+## Permissions
+
+| Permission | Description | Live | Test |
+|---|---|---|---|
+| `faces:register` | Register new faces | Yes | Yes |
+| `faces:verify` | Verify faces (1:1) | Yes | Yes |
+| `faces:identify` | Identify faces (1:N) | Yes | Yes |
+| `users:read` | Read user profiles | Yes | Yes |
+| `users:delete` | Delete users and biometric data | Yes | No |
+| `webhooks:manage` | Create and manage webhooks | Yes | No |

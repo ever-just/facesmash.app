@@ -1,0 +1,42 @@
+---
+title: Introduction
+description: FaceSmash — Passwordless facial recognition authentication for any app
+---
+
+## What is FaceSmash?
+
+FaceSmash is a **browser-based facial recognition platform** that replaces passwords with your face. It handles the entire biometric authentication pipeline — face detection, quality analysis, descriptor extraction, template matching, and identity verification — all running client-side in the browser using WebGL-accelerated neural networks.
+
+### Key Features
+
+- **Passwordless login** — Users sign in by looking at their camera
+- **Browser-native** — No native SDKs or app installs required; works on any device with a camera
+- **Privacy-first** — Face descriptors are processed client-side; raw images never leave the device
+- **Adaptive matching** — Thresholds adjust automatically based on lighting, quality, and user history
+- **Multi-template learning** — Accuracy improves over time as the system learns each user's face from different angles and conditions
+- **Liveness detection** — Built-in anti-spoofing checks to prevent photo/video attacks
+
+### How It Works
+
+1. **Registration** — User captures their face via webcam. FaceSmash extracts a 128-dimensional face descriptor and stores it securely.
+2. **Login** — User presents their face. FaceSmash extracts a new descriptor and compares it against all registered users using enhanced Euclidean distance matching with adaptive thresholds.
+3. **Verification** — If the similarity exceeds the threshold, the user is authenticated. Learning metrics are updated for future accuracy improvements.
+
+### Architecture
+
+```
+Browser (Client)                    Server (PocketBase API)
+┌─────────────────┐                ┌──────────────────────┐
+│ WebGL + TF.js   │                │ user_profiles        │
+│ SSD MobileNet   │  ──REST API──▶ │ face_templates       │
+│ Face Descriptors│                │ face_scans           │
+│ Quality Analysis│                │ sign_in_logs         │
+└─────────────────┘                └──────────────────────┘
+```
+
+### Next Steps
+
+- [Quickstart](/docs/quickstart) — Get up and running in 5 minutes
+- [JavaScript SDK](/docs/sdk) — Drop-in components for React and vanilla JS
+- [API Reference](/docs/api-reference) — REST API endpoints (coming soon)
+- [Security & Privacy](/docs/security) — How biometric data is handled
