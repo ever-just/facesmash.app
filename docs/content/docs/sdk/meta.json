@@ -1,5 +1,6 @@
 {
   "title": "JavaScript SDK",
+  "icon": "Package",
   "pages": [
     "index",
     "react-components",

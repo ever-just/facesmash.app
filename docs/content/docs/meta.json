@@ -1,15 +1,16 @@
 {
   "title": "Documentation",
+  "icon": "BookOpen",
   "pages": [
     "index",
     "quickstart",
     "---SDK---",
     "sdk/...",
-    "---API---",
+    "---API Reference---",
     "api-reference/...",
     "---Guides---",
     "guides/...",
-    "---Security---",
+    "---Security & Privacy---",
     "security/..."
   ]
 }

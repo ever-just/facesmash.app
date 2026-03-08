@@ -1,5 +1,6 @@
 {
   "title": "Guides",
+  "icon": "BookText",
   "pages": [
     "index",
     "react-integration",
