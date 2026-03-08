@@ -32,19 +32,48 @@ interface UptimeEntry {
   latency: number;
 }
 
+/* ── Service definitions (static — never changes) ── */
+const SERVICE_DEFS: { name: string; url: string; description: string; corsMode: RequestMode; icon: React.ReactNode }[] = [
+  {
+    name: "FaceSmash App",
+    url: "https://facesmash.app",
+    description: "Main web application (Netlify)",
+    corsMode: "no-cors",
+    icon: <Globe className="size-5 text-emerald-400" />,
+  },
+  {
+    name: "PocketBase API",
+    url: "https://api.facesmash.app/api/health",
+    description: "Backend REST API (DigitalOcean)",
+    corsMode: "cors",
+    icon: <Server className="size-5 text-teal-400" />,
+  },
+  {
+    name: "Documentation",
+    url: "https://docs.facesmash.app",
+    description: "Developer docs (Netlify)",
+    corsMode: "no-cors",
+    icon: <BookOpen className="size-5 text-purple-400" />,
+  },
+];
+
 /* ── Ping helper ── */
 const pingService = async (
-  url: string
+  url: string,
+  corsMode: RequestMode
 ): Promise<{ ok: boolean; latency: number }> => {
   const start = performance.now();
   try {
     const res = await fetch(url, {
       method: "GET",
-      mode: "cors",
+      mode: corsMode,
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });
     const latency = Math.round(performance.now() - start);
+    if (corsMode === "no-cors") {
+      return { ok: res.type === "opaque" || res.ok, latency };
+    }
     return { ok: res.ok, latency };
   } catch {
     const latency = Math.round(performance.now() - start);
@@ -54,35 +83,14 @@ const pingService = async (
 
 /* ── Component ── */
 const Status = () => {
-  const [services, setServices] = useState<ServiceCheck[]>([
-    {
-      name: "FaceSmash App",
-      url: "https://facesmash.app",
-      description: "Main web application (Netlify)",
-      icon: <Globe className="size-5 text-emerald-400" />,
-      status: "checking",
+  const [services, setServices] = useState<ServiceCheck[]>(
+    SERVICE_DEFS.map((d) => ({
+      ...d,
+      status: "checking" as const,
       latency: null,
       lastChecked: null,
-    },
-    {
-      name: "PocketBase API",
-      url: "https://api.facesmash.app/api/health",
-      description: "Backend REST API (DigitalOcean)",
-      icon: <Server className="size-5 text-teal-400" />,
-      status: "checking",
-      latency: null,
-      lastChecked: null,
-    },
-    {
-      name: "Documentation",
-      url: "https://docs.facesmash.app",
-      description: "Developer docs (Netlify)",
-      icon: <BookOpen className="size-5 text-purple-400" />,
-      status: "checking",
-      latency: null,
-      lastChecked: null,
-    },
-  ]);
+    }))
+  );
 
   const [uptimeLog, setUptimeLog] = useState<UptimeEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,10 +101,13 @@ const Status = () => {
     const now = new Date();
 
     const updated = await Promise.all(
-      services.map(async (svc) => {
-        const { ok, latency } = await pingService(svc.url);
+      SERVICE_DEFS.map(async (def) => {
+        const { ok, latency } = await pingService(def.url, def.corsMode);
         return {
-          ...svc,
+          name: def.name,
+          url: def.url,
+          description: def.description,
+          icon: def.icon,
           status: ok
             ? ("operational" as const)
             : latency > 5000
@@ -120,19 +131,17 @@ const Status = () => {
           latency: apiCheck.latency ?? 0,
         };
         const next = [...prev, entry];
-        // Keep last 60 entries (30 minutes at 30s intervals)
         return next.slice(-60);
       });
     }
 
     setRefreshing(false);
-  }, [services]);
+  }, []);
 
   // Initial check + auto-refresh every 30s
   useEffect(() => {
     runChecks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [runChecks]);
 
   useEffect(() => {
     if (!autoRefresh) return;

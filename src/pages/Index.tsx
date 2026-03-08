@@ -28,7 +28,6 @@ import {
   ScanFace,
   Menu,
   X,
-  Activity,
   LayoutDashboard,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -168,10 +167,6 @@ const Index = () => {
               )}
             </div>
 
-            <Link to="/status" className="text-white/40 hover:text-white/70 text-sm px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all flex items-center gap-1.5">
-              <Activity className="size-3.5" />
-              Status
-            </Link>
           </div>
 
           {/* Desktop right side */}
@@ -221,11 +216,6 @@ const Index = () => {
                 <Github className="size-4" /> GitHub
                 <ExternalLink className="size-3 ml-auto text-white/15" />
               </a>
-
-              <p className="text-[10px] uppercase tracking-wider text-white/20 px-3 pt-4 pb-1">More</p>
-              <Link to="/status" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
-                <Activity className="size-4" /> System status
-              </Link>
 
               <div className="pt-4 px-3">
                 <Link to="/register" onClick={() => setMobileOpen(false)}>
