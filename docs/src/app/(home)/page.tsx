@@ -3,7 +3,7 @@ import Link from 'next/link';
 export default function HomePage() {
   return (
     <div className="flex flex-col justify-center text-center flex-1 px-4 py-16 max-w-4xl mx-auto">
-      <div className="text-6xl mb-6">😎</div>
+      <img src="/facesmash-logo.png" alt="FaceSmash" className="size-16 rounded-2xl shadow-lg mx-auto mb-6" />
       <h1 className="text-4xl font-extrabold mb-4 tracking-tight">
         FaceSmash Developer Docs
       </h1>
