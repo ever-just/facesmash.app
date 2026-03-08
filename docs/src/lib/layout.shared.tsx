@@ -19,6 +19,7 @@ export function baseOptions(): BaseLayoutProps {
       { text: 'Guides', url: '/docs/guides', active: 'nested-url' },
       { text: 'Security', url: '/docs/security', active: 'nested-url' },
       { text: 'npm', url: 'https://www.npmjs.com/package/@facesmash/sdk', external: true },
+      { text: 'Portal', url: 'https://developers.facesmash.app', external: true },
       { text: 'App', url: 'https://facesmash.app', external: true },
     ],
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,

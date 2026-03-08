@@ -1,0 +1,125 @@
+---
+title: Developer Portal
+description: Manage API keys, monitor usage, and configure your FaceSmash integration from the Developer Portal.
+---
+
+## What is the Developer Portal?
+
+The **FaceSmash Developer Portal** is a dedicated dashboard for developers integrating face authentication into their apps. It provides:
+
+- **API Key Management** — Create, rotate, and revoke API keys with rate limiting and usage tracking
+- **Application Registry** — Register and configure your apps that use the FaceSmash API
+- **Usage Analytics** — Monitor API call volume, latency, and error rates in real-time
+- **Billing & Plans** — View your current plan, upgrade, and manage subscriptions
+- **Team Management** — Invite team members and manage permissions
+
+<a href="https://developers.facesmash.app" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 transition-colors no-underline mt-2">
+  Open Developer Portal →
+</a>
+
+---
+
+## Getting Started
+
+### 1. Create an Account
+
+Visit [developers.facesmash.app](https://developers.facesmash.app) and sign up with your email. No credit card required — the Free plan includes 1,000 API calls per month.
+
+### 2. Generate an API Key
+
+Navigate to **Dashboard → API Keys** and click "Create Key". Your key will look like:
+
+```
+fsk_live_abc123...
+```
+
+Store this securely — it's shown only once. You can always create a new one if needed.
+
+### 3. Install the SDK
+
+```bash
+npm install @facesmash/sdk
+```
+
+### 4. Initialize with Your Key
+
+```typescript
+import { FaceSmashClient } from '@facesmash/sdk';
+
+const client = new FaceSmashClient({
+  apiKey: process.env.FACESMASH_API_KEY,
+});
+
+// Detect faces
+const detection = await client.detect({ image: base64Image });
+
+// Register a user
+await client.register({
+  userId: 'user_123',
+  descriptors: detection.descriptors,
+});
+
+// Authenticate
+const login = await client.login({
+  descriptor: faceDescriptor,
+});
+```
+
+---
+
+## Portal Features
+
+### API Keys
+
+Each key supports:
+
+| Feature | Description |
+|---|---|
+| **Rate Limiting** | Configure requests per second/minute |
+| **Usage Tracking** | See call counts per key |
+| **Revocation** | Instantly disable compromised keys |
+| **Scoping** | Restrict keys to specific operations |
+
+Keys are managed via [Unkey](https://unkey.dev) for enterprise-grade key infrastructure.
+
+### Usage Dashboard
+
+The usage page shows:
+
+- **Total API calls** this billing period
+- **Calls by endpoint** (detect, register, login, verify)
+- **Average latency** per operation
+- **Error rate** and top error codes
+- **Time-series chart** of daily/weekly/monthly volume
+
+### Billing
+
+| Plan | Price | API Calls | Features |
+|---|---|---|---|
+| **Free** | $0/mo | 1,000/mo | Basic API access, community support |
+| **Pro** | $29/mo | 50,000/mo | Priority support, webhooks, team members |
+| **Enterprise** | Custom | Unlimited | SLA, dedicated infra, custom models |
+
+---
+
+## How It Connects
+
+The Developer Portal is one part of the FaceSmash ecosystem:
+
+| Property | URL | Purpose |
+|---|---|---|
+| **FaceSmash App** | [facesmash.app](https://facesmash.app) | End-user face login & registration |
+| **Documentation** | [docs.facesmash.app](https://docs.facesmash.app) | Guides, SDK reference, API docs |
+| **Developer Portal** | [developers.facesmash.app](https://developers.facesmash.app) | API keys, usage analytics, billing |
+| **SDK on npm** | [@facesmash/sdk](https://www.npmjs.com/package/@facesmash/sdk) | Install the SDK package |
+| **GitHub** | [ever-just/facesmash.app](https://github.com/ever-just/facesmash.app) | Source code, issues |
+
+---
+
+## Related Docs
+
+- [**Quickstart**](/docs/quickstart) — Get face login working in 5 minutes
+- [**SDK Overview**](/docs/sdk) — Architecture, exports, and neural network details
+- [**React Integration**](/docs/guides/react-integration) — Step-by-step React setup
+- [**API Reference**](/docs/api-reference) — PocketBase REST API endpoints
+- [**Security**](/docs/security) — How biometric data is protected
