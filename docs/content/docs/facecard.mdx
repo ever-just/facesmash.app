@@ -1,0 +1,207 @@
+---
+title: Sign in with FaceCard
+description: FaceCard is a new authentication primitive — like "Sign in with Google," but using your face instead of a third-party account.
+---
+
+## What is FaceCard?
+
+**FaceCard** is a new type of authentication. Instead of relying on passwords, OAuth providers, or device-locked biometrics, FaceCard lets users sign in to any website or app by looking at their camera.
+
+Think of it like "Sign in with Google" or "Sign in with Apple" — but instead of trusting a third-party account, the user authenticates with their **face**. No passwords, no OAuth tokens, no single-provider lock-in. Your face is your credential, and it works everywhere.
+
+```
+┌─────────────────────────────────────┐
+│                                     │
+│     Sign in to your account         │
+│                                     │
+│  ┌───────────────────────────────┐  │
+│  │  email@example.com            │  │
+│  └───────────────────────────────┘  │
+│  ┌───────────────────────────────┐  │
+│  │  ••••••••                     │  │
+│  └───────────────────────────────┘  │
+│  ┌───────────────────────────────┐  │
+│  │         Sign in               │  │
+│  └───────────────────────────────┘  │
+│                                     │
+│           ── or ──                  │
+│                                     │
+│  ╔═══════════════════════════════╗  │
+│  ║   👤 Sign in with FaceCard   ║  │
+│  ╚═══════════════════════════════╝  │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+Users click "Sign in with FaceCard," glance at their camera, and they're authenticated in under 2 seconds.
+
+---
+
+## Why FaceCard?
+
+### The Problem with Existing Auth
+
+Every current authentication method has significant trade-offs:
+
+- **Passwords** are forgettable, phishable, reused across sites, and create friction.
+- **OAuth / Social login** (Google, Apple, GitHub) ties your identity to a third-party ecosystem. If that provider goes down or changes their policies, your users lose access.
+- **Face ID / Windows Hello** only work within their respective ecosystems. Switch from iPhone to a work laptop? You're back to passwords.
+- **Passkeys** are promising but have inconsistent browser/device support and confuse users who don't understand the concept.
+
+### What FaceCard Does Differently
+
+FaceCard runs entirely in the browser. It uses a 128-dimensional biometric signature extracted client-side using WebGL-accelerated neural networks. No photos are stored. No third-party dependencies. No special hardware required beyond a standard webcam.
+
+| Advantage | How |
+|---|---|
+| **Universal** | Works on any device with a camera and a modern browser — iOS, Android, Mac, Windows, Linux |
+| **Private** | All face processing happens client-side. Only encrypted math vectors are transmitted |
+| **Self-contained** | No dependency on Google, Apple, or any OAuth provider |
+| **Fast** | Average authentication time: 1.8 seconds |
+| **Secure** | 128-dimensional biometric signatures can't be guessed, phished, or reused |
+
+---
+
+## Comparison: FaceCard vs Other Auth Methods
+
+| Feature | FaceCard | Passwords | Passkeys | Face ID | OAuth / Social |
+|---|---|---|---|---|---|
+| Nothing to remember | ✅ | ❌ | ✅ | ✅ | ✅ |
+| Cross-platform | ✅ | ✅ | ⚠️ Partial | ❌ Apple only | ✅ |
+| No third-party dependency | ✅ | ✅ | ⚠️ Partial | ❌ | ❌ |
+| Phishing resistant | ✅ | ❌ | ✅ | ✅ | ⚠️ Partial |
+| Works on any device | ✅ | ✅ | ⚠️ Partial | ❌ | ✅ |
+| No special hardware | ✅ | ✅ | ❌ Needs FIDO key | ❌ Needs TrueDepth | ✅ |
+| Biometric security | ✅ | ❌ | ⚠️ Optional | ✅ | ❌ |
+| Sub-2 second auth | ✅ | ❌ | ✅ | ✅ | ❌ |
+| No account lockout risk | ✅ | ❌ | ⚠️ Partial | ✅ | ⚠️ Partial |
+| Privacy-first (no tracking) | ✅ | ⚠️ Partial | ✅ | ✅ | ❌ |
+| Works in any browser | ✅ | ✅ | ⚠️ Partial | ❌ | ✅ |
+| Self-hostable | ✅ | ✅ | ❌ | ❌ | ❌ |
+
+### Key Takeaways
+
+- **Passwords** fail on almost every modern security metric — phishable, forgettable, slow.
+- **Passkeys** are a step forward but have fragmented device support and confuse non-technical users.
+- **Face ID** is excellent UX but locked to Apple devices. Switch ecosystems and you lose it.
+- **OAuth** is convenient but creates vendor dependency and shares user data with third parties.
+- **FaceCard** combines the UX of Face ID, the universality of passwords, and the privacy of passkeys — without their respective downsides.
+
+---
+
+## How FaceCard Works Under the Hood
+
+### 1. User clicks "Sign in with FaceCard"
+
+The website or app renders a FaceCard button using the `@facesmash/sdk`:
+
+```tsx
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+<FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+  <FaceLogin
+    onResult={(r) => r.success && redirect('/dashboard')}
+  />
+</FaceSmashProvider>
+```
+
+### 2. Camera activates, face is captured
+
+The SDK activates the user's camera via `getUserMedia` and captures 3+ frames. Each frame is analyzed for quality (lighting, blur, face size, pose).
+
+### 3. Biometric signature extracted
+
+The best-quality frame is processed through 5 neural networks running client-side via TensorFlow.js:
+
+```
+Camera frame
+  → SSD MobileNet v1 (face detection)
+  → FaceLandmark68Net (68-point facial landmark mapping)
+  → FaceRecognitionNet (128-D descriptor extraction)
+  → Quality analysis (lighting, blur, confidence)
+  → Liveness detection (anti-spoofing)
+```
+
+The result is a **128-dimensional numeric vector** — a compact mathematical signature of the user's face. This is the FaceCard.
+
+### 4. Signature compared server-side
+
+The 128-D vector is sent (encrypted) to the server, where it's compared against stored vectors using cosine similarity with adaptive thresholds. If the match exceeds the threshold, the user is authenticated.
+
+### 5. Adaptive learning
+
+Each successful login optionally stores a new face template, building a richer model of the user's appearance under different conditions (lighting, angles, aging). Accuracy improves over time.
+
+---
+
+## Privacy & Security
+
+FaceCard was designed with privacy as a core constraint, not an afterthought:
+
+- **No photos stored** — Raw camera frames never leave the browser. Only compact 128-D numeric vectors are transmitted.
+- **Client-side processing** — All neural network inference happens in the browser via WebGL. The server never sees raw biometric data.
+- **AES-256 encryption** — Stored face vectors are encrypted at rest.
+- **Non-reversible** — It's mathematically impossible to reconstruct a face image from a 128-D descriptor vector.
+- **No third-party data sharing** — Unlike OAuth, FaceCard doesn't share any user data with external providers.
+- **Self-hostable** — Run your own PocketBase instance. Your data, your infrastructure, your rules.
+
+---
+
+## Adding FaceCard to Your App
+
+### React
+
+```bash
+npm install @facesmash/sdk
+```
+
+```tsx
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+function LoginPage() {
+  return (
+    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+      <div>
+        <h1>Sign in</h1>
+        {/* Traditional login form here */}
+
+        <p>— or —</p>
+
+        {/* FaceCard button */}
+        <FaceLogin
+          onResult={(result) => {
+            if (result.success) {
+              window.location.href = '/dashboard';
+            }
+          }}
+        />
+      </div>
+    </FaceSmashProvider>
+  );
+}
+```
+
+### Vanilla JavaScript
+
+```javascript
+import { createFaceSmash } from '@facesmash/sdk';
+
+const client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+await client.init();
+
+// When user clicks "Sign in with FaceCard"
+const result = await client.login(capturedImages);
+if (result.success) {
+  console.log(`Welcome back, ${result.user.name}!`);
+}
+```
+
+---
+
+## Next Steps
+
+- [**Quickstart**](/docs/quickstart) — Set up face login in 5 minutes
+- [**React Integration**](/docs/guides/react-integration) — Full React guide with FaceCard
+- [**SDK Reference**](/docs/sdk) — Architecture, neural networks, full API
+- [**Custom UI**](/docs/guides/custom-ui) — Build your own FaceCard button and flow
+- [**Security & Privacy**](/docs/security) — Deep dive into biometric data handling

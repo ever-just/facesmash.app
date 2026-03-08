@@ -4,6 +4,7 @@
   "pages": [
     "index",
     "quickstart",
+    "facecard",
     "---SDK---",
     "sdk/...",
     "---API Reference---",

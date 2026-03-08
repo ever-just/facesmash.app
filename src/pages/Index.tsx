@@ -617,6 +617,173 @@ const Index = () => {
         </div>
       </section>
 
+      {/* ══════════════ SIGN IN WITH FACECARD ══════════════ */}
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="text-white/20 uppercase tracking-[0.25em] text-xs mb-8"
+          >A new auth primitive</motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-bold leading-snug max-w-3xl mb-6"
+          >
+            Sign in with{" "}
+            <span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-emerald-400 bg-clip-text text-transparent">FaceCard</span>
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
+            className="text-white/40 text-lg leading-relaxed max-w-2xl mb-16"
+          >
+            FaceCard is a new type of authentication — like "Sign in with Google" or "Sign in with Apple," but 
+            instead of trusting a third-party account, you authenticate with your face. No passwords, no OAuth tokens, 
+            no single provider lock-in. Your face is your credential, and it works everywhere.
+          </motion.p>
+
+          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center mb-20">
+            {/* Visual mock of the FaceCard button */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              className="flex flex-col items-center gap-8"
+            >
+              {/* Login form mock */}
+              <div className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#0D0F12] p-8 shadow-2xl">
+                <p className="text-sm text-white/50 mb-6 text-center">Sign in to your account</p>
+                <div className="space-y-3 mb-6">
+                  <div className="h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 flex items-center">
+                    <span className="text-xs text-white/15">email@example.com</span>
+                  </div>
+                  <div className="h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 flex items-center">
+                    <span className="text-xs text-white/15">••••••••</span>
+                  </div>
+                  <div className="h-10 rounded-lg bg-white/[0.06] flex items-center justify-center">
+                    <span className="text-xs text-white/20">Sign in</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex-1 h-[1px] bg-white/[0.06]" />
+                  <span className="text-[10px] text-white/20 uppercase tracking-wider">or</span>
+                  <div className="flex-1 h-[1px] bg-white/[0.06]" />
+                </div>
+                {/* The FaceCard button — the hero */}
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center gap-3 cursor-pointer shadow-lg shadow-emerald-500/20 group"
+                >
+                  <ScanFace className="size-5 text-black" />
+                  <span className="text-sm font-semibold text-black tracking-tight">Sign in with FaceCard</span>
+                </motion.div>
+              </div>
+              <p className="text-xs text-white/15 text-center">
+                One button. One glance. Authenticated.
+              </p>
+            </motion.div>
+
+            {/* How FaceCard works */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              className="space-y-6"
+            >
+              {[
+                {
+                  icon: <ScanFace className="size-5 text-emerald-400" />,
+                  title: "Your face is your identity",
+                  desc: "No usernames, no passwords, no recovery codes. FaceCard uses a 128-dimensional biometric signature unique to you — more secure than any password you could memorize.",
+                },
+                {
+                  icon: <Globe className="size-5 text-emerald-400" />,
+                  title: "Works across every platform",
+                  desc: "Unlike Face ID (Apple-only) or Windows Hello (Windows-only), FaceCard runs in the browser. It works on iOS, Android, Mac, Windows, and Linux — anywhere there's a camera.",
+                },
+                {
+                  icon: <Shield className="size-5 text-emerald-400" />,
+                  title: "No third-party dependency",
+                  desc: "OAuth ties you to Google or Apple's ecosystem. FaceCard is self-contained. Your biometric data stays on your device — no tokens, no cookies, no third-party tracking.",
+                },
+                {
+                  icon: <Zap className="size-5 text-emerald-400" />,
+                  title: "Faster than every alternative",
+                  desc: "No typing, no SMS wait, no authenticator app. Look at your camera — done. Average auth time: 1.8 seconds.",
+                },
+              ].map((item, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="size-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white/80 mb-1">{item.title}</p>
+                    <p className="text-sm text-white/35 leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* ── Auth method comparison table ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          >
+            <h3 className="text-xl md:text-2xl font-bold mb-8 text-center">
+              How FaceCard compares to other auth methods
+            </h3>
+            <div className="overflow-x-auto -mx-4 px-4">
+              <table className="w-full min-w-[800px] text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.06]">
+                    <th className="text-left py-4 pr-4 text-white/30 font-medium w-[180px]">Feature</th>
+                    <th className="py-4 px-3 text-center">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                        <ScanFace className="size-3.5 text-emerald-400" />
+                        <span className="text-emerald-400 font-semibold text-xs">FaceCard</span>
+                      </div>
+                    </th>
+                    <th className="py-4 px-3 text-center text-white/40 font-medium">Passwords</th>
+                    <th className="py-4 px-3 text-center text-white/40 font-medium">Passkeys</th>
+                    <th className="py-4 px-3 text-center text-white/40 font-medium">Face ID</th>
+                    <th className="py-4 px-3 text-center text-white/40 font-medium">OAuth / Social</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { feature: "Nothing to remember", facecard: true, passwords: false, passkeys: true, faceid: true, oauth: true },
+                    { feature: "Cross-platform", facecard: true, passwords: true, passkeys: "partial", faceid: false, oauth: true },
+                    { feature: "No third-party dependency", facecard: true, passwords: true, passkeys: "partial", faceid: false, oauth: false },
+                    { feature: "Phishing resistant", facecard: true, passwords: false, passkeys: true, faceid: true, oauth: "partial" },
+                    { feature: "Works on any device", facecard: true, passwords: true, passkeys: "partial", faceid: false, oauth: true },
+                    { feature: "No hardware required", facecard: true, passwords: true, passkeys: false, faceid: false, oauth: true },
+                    { feature: "Biometric security", facecard: true, passwords: false, passkeys: "partial", faceid: true, oauth: false },
+                    { feature: "Sub-2s authentication", facecard: true, passwords: false, passkeys: true, faceid: true, oauth: false },
+                    { feature: "No account lockout risk", facecard: true, passwords: false, passkeys: "partial", faceid: true, oauth: "partial" },
+                    { feature: "Privacy-first (no tracking)", facecard: true, passwords: "partial", passkeys: true, faceid: true, oauth: false },
+                    { feature: "Works in any browser", facecard: true, passwords: true, passkeys: "partial", faceid: false, oauth: true },
+                    { feature: "Self-hostable", facecard: true, passwords: true, passkeys: false, faceid: false, oauth: false },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3 pr-4 text-white/50 font-medium">{row.feature}</td>
+                      {[row.facecard, row.passwords, row.passkeys, row.faceid, row.oauth].map((val, j) => (
+                        <td key={j} className="py-3 px-3 text-center">
+                          {val === true ? (
+                            <Check className={`size-4 mx-auto ${j === 0 ? "text-emerald-400" : "text-white/30"}`} />
+                          ) : val === false ? (
+                            <X className="size-4 mx-auto text-white/10" />
+                          ) : (
+                            <span className="text-[10px] text-yellow-500/60 font-medium">PARTIAL</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-center text-white/15 text-xs mt-6">
+              Passkeys require platform support (not all browsers/devices). Face ID is Apple ecosystem only. 
+              OAuth depends on third-party providers and shares data with them.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
       {/* ══════════════ FEATURES — staggered alternating layout ══════════════ */}
       <section className="relative py-20 sm:py-32 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto space-y-20 sm:space-y-32">
