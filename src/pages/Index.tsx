@@ -12,11 +12,66 @@ import {
   Check,
   Github,
   BookOpen,
-  Apple,
-  AppWindow,
   KeyRound,
+  Lock,
+  Zap,
+  Brain,
+  Fingerprint,
+  Terminal,
+  Shield,
+  Eye,
+  ChevronDown,
+  ExternalLink,
+  Package,
+  Code2,
+  Cpu,
+  ScanFace,
 } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+
+/* ─── Brand SVG logos ─── */
+const AppleLogo = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+  </svg>
+);
+
+const MicrosoftLogo = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zm12.6 0H12.6V0H24v11.4z"/>
+  </svg>
+);
+
+const SamsungLogo = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M5.9 7.1C4.1 7.1 2.5 8.2 2.5 10c0 1.3.7 2.1 2.2 2.7l1 .4c.9.3 1.3.7 1.3 1.3 0 .7-.6 1.2-1.5 1.2-1 0-1.7-.5-2.1-1.3l-1.6.9C2.5 16.5 3.8 17 5.5 17c2 0 3.5-1.1 3.5-3 0-1.4-.8-2.3-2.4-2.9l-1-.4c-.8-.3-1.1-.6-1.1-1.1 0-.6.5-1 1.3-1 .7 0 1.3.3 1.7.9l1.5-1C8.3 7.5 7.2 7.1 5.9 7.1zM24 15.5V7.3h-2v6.1l-3.5-6.1h-1.8v8.2h2V9.6l3.5 5.9H24zm-14.8-2c0 2.1 1.4 3.5 3.5 3.5.8 0 1.5-.2 2.1-.5v-2.3c-.5.5-1.1.8-1.8.8-1.2 0-1.9-.9-1.9-2.2V12c0-1.3.7-2.2 1.9-2.2.7 0 1.3.3 1.8.8V8.3c-.6-.3-1.3-.5-2.1-.5-2.1 0-3.5 1.4-3.5 3.5v.2z"/>
+  </svg>
+);
+
+/* ─── FAQ accordion item ─── */
+const FAQItem = ({ q, a, i }: { q: string; a: string; i: number }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: i * 0.06 }}
+      className="border-t border-white/[0.06]"
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between py-6 text-left group"
+      >
+        <span className="text-base sm:text-lg font-medium text-white/80 group-hover:text-white transition-colors pr-4">{q}</span>
+        <ChevronDown className={`size-5 text-white/30 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      <div className={`overflow-hidden transition-all duration-300 ${open ? "max-h-60 pb-6" : "max-h-0"}`}>
+        <p className="text-sm sm:text-base text-white/35 leading-relaxed">{a}</p>
+      </div>
+    </motion.div>
+  );
+};
 
 const Index = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -330,19 +385,19 @@ const Index = () => {
             {[
               {
                 name: "Apple Face ID",
-                icon: <Apple className="size-6 text-white/50" />,
+                icon: <AppleLogo className="size-6 text-white/50" />,
                 limits: "iOS/macOS only • Unlocks device, not websites • Tied to one Apple device",
                 fs: ["Works in any browser on any device", "Signs you into websites directly", "Cross-platform by design"],
               },
               {
                 name: "Windows Hello",
-                icon: <AppWindow className="size-6 text-white/50" />,
+                icon: <MicrosoftLogo className="size-6 text-white/50" />,
                 limits: "Windows only • Requires IR camera hardware • No mobile support",
                 fs: ["Uses any standard webcam", "Works on phone + laptop + tablet", "No special hardware needed"],
               },
               {
                 name: "Samsung Face Recognition",
-                icon: <Smartphone className="size-6 text-white/50" />,
+                icon: <SamsungLogo className="size-6 text-white/50" />,
                 limits: "Samsung Galaxy only • Device unlock only • Less secure (2D)",
                 fs: ["128-dimensional vector mapping", "Not just unlock — full website auth", "Works on competitor devices too"],
               },
@@ -496,6 +551,326 @@ const Index = () => {
         </div>
       </section>
 
+      {/* ══════════════ DEVELOPER EXPERIENCE — code preview ══════════════ */}
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6 overflow-hidden">
+        <div className="absolute top-1/2 right-0 w-[500px] h-[500px] rounded-full bg-emerald-500/[0.04] blur-[140px] -translate-y-1/2" />
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="text-white/20 uppercase tracking-[0.25em] text-xs mb-8"
+          >Developer experience</motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-bold leading-snug max-w-3xl mb-6"
+          >
+            Ship face login{" "}
+            <span className="text-white/30">in 5 lines of code.</span>
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
+            className="text-white/40 text-lg leading-relaxed max-w-2xl mb-12"
+          >
+            Drop-in React components or a vanilla JS client. Works with Next.js, Vite, Remix, Svelte, Vue — 
+            any framework that runs in a browser.
+          </motion.p>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Code block */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              className="rounded-xl border border-white/[0.08] bg-[#0D0F12] overflow-hidden"
+            >
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+                <div className="size-3 rounded-full bg-[#ff5f56]" />
+                <div className="size-3 rounded-full bg-[#ffbd2e]" />
+                <div className="size-3 rounded-full bg-[#27c93f]" />
+                <span className="ml-3 text-xs text-white/25 font-mono">App.tsx</span>
+              </div>
+              <pre className="p-5 text-sm font-mono overflow-x-auto leading-[1.8]">
+                <code>
+                  <span className="text-purple-400">import</span>
+                  <span className="text-white/50">{" { "}</span>
+                  <span className="text-emerald-400">FaceSmashProvider</span>
+                  <span className="text-white/50">{", "}</span>
+                  <span className="text-emerald-400">FaceLogin</span>
+                  <span className="text-white/50">{" }"}</span>{"\n"}
+                  <span className="text-purple-400">  from</span>
+                  <span className="text-amber-400">{" '@facesmash/sdk/react'"}</span>
+                  <span className="text-white/30">;</span>{"\n\n"}
+                  <span className="text-white/50">{"<"}</span>
+                  <span className="text-blue-400">FaceSmashProvider</span>{"\n"}
+                  <span className="text-white/30">{"  config={{ "}</span>
+                  <span className="text-white/50">{"apiUrl: "}</span>
+                  <span className="text-amber-400">{"'https://api.facesmash.app'"}</span>
+                  <span className="text-white/30">{" }}>"}</span>{"\n"}
+                  <span className="text-white/50">{"  <"}</span>
+                  <span className="text-emerald-400">FaceLogin</span>{"\n"}
+                  <span className="text-white/30">{"    onResult={(r) =>"}</span>{"\n"}
+                  <span className="text-white/30">{"      r.success && "}</span>
+                  <span className="text-white/50">{"redirect("}</span>
+                  <span className="text-amber-400">{"'/dashboard'"}</span>
+                  <span className="text-white/50">{")"}</span>{"\n"}
+                  <span className="text-white/30">{"    }"}</span>{"\n"}
+                  <span className="text-white/50">{"  />"}</span>{"\n"}
+                  <span className="text-white/50">{"</"}</span>
+                  <span className="text-blue-400">FaceSmashProvider</span>
+                  <span className="text-white/50">{">"}</span>
+                </code>
+              </pre>
+            </motion.div>
+
+            {/* Feature bullets */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              className="flex flex-col justify-center gap-6"
+            >
+              {[
+                { icon: <Package className="size-5 text-emerald-400" />, title: "npm install @facesmash/sdk", desc: "One package, two entry points: core client and React bindings." },
+                { icon: <Code2 className="size-5 text-emerald-400" />, title: "TypeScript-first", desc: "Every function, interface, and event fully typed with exported definitions." },
+                { icon: <Cpu className="size-5 text-emerald-400" />, title: "5 neural networks, auto-loaded", desc: "SSD MobileNet, FaceLandmark68, FaceRecognition — cached after first load." },
+                { icon: <Shield className="size-5 text-emerald-400" />, title: "Client-side processing", desc: "All face detection and matching runs in-browser. Nothing raw hits your server." },
+              ].map((item, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="size-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white/80 font-mono">{item.title}</p>
+                    <p className="text-sm text-white/35 mt-1">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+
+              {/* npm install */}
+              <div className="flex items-center gap-3 mt-2 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <Terminal className="size-4 text-emerald-400 shrink-0" />
+                <code className="text-sm text-white/50 font-mono">npm install @facesmash/sdk</code>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════ ARCHITECTURE — how data flows ══════════════ */}
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="text-white/20 uppercase tracking-[0.25em] text-xs mb-8"
+          >Architecture</motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-bold leading-snug max-w-3xl mb-16"
+          >
+            Your browser does the heavy lifting.{" "}
+            <span className="text-white/30">The server just stores math.</span>
+          </motion.h2>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Client side */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="size-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <Globe className="size-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-semibold">Browser (Client-Side)</p>
+                  <p className="text-xs text-white/30">~12.5 MB models, cached by browser</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {[
+                  "TensorFlow.js (WebGL-accelerated)",
+                  "SSD MobileNet v1 — face detection",
+                  "TinyFaceDetector — fallback detector",
+                  "FaceLandmark68Net — 68-point mapping",
+                  "FaceRecognitionNet — 128D descriptor extraction",
+                  "Quality analysis & adaptive matching",
+                  "Multi-template comparison engine",
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-white/40">
+                    <div className="size-1.5 rounded-full bg-emerald-400/60 shrink-0" />
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Server side */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
+              className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="size-10 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
+                  <Lock className="size-5 text-teal-400" />
+                </div>
+                <div>
+                  <p className="font-semibold">Server (PocketBase API)</p>
+                  <p className="text-xs text-white/30">Self-hostable Go binary</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {[
+                  "user_profiles — name, email, face_embedding[128]",
+                  "face_templates — descriptor, quality, timestamp",
+                  "face_scans — audit log for every scan event",
+                  "sign_in_logs — login history with similarity scores",
+                  "AES-256 encryption for stored embeddings",
+                  "No raw images ever stored or transmitted",
+                  "REST API with real-time subscriptions",
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-white/40">
+                    <div className="size-1.5 rounded-full bg-teal-400/60 shrink-0" />
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* data flow arrow */}
+          <motion.div
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.3 }}
+            className="flex items-center justify-center gap-4 mt-8 text-sm text-white/25"
+          >
+            <span>128-D numeric vectors only</span>
+            <ArrowRight className="size-4" />
+            <span>REST API (HTTPS)</span>
+            <ArrowRight className="size-4" />
+            <span>Encrypted at rest</span>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════ OPEN SOURCE + SDK ══════════════ */}
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6 border-y border-white/[0.04]">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-20 items-center">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+              <p className="text-white/20 uppercase tracking-[0.25em] text-xs mb-8">Open source</p>
+              <h2 className="text-3xl md:text-4xl font-bold leading-snug mb-6">
+                Built in the open.{" "}
+                <span className="text-white/30">Fork it, extend it, self-host it.</span>
+              </h2>
+              <p className="text-white/40 text-lg leading-relaxed mb-8">
+                FaceSmash is open source on GitHub. Inspect every line of code. Run your own instance. 
+                The SDK is published on npm with full TypeScript support.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 h-11 px-5 rounded-full border border-white/[0.08] bg-white/[0.03] text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-all">
+                  <Github className="size-4" />
+                  View on GitHub
+                </a>
+                <a href="https://www.npmjs.com/package/@facesmash/sdk" target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 h-11 px-5 rounded-full border border-white/[0.08] bg-white/[0.03] text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-all">
+                  <Package className="size-4" />
+                  @facesmash/sdk on npm
+                </a>
+                <a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 h-11 px-5 rounded-full border border-white/[0.08] bg-white/[0.03] text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-all">
+                  <BookOpen className="size-4" />
+                  Read the docs
+                </a>
+              </div>
+            </motion.div>
+
+            {/* SDK features grid */}
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }}>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { icon: <ScanFace className="size-5 text-emerald-400" />, label: "Face Detection", desc: "Dual-model: SSD MobileNet + TinyFace" },
+                  { icon: <Fingerprint className="size-5 text-emerald-400" />, label: "128D Vectors", desc: "Compact face descriptors, not photos" },
+                  { icon: <Brain className="size-5 text-emerald-400" />, label: "Adaptive AI", desc: "Multi-template learning improves over time" },
+                  { icon: <Eye className="size-5 text-emerald-400" />, label: "Liveness Detection", desc: "Anti-spoofing checks built in" },
+                  { icon: <Zap className="size-5 text-emerald-400" />, label: "< 2s Auth", desc: "Detect → extract → match in under 2 seconds" },
+                  { icon: <Lock className="size-5 text-emerald-400" />, label: "AES-256", desc: "Face embeddings encrypted at rest" },
+                ].map((f, i) => (
+                  <div key={i} className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                    <div className="size-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-3">
+                      {f.icon}
+                    </div>
+                    <p className="text-sm font-medium mb-1">{f.label}</p>
+                    <p className="text-xs text-white/30">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════ TRUST / TECH STRIP ══════════════ */}
+      <section className="relative py-16 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="text-center text-white/20 uppercase tracking-[0.25em] text-xs mb-10"
+          >Built with</motion.p>
+          <motion.div
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6 text-white/20"
+          >
+            {[
+              "TensorFlow.js", "WebGL", "PocketBase", "React", "TypeScript", "Vite", "AES-256", "TailwindCSS",
+            ].map((tech, i) => (
+              <span key={i} className="text-sm font-medium tracking-wider">{tech}</span>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════ FAQ ══════════════ */}
+      <section className="relative py-20 sm:py-32 px-4 sm:px-6">
+        <div className="max-w-3xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            className="text-white/20 uppercase tracking-[0.25em] text-xs mb-8"
+          >FAQ</motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-bold leading-snug mb-16"
+          >
+            Common questions.
+          </motion.h2>
+
+          <div className="space-y-0">
+            {[
+              {
+                q: "Is my face photo stored on a server?",
+                a: "No. FaceSmash never stores photos. Your face is converted into a 128-dimensional mathematical vector (an array of 128 numbers) locally in your browser. Only this compact numeric signature is transmitted — it's impossible to reconstruct a face image from it.",
+              },
+              {
+                q: "What happens if someone holds up a photo of me?",
+                a: "FaceSmash includes built-in liveness detection that analyzes eye aspect ratios, head pose variation, and face quality metrics to detect spoofing attempts. Photo and video replay attacks are blocked before matching even begins.",
+              },
+              {
+                q: "Which browsers and devices are supported?",
+                a: "Any modern browser with WebGL support: Chrome 80+, Firefox 78+, Safari 14+, and Edge 80+. Works on desktops, laptops, tablets, and phones — iOS, Android, Windows, Mac, and Linux.",
+              },
+              {
+                q: "How accurate is it?",
+                a: "99.97% recognition accuracy using 128-dimensional face descriptor matching with adaptive thresholds. The system uses multi-template learning — accuracy improves with every login as it builds a richer model of each user's face under different conditions.",
+              },
+              {
+                q: "Can I self-host FaceSmash?",
+                a: "Yes. The SDK works with any PocketBase instance. Clone the repo, run your own PocketBase server, and point the SDK at your API URL. The entire stack is open source.",
+              },
+              {
+                q: "Is it free?",
+                a: "Yes. FaceSmash is free to use and open source. The SDK is published on npm, the app is live at facesmash.app, and the source code is on GitHub.",
+              },
+            ].map((faq, i) => (
+              <FAQItem key={i} q={faq.q} a={faq.a} i={i} />
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ══════════════ CTA ══════════════ */}
       <section className="relative py-24 sm:py-40 px-4 sm:px-6 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center">
@@ -511,28 +886,96 @@ const Index = () => {
           <p className="text-white/35 text-lg mb-10">
             Set up FaceSmash in 60 seconds. Use it everywhere, on every device, forever free.
           </p>
-          <Link to="/register">
-            <Button className="h-14 px-10 text-lg font-medium bg-emerald-500 hover:bg-emerald-400 text-black rounded-full group shadow-2xl shadow-emerald-500/20">
-              Get started — it's free
-              <ArrowRight className="ml-2 size-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link to="/register">
+              <Button className="h-14 px-10 text-lg font-medium bg-emerald-500 hover:bg-emerald-400 text-black rounded-full group shadow-2xl shadow-emerald-500/20">
+                Get started — it's free
+                <ArrowRight className="ml-2 size-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+            <a href="https://docs.facesmash.app/docs/quickstart" target="_blank" rel="noopener noreferrer">
+              <Button variant="ghost" className="h-14 px-8 text-lg text-white/50 hover:text-white hover:bg-white/5 rounded-full">
+                <BookOpen className="mr-2 size-5" />
+                Read the docs
+              </Button>
+            </a>
+          </div>
+          <div className="flex items-center justify-center gap-3 mt-8 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mx-auto w-fit">
+            <Terminal className="size-4 text-emerald-400 shrink-0" />
+            <code className="text-sm text-white/50 font-mono">npm install @facesmash/sdk</code>
+          </div>
         </motion.div>
       </section>
 
       {/* ══════════════ FOOTER ══════════════ */}
-      <footer className="border-t border-white/[0.04] py-8 sm:py-10 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <img src="/facesmash-logo.png" alt="FaceSmash" className="size-6 rounded" />
-            <span className="text-sm font-medium">FaceSmash</span>
+      <footer className="border-t border-white/[0.06] pt-16 pb-10 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          {/* top section — logo + columns */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10 lg:gap-8 mb-16">
+            {/* Brand column */}
+            <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+              <Link to="/" className="flex items-center gap-2.5 mb-4">
+                <img src="/facesmash-logo.png" alt="FaceSmash" className="size-9 rounded-xl shadow-lg shadow-emerald-500/10" />
+                <span className="text-lg font-semibold tracking-tight">FaceSmash</span>
+              </Link>
+              <p className="text-sm text-white/30 leading-relaxed max-w-xs mb-6">
+                Passwordless facial recognition authentication for any app. 
+                One face, every device, every browser.
+              </p>
+              <div className="flex items-center gap-3">
+                <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="size-9 rounded-lg border border-white/[0.08] bg-white/[0.03] flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-all">
+                  <Github className="size-4" />
+                </a>
+                <a href="https://www.npmjs.com/package/@facesmash/sdk" target="_blank" rel="noopener noreferrer" className="size-9 rounded-lg border border-white/[0.08] bg-white/[0.03] flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-all">
+                  <Package className="size-4" />
+                </a>
+              </div>
+            </div>
+
+            {/* Product */}
+            <div>
+              <p className="text-xs font-medium text-white/50 uppercase tracking-wider mb-4">Product</p>
+              <ul className="space-y-3">
+                <li><Link to="/register" className="text-sm text-white/30 hover:text-white/60 transition-colors">Get Started</Link></li>
+                <li><Link to="/login" className="text-sm text-white/30 hover:text-white/60 transition-colors">Sign In</Link></li>
+                <li><a href="https://facesmash.app" className="text-sm text-white/30 hover:text-white/60 transition-colors">Live Demo</a></li>
+                <li><Link to="/register" className="text-sm text-white/30 hover:text-white/60 transition-colors">Register Face</Link></li>
+              </ul>
+            </div>
+
+            {/* Developers */}
+            <div>
+              <p className="text-xs font-medium text-white/50 uppercase tracking-wider mb-4">Developers</p>
+              <ul className="space-y-3">
+                <li><a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">Documentation</a></li>
+                <li><a href="https://docs.facesmash.app/docs/quickstart" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">Quickstart</a></li>
+                <li><a href="https://docs.facesmash.app/docs/sdk" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">SDK Reference</a></li>
+                <li><a href="https://docs.facesmash.app/docs/api-reference" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">API Reference</a></li>
+                <li><a href="https://www.npmjs.com/package/@facesmash/sdk" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors flex items-center gap-1">npm Package <ExternalLink className="size-3" /></a></li>
+                <li><a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors flex items-center gap-1">GitHub <ExternalLink className="size-3" /></a></li>
+              </ul>
+            </div>
+
+            {/* Company */}
+            <div>
+              <p className="text-xs font-medium text-white/50 uppercase tracking-wider mb-4">Company</p>
+              <ul className="space-y-3">
+                <li><a href="https://everjust.co" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">EVERJUST</a></li>
+                <li><Link to="/privacy" className="text-sm text-white/30 hover:text-white/60 transition-colors">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="text-sm text-white/30 hover:text-white/60 transition-colors">Terms of Service</Link></li>
+                <li><a href="https://docs.facesmash.app/docs/security" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">Security</a></li>
+              </ul>
+            </div>
           </div>
-          <p className="text-white/20 text-xs">© 2026 EVERJUST COMPANY</p>
-          <div className="flex items-center gap-6 text-xs text-white/20">
-            <a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">Developers</a>
-            <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors flex items-center gap-1"><Github className="size-3.5" /> GitHub</a>
-            <Link to="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
-            <Link to="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
+
+          {/* bottom bar */}
+          <div className="border-t border-white/[0.04] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-white/20">© 2026 EVERJUST COMPANY. All rights reserved.</p>
+            <div className="flex items-center gap-4 text-xs text-white/20">
+              <Link to="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
+              <Link to="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
+              <a href="https://docs.facesmash.app/docs/security" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">Security</a>
+            </div>
           </div>
         </div>
       </footer>
