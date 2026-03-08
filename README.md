@@ -30,9 +30,9 @@ Browser-native facial recognition authentication that works cross-platform, cros
 
 <br/>
 
-https://github.com/user-attachments/assets/facesmash-promo.mp4
+<br/>
 
-https://github.com/ever-just/facesmash.app/raw/main/public/facesmash-promo.mp4
+[![Watch the FaceSmash Promo Video](https://img.shields.io/badge/▶_Watch_Promo_Video-facesmash.app-10B981?style=for-the-badge&logo=youtube&logoColor=white)](https://facesmash.app/landing-promo.mp4)
 
 </div>
 
