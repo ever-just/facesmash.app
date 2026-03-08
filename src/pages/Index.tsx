@@ -177,15 +177,13 @@ const Index = () => {
             className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.02] shadow-2xl shadow-emerald-500/[0.04]"
           >
             <video
+              src="/landing-promo.mp4"
               autoPlay
               loop
               muted
               playsInline
               className="w-full h-auto block"
-              poster=""
-            >
-              <source src="/landing-promo.mp4" type="video/mp4" />
-            </video>
+            />
           </motion.div>
           <motion.p
             initial={{ opacity: 0 }}
