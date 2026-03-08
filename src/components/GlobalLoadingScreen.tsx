@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Scan, RotateCcw, AlertCircle } from 'lucide-react';
+import { RotateCcw, AlertCircle } from 'lucide-react';
 import { useFaceAPI } from '@/contexts/FaceAPIContext';
 
 const tips = [
@@ -35,9 +35,7 @@ const GlobalLoadingScreen = () => {
       <div className="text-center max-w-sm mx-auto px-6 relative z-10">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-10">
-          <div className="size-10 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <Scan className="size-5 text-white" strokeWidth={2.5} />
-          </div>
+          <img src="/facesmash-logo.png" alt="FaceSmash" className="size-10 rounded-lg shadow-lg shadow-emerald-500/20" />
           <span className="text-xl font-semibold tracking-tight text-white">FaceSmash</span>
         </div>
 

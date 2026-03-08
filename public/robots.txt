@@ -12,9 +12,39 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
+# AI Crawlers — explicitly allowed
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
 User-agent: *
 Allow: /
 Disallow: /dashboard
 
 Sitemap: https://facesmash.app/sitemap.xml
 Host: https://facesmash.app
+
+# AI Agent Discovery
+# LLM-readable summary: https://facesmash.app/llms.txt
+# LLM-readable full docs: https://facesmash.app/llms-full.txt
+# AI plugin manifest: https://facesmash.app/.well-known/ai-plugin.json

@@ -11,7 +11,6 @@ import CurrentUserCard from "@/components/login/CurrentUserCard";
 import LoginFooter from "@/components/login/LoginFooter";
 import { useLoginLogic } from "@/hooks/useLoginLogic";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { Scan } from "lucide-react";
 
 const Login = () => {
   const { isLoaded, isLoading, error: faceAPIError } = useFaceAPI();
@@ -66,8 +65,8 @@ const Login = () => {
             {/* Title area — only shown when scanning */}
             {!showLoginOptions && !scanComplete && isLoaded && !faceAPIError && (
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center size-16 rounded-full border border-white/[0.08] bg-white/[0.02] mb-6">
-                  <Scan className="size-7 text-emerald-400/70" />
+                <div className="inline-flex items-center justify-center size-16 rounded-2xl mb-6">
+                  <img src="/facesmash-logo.png" alt="FaceSmash" className="size-16 rounded-2xl shadow-lg shadow-emerald-500/20" />
                 </div>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
                   Sign in with your face

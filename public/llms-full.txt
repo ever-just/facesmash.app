@@ -1,0 +1,227 @@
+# FaceSmash — Complete Technical Reference
+
+> Browser-native passwordless authentication using facial recognition.
+> URL: https://facesmash.app | API: https://api.facesmash.app | GitHub: https://github.com/ever-just/facesmash.app
+
+---
+
+## 1. Product Overview
+
+FaceSmash is a web-based authentication platform that uses facial recognition to replace passwords. It runs entirely in the browser — no native apps, no browser extensions, no special hardware. Users register their face once, then sign in to any FaceSmash-enabled website by looking at their camera.
+
+### Value Proposition
+- **For users**: No passwords to remember, type, or reset. Sign in with a glance.
+- **For developers**: Drop-in facial auth component. No password hashing, no email verification, no SMS providers, no 2FA flows.
+- **For businesses**: Eliminate $65K/year password reset costs (250-person company average). Remove credential-based attack vectors.
+
+### Target Audience
+- Web developers building authentication systems
+- Companies wanting passwordless authentication
+- Security-conscious users tired of passwords
+- Organizations with compliance requirements (BIPA, GDPR, CCPA)
+
+---
+
+## 2. Architecture
+
+### Client-Side (Browser)
+- **React 18** with TypeScript for the UI layer
+- **@vladmandic/face-api** (TensorFlow.js) for face detection and descriptor extraction
+- **SSD MobileNet v1** as primary face detector (with TinyFaceDetector fallback)
+- **68-point face landmark model** for facial geometry analysis
+- **128-dimensional face recognition model** for generating face descriptors
+
+Face detection pipeline:
+1. Camera feed captured via WebRTC (`getUserMedia`)
+2. SSD MobileNet v1 detects face bounding box
+3. 68-point landmark model maps facial geometry
+4. Recognition model extracts 128D float descriptor
+5. Quality scoring evaluates face angle, lighting, sharpness
+6. Descriptor encrypted and sent to backend for matching
+
+### Backend
+- **PocketBase** — single Go binary with embedded SQLite database
+- REST API at https://api.facesmash.app
+- Collections: user_profiles, face_scans, face_templates, sign_in_logs
+- **Caddy** reverse proxy with automatic Let's Encrypt HTTPS
+
+### Infrastructure
+- **Frontend**: Netlify CDN (site: facesmash1, ID: ee5748c1-ab9a-44b0-8dd5-22742c42b4cd)
+- **Backend**: DigitalOcean droplet at 142.93.78.220
+- **DNS**: GoDaddy (facesmash.app → Netlify, api.facesmash.app → DigitalOcean)
+- **TLS**: Caddy auto-HTTPS for API, Netlify auto-HTTPS for frontend
+
+---
+
+## 3. Face Recognition Technical Details
+
+### Models Used
+| Model | Purpose | Size |
+|-------|---------|------|
+| SSD MobileNet v1 | Primary face detection | ~5.4MB |
+| TinyFaceDetector | Fallback face detection | ~190KB |
+| 68-point Face Landmarks | Facial geometry mapping | ~350KB |
+| Face Recognition Net | 128D descriptor extraction | ~6.2MB |
+
+### Face Descriptor
+- 128-dimensional Float32Array
+- Euclidean distance for matching (threshold: 0.6 for login, 0.8 for duplicate detection)
+- Not reversible — cannot reconstruct a face from the descriptor
+- Encrypted with AES-256 at rest
+
+### Quality Scoring
+- Face detection confidence (SSD MobileNet score)
+- Face size relative to frame (minimum 15% coverage)
+- Face centering (must be within center 70% of frame)
+- Multiple angle detection for registration reliability
+
+### Performance
+- Recognition accuracy: 99.97%
+- Authentication time: < 2 seconds end-to-end
+- Model loading: ~3 seconds on first visit (cached thereafter)
+- Detection interval: 300ms (optimized from 100ms to prevent overlapping detections)
+
+---
+
+## 4. Security Model
+
+### Data Flow
+```
+Camera → Browser ML (TensorFlow.js) → 128D Vector → AES-256 Encryption → HTTPS/TLS 1.3 → PocketBase
+```
+
+### What's Stored
+- 128D face descriptor (encrypted Float32Array)
+- User display name
+- Face scan metadata (timestamp, quality score)
+- Sign-in logs (timestamp, device info)
+
+### What's NOT Stored
+- Photos or images of faces
+- Raw camera frames
+- Video recordings
+- Personally identifiable information beyond display name
+
+### Encryption
+- At rest: AES-256 encryption for face descriptors
+- In transit: TLS 1.3 (enforced by Caddy)
+- No third-party access to biometric data
+
+### Compliance
+- **BIPA**: Written disclosure, informed consent, 3-year retention limit, destruction schedule
+- **GDPR**: Explicit consent, data subject rights (access, correction, deletion, portability)
+- **CCPA/CPRA**: Right to know, delete, and opt-out
+
+---
+
+## 5. API Reference
+
+### Base URL
+`https://api.facesmash.app`
+
+### Collections
+
+**user_profiles**
+- `id` (string): PocketBase auto-generated ID
+- `name` (string): User display name
+- `email` (string, optional): User email
+- `created` (datetime): Registration timestamp
+- `updated` (datetime): Last update timestamp
+
+**face_templates**
+- `id` (string): Template ID
+- `user_id` (string): Reference to user_profiles
+- `descriptor` (json): Encrypted 128D face descriptor array
+- `created` (datetime): Creation timestamp
+
+**face_scans**
+- `id` (string): Scan ID
+- `user_id` (string): Reference to user_profiles
+- `image` (file): Face scan image
+- `quality_score` (number): Face quality score (0-1)
+- `created` (datetime): Scan timestamp
+
+**sign_in_logs**
+- `id` (string): Log ID
+- `user_id` (string): Reference to user_profiles
+- `timestamp` (datetime): Sign-in time
+- `device_info` (json): Browser and device metadata
+
+---
+
+## 6. Pages & Routes
+
+| Route | Page | Purpose | Indexable |
+|-------|------|---------|-----------|
+| `/` | Index | Landing page with product info, comparison, how-it-works | Yes |
+| `/login` | Login | Face scan authentication flow | Yes |
+| `/register` | Register | New user registration (name + face scan) | Yes |
+| `/dashboard` | Dashboard | User profile, security settings, activity history | No (auth required) |
+| `/privacy` | Privacy Policy | BIPA/GDPR compliant privacy policy | Yes |
+| `/terms` | Terms of Service | Legal terms of use | Yes |
+
+---
+
+## 7. Development
+
+### Quick Start
+```bash
+git clone https://github.com/ever-just/facesmash.app.git
+cd facesmash.app
+npm install
+npm run dev
+```
+
+### Scripts
+- `npm run dev` — Start dev server (port 8080)
+- `npm run build` — Production build to `dist/`
+- `npm run preview` — Preview production build
+- `npm run lint` — Run ESLint
+
+### Key Dependencies
+- react: ^18.3.1
+- @vladmandic/face-api: ^1.7.15
+- react-router-dom: ^6.26.2
+- pocketbase: ^0.26.8
+- framer-motion: ^12.34.3
+- @tanstack/react-query: ^5.56.2
+- react-helmet-async: (SEO meta tags)
+- tailwindcss: ^3.4.11
+
+---
+
+## 8. Frequently Asked Questions
+
+**Q: What is FaceSmash?**
+A: FaceSmash is a passwordless authentication platform that lets you sign in to websites using facial recognition. It works on any device and any browser — unlike Apple Face ID or Windows Hello which are locked to their ecosystems.
+
+**Q: How does FaceSmash work?**
+A: FaceSmash uses your browser camera to detect your face and convert it into a 128-dimensional mathematical vector. This encrypted signature is matched in under 2 seconds to authenticate you. No photos are stored — only encrypted math.
+
+**Q: Is FaceSmash secure?**
+A: Yes. FaceSmash never stores photos. Your face is converted into an encrypted 128-dimensional vector using AES-256 encryption. All processing happens in your browser — biometric data never leaves your device in raw form.
+
+**Q: What devices does FaceSmash work on?**
+A: Any device with a camera and a modern web browser — iPhones, Android phones, iPads, Windows laptops, MacBooks, Linux desktops. Supports Chrome, Safari, Firefox, and Edge.
+
+**Q: Is FaceSmash free?**
+A: Yes, FaceSmash is free to use. Set up in 60 seconds, use on unlimited devices.
+
+**Q: How is FaceSmash different from Face ID?**
+A: Apple Face ID only works on Apple devices and only unlocks your device. FaceSmash works in any browser on any device and signs you into websites directly.
+
+**Q: Can FaceSmash be fooled by a photo?**
+A: FaceSmash uses 128-dimensional vector mapping with quality scoring that evaluates face detection confidence, size, and positioning. While it primarily uses 2D recognition via webcam, the 128D vector space makes simple photo attacks significantly harder than 2D comparison.
+
+**Q: Who built FaceSmash?**
+A: FaceSmash is built by EVERJUST COMPANY. Source code is available at https://github.com/ever-just/facesmash.app.
+
+---
+
+## 9. Contact
+
+- Website: https://facesmash.app
+- Privacy inquiries: privacy@facesmash.app
+- Legal inquiries: legal@facesmash.app
+- GitHub: https://github.com/ever-just/facesmash.app
+- Company: EVERJUST COMPANY

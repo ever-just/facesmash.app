@@ -1,0 +1,75 @@
+# FaceSmash
+
+> Passwordless facial recognition authentication for the web.
+
+FaceSmash is a browser-native authentication platform that replaces passwords with facial recognition. Users sign in to websites by looking at their camera — no passwords, no SMS codes, no hardware tokens.
+
+Unlike Apple Face ID (iOS only), Windows Hello (Windows only), or Samsung Face Recognition (Galaxy only), FaceSmash works in any browser, on any device, on any operating system.
+
+## Key Facts
+
+- URL: https://facesmash.app
+- Company: EVERJUST COMPANY
+- Category: Authentication, Security, Biometrics
+- Pricing: Free
+- Status: Live and operational
+
+## How It Works
+
+1. User visits a site that uses FaceSmash
+2. Browser camera activates and detects the user's face
+3. Face is converted into a 128-dimensional mathematical vector (not a photo)
+4. Vector is matched against stored encrypted templates
+5. User is authenticated in under 2 seconds
+
+## Technical Details
+
+- All face detection and vector extraction happens client-side in the browser using TensorFlow.js
+- Raw camera frames never leave the device
+- Face descriptors are encrypted with AES-256 at rest and transmitted over TLS 1.3
+- 99.97% recognition accuracy
+- 128-dimensional face vectors
+- Works in Chrome, Safari, Firefox, Edge on iOS, Android, Windows, macOS, Linux
+
+## Stack
+
+- Frontend: React 18, TypeScript, Vite, Tailwind CSS, Framer Motion
+- Face Recognition: @vladmandic/face-api (TensorFlow.js), SSD MobileNet v1
+- Backend: PocketBase (Go + SQLite)
+- Hosting: Netlify (frontend CDN), DigitalOcean (API), Caddy (reverse proxy, auto HTTPS)
+- API: https://api.facesmash.app
+
+## Pages
+
+- Home: https://facesmash.app/
+- Sign In: https://facesmash.app/login
+- Register: https://facesmash.app/register
+- Privacy Policy: https://facesmash.app/privacy
+- Terms of Service: https://facesmash.app/terms
+
+## Privacy & Compliance
+
+- No photos are stored — only encrypted 128D mathematical vectors
+- All ML processing happens in-browser (client-side)
+- BIPA (Illinois Biometric Privacy Act) compliant
+- GDPR compliant with explicit consent and right to erasure
+- CCPA/CPRA compatible
+- Biometric data destroyed within 30 days of account deletion or 3 years of inactivity
+- Contact: privacy@facesmash.app
+
+## Comparison vs Alternatives
+
+- vs Apple Face ID: FaceSmash works on any device/OS, not just Apple. Signs into websites, not just device unlock.
+- vs Windows Hello: FaceSmash uses any standard webcam, not special IR hardware. Works on mobile too.
+- vs Samsung Face Recognition: FaceSmash uses 128D vectors (not 2D), works on competitor devices.
+- vs Passwords: Nothing to remember, can't be phished, can't be reused across sites.
+
+## Source Code
+
+- GitHub: https://github.com/ever-just/facesmash.app
+- License: Proprietary
+- Open source: Yes (source available)
+
+## Documentation
+
+- For detailed technical documentation, see: https://facesmash.app/llms-full.txt

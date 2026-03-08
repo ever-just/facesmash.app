@@ -3,7 +3,7 @@ import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Check, Loader2, AlertCircle, Scan } from "lucide-react";
+import { ArrowRight, Check, Loader2, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import AppNav from "@/components/AppNav";
@@ -331,8 +331,8 @@ const Register = () => {
                 transition={{ duration: 0.3 }}
               >
                 <div className="text-center mb-8">
-                  <div className="inline-flex items-center justify-center size-16 rounded-full border border-white/[0.08] bg-white/[0.02] mb-6">
-                    <Scan className="size-7 text-emerald-400/70" />
+                  <div className="inline-flex items-center justify-center size-16 rounded-2xl mb-6">
+                    <img src="/facesmash-logo.png" alt="FaceSmash" className="size-16 rounded-2xl shadow-lg shadow-emerald-500/20" />
                   </div>
                   <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
                     Create your FaceSmash

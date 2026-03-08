@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "FaceSmash",
+  "name_for_model": "facesmash",
+  "description_for_human": "Sign in to any website with your face. Passwordless facial recognition authentication that works on any device and browser.",
+  "description_for_model": "FaceSmash is a browser-native passwordless authentication platform using facial recognition. It replaces passwords with a 128-dimensional face vector extracted client-side via TensorFlow.js. Works cross-platform (iOS, Android, Windows, Mac, Linux) in any modern browser (Chrome, Safari, Firefox, Edge). No photos stored — only encrypted mathematical signatures. Free to use. Built by EVERJUST COMPANY.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://facesmash.app/.well-known/openapi.yaml"
+  },
+  "logo_url": "https://facesmash.app/facesmash-logo.png",
+  "contact_email": "privacy@facesmash.app",
+  "legal_info_url": "https://facesmash.app/terms"
+}

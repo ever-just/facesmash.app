@@ -37,9 +37,7 @@ const Index = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#07080A]/70 border-b border-white/[0.04]">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16">
           <Link to="/" className="flex items-center gap-2 sm:gap-2.5 group">
-            <div className="size-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-shadow">
-              <Scan className="size-4 text-white" strokeWidth={2.5} />
-            </div>
+            <img src="/facesmash-logo.png" alt="FaceSmash" className="size-8 rounded-lg shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-shadow" />
             <span className="text-[15px] sm:text-[17px] font-semibold tracking-tight">FaceSmash</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -484,9 +482,7 @@ const Index = () => {
       <footer className="border-t border-white/[0.04] py-8 sm:py-10 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="size-6 rounded bg-emerald-500 flex items-center justify-center">
-              <Scan className="size-3.5 text-white" strokeWidth={2.5} />
-            </div>
+            <img src="/facesmash-logo.png" alt="FaceSmash" className="size-6 rounded" />
             <span className="text-sm font-medium">FaceSmash</span>
           </div>
           <p className="text-white/20 text-xs">© 2026 EVERJUST COMPANY</p>
