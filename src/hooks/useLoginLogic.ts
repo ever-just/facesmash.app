@@ -111,55 +111,58 @@ export const useLoginLogic = () => {
       console.log(`Matching against ${userProfiles.length} registered user(s)...`);
       
       for (const profile of userProfiles) {
-        // Get user's face templates for multi-template matching
-        const templates = await getFaceTemplates(profile.email);
         const learningStats = await getUserLearningStats(profile.email);
         const baseThreshold = learningStats?.currentThreshold || 0.45;
+        const confidenceBoost = learningStats ? getConfidenceBoost(
+          learningStats.successfulLogins,
+          learningStats.successRate,
+          learningStats.avgQualityScore
+        ) : 0;
         
-        let matchResult;
+        // Always try profile embedding first (most reliable baseline)
+        const storedEmbedding = new Float32Array(profile.face_embedding);
+        let matchResult = enhancedFaceMatch(
+          faceAnalysis.descriptor, 
+          storedEmbedding, 
+          baseThreshold,
+          confidenceBoost,
+          faceAnalysis.lightingScore
+        );
+        console.log(`  ${profile.email}: profile match sim=${matchResult.similarity.toFixed(3)}, threshold=${matchResult.adaptedThreshold.toFixed(3)}`);
         
-        if (templates.length > 0) {
-          console.log(`  ${profile.email}: ${templates.length} template(s), threshold=${baseThreshold.toFixed(2)}`);
-          // Use multi-template matching for better accuracy
-          const templateData = templates.map(t => ({
-            descriptor: new Float32Array(t.face_embedding),
-            quality: t.quality_score || 0.5,
-            weight: learningStats ? getConfidenceBoost(
-              learningStats.successfulLogins,
-              learningStats.successRate,
-              learningStats.avgQualityScore
-            ) + 1 : 1
-          }));
-          
-          const multiMatch = multiTemplateMatch(
-            faceAnalysis.descriptor,
-            templateData,
-            baseThreshold,
-            faceAnalysis.lightingScore
-          );
-          
-          matchResult = {
-            isMatch: multiMatch.isMatch,
-            similarity: multiMatch.bestSimilarity,
-            adaptedThreshold: baseThreshold
-          };
-        } else {
-          console.log(`  ${profile.email}: no templates, using profile embedding, threshold=${baseThreshold.toFixed(2)}`);
-          // Fallback to single embedding matching
-          const storedEmbedding = new Float32Array(profile.face_embedding);
-          const confidenceBoost = learningStats ? getConfidenceBoost(
-            learningStats.successfulLogins,
-            learningStats.successRate,
-            learningStats.avgQualityScore
-          ) : 0;
-          
-          matchResult = enhancedFaceMatch(
-            faceAnalysis.descriptor, 
-            storedEmbedding, 
-            baseThreshold,
-            confidenceBoost,
-            faceAnalysis.lightingScore
-          );
+        // Also try template matching if templates exist (may improve result)
+        try {
+          const templates = await getFaceTemplates(profile.email);
+          if (templates.length > 0) {
+            const templateData = templates
+              .filter(t => t.face_embedding && t.face_embedding.length > 0)
+              .map(t => ({
+                descriptor: new Float32Array(t.face_embedding),
+                quality: t.quality_score || 0.5,
+                weight: confidenceBoost + 1
+              }));
+            
+            if (templateData.length > 0) {
+              const multiMatch = multiTemplateMatch(
+                faceAnalysis.descriptor,
+                templateData,
+                baseThreshold,
+                faceAnalysis.lightingScore
+              );
+              console.log(`  ${profile.email}: template match best=${multiMatch.bestSimilarity.toFixed(3)}, matches=${multiMatch.matchCount}/${templateData.length}`);
+              
+              // Use template result if it's better
+              if (multiMatch.bestSimilarity > matchResult.similarity) {
+                matchResult = {
+                  isMatch: multiMatch.isMatch,
+                  similarity: multiMatch.bestSimilarity,
+                  adaptedThreshold: baseThreshold
+                };
+              }
+            }
+          }
+        } catch (templateError) {
+          console.warn(`Template matching failed for ${profile.email}, using profile embedding:`, templateError);
         }
         
         if (matchResult.similarity > bestMatch.similarity) {

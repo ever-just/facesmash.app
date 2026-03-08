@@ -101,6 +101,7 @@ export const checkDuplicateUsers = async (
     for (const profile of profiles) {
       if (!profile.face_embedding) continue;
       const storedEmbedding = new Float32Array(profile.face_embedding as number[]);
+      if (faceEmbedding.length !== storedEmbedding.length) continue;
       const similarity = 1 - faceapi.euclideanDistance(faceEmbedding, storedEmbedding);
       if (similarity >= threshold) {
         results.push({

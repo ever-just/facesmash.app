@@ -276,6 +276,11 @@ export const enhancedFaceMatch = (
   confidenceBoost: number = 0,
   lightingScore: number = 0.5
 ): { isMatch: boolean; similarity: number; adaptedThreshold: number } => {
+  // Defensive: skip if descriptor lengths don't match (prevents euclideanDistance crash)
+  if (descriptor1.length !== descriptor2.length) {
+    console.warn(`Descriptor length mismatch: ${descriptor1.length} vs ${descriptor2.length}, skipping`);
+    return { isMatch: false, similarity: 0, adaptedThreshold: userThreshold };
+  }
   const similarity = 1 - faceapi.euclideanDistance(descriptor1, descriptor2);
   
   // Adaptive threshold based on user experience and lighting
@@ -319,6 +324,11 @@ export const multiTemplateMatch = (
   let matchCount = 0;
 
   for (const template of templates) {
+    // Skip templates with invalid descriptors
+    if (!template.descriptor || template.descriptor.length === 0) {
+      console.warn('Skipping template with empty/missing descriptor');
+      continue;
+    }
     const matchResult = enhancedFaceMatch(
       newDescriptor,
       template.descriptor,
