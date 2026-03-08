@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, AlertCircle } from 'lucide-react';
 import { useFaceAPI } from '@/contexts/FaceAPIContext';
+
+const FACE_ROUTES = ['/login', '/register', '/dashboard'];
 
 const tips = [
   "Ensure good lighting for better recognition",
@@ -13,7 +16,10 @@ const tips = [
 
 const GlobalLoadingScreen = () => {
   const { isLoading, error, loadProgress, retryLoading } = useFaceAPI();
+  const location = useLocation();
   const [currentTip, setCurrentTip] = useState(0);
+
+  const needsFaceAPI = FACE_ROUTES.some(r => location.pathname.startsWith(r));
 
   useEffect(() => {
     if (!isLoading) return;
@@ -23,7 +29,7 @@ const GlobalLoadingScreen = () => {
     return () => clearInterval(tipInterval);
   }, [isLoading]);
 
-  if (!isLoading && !error) return null;
+  if (!needsFaceAPI || (!isLoading && !error)) return null;
 
   return (
     <div className="fixed inset-0 bg-[#07080A] z-50 flex items-center justify-center">
