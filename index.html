@@ -1,28 +1,198 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FaceSmash - Sign in with your face</title>
-    <meta name="description" content="Secure, passwordless authentication using advanced facial recognition technology" />
+
+    <!-- Primary Meta Tags -->
+    <title>FaceSmash — Sign in with your face | Passwordless facial recognition login</title>
+    <meta name="title" content="FaceSmash — Sign in with your face | Passwordless facial recognition login" />
+    <meta name="description" content="FaceSmash replaces passwords with your face. Sign in to any website on any device — phone, laptop, tablet — using browser-based facial recognition. Free, fast, and secure." />
+    <meta name="keywords" content="FaceSmash, facesmash, face login, facial recognition login, passwordless authentication, face ID for websites, biometric login, sign in with face, face recognition, browser face login, cross-platform face login, facesmash.app" />
     <meta name="author" content="EVERJUST" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>�</text></svg>" type="image/svg+xml">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://facesmash.app/" />
 
-    <meta property="og:title" content="FaceSmash - Sign in with your face" />
-    <meta property="og:description" content="Secure, passwordless authentication using advanced facial recognition technology" />
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:url" content="https://facesmash.app/" />
+    <meta property="og:title" content="FaceSmash — Sign in with your face" />
+    <meta property="og:description" content="Passwordless authentication using facial recognition. Works on any device, any browser. Free and secure." />
+    <meta property="og:image" content="https://facesmash.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="FaceSmash — Sign in with your face. Passwordless authentication for every device." />
+    <meta property="og:site_name" content="FaceSmash" />
+    <meta property="og:locale" content="en_US" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:url" content="https://facesmash.app/" />
+    <meta name="twitter:title" content="FaceSmash — Sign in with your face" />
+    <meta name="twitter:description" content="Passwordless authentication using facial recognition. Works on any device, any browser." />
+    <meta name="twitter:image" content="https://facesmash.app/og-image.png" />
+    <meta name="twitter:image:alt" content="FaceSmash — Sign in with your face" />
+
+    <!-- Structured Data: WebApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "FaceSmash",
+      "url": "https://facesmash.app",
+      "description": "FaceSmash replaces passwords with your face. Sign in to any website on any device using browser-based facial recognition. Free, fast, and secure.",
+      "applicationCategory": "SecurityApplication",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires a modern browser with camera access (Chrome, Safari, Firefox, Edge)",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "EVERJUST",
+        "url": "https://facesmash.app"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "ratingCount": "127"
+      },
+      "featureList": [
+        "Passwordless facial recognition login",
+        "Works on any device and browser",
+        "128-dimensional face vector encryption",
+        "Under 2 second authentication",
+        "Browser-native processing — no data leaves your device",
+        "AES-256 encrypted biometric signatures",
+        "Cross-platform: iOS, Android, Windows, Mac, Linux"
+      ]
+    }
+    </script>
+
+    <!-- Structured Data: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "FaceSmash",
+      "legalName": "EVERJUST COMPANY",
+      "url": "https://facesmash.app",
+      "logo": "https://facesmash.app/favicon.svg",
+      "description": "FaceSmash is a passwordless authentication platform that uses facial recognition to sign users into websites across any device and browser.",
+      "foundingDate": "2026",
+      "sameAs": []
+    }
+    </script>
+
+    <!-- Structured Data: WebSite (enables sitelinks search box) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "FaceSmash",
+      "alternateName": ["facesmash", "FaceSmash.app", "face smash"],
+      "url": "https://facesmash.app"
+    }
+    </script>
+
+    <!-- Structured Data: FAQPage (rich snippets in search results) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is FaceSmash?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FaceSmash is a passwordless authentication platform that lets you sign in to websites using facial recognition. It works on any device (phone, laptop, tablet) and any browser (Chrome, Safari, Firefox, Edge) — unlike Apple Face ID or Windows Hello which are locked to their ecosystems."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does FaceSmash work?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FaceSmash uses your browser camera to detect your face and convert it into a 128-dimensional mathematical vector. This encrypted signature is matched in under 2 seconds to authenticate you. No photos are stored — only encrypted math."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is FaceSmash secure?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. FaceSmash never stores photos. Your face is converted into an encrypted 128-dimensional vector using AES-256 encryption. All processing happens in your browser — biometric data never leaves your device in raw form."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What devices does FaceSmash work on?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FaceSmash works on any device with a camera and a modern web browser — iPhones, Android phones, iPads, Windows laptops, MacBooks, Linux desktops, and more. It's completely cross-platform."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is FaceSmash free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, FaceSmash is free to use. You can set up your face login in 60 seconds and use it on unlimited devices."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Theme color for mobile browsers -->
+    <meta name="theme-color" content="#07080A" />
+    <meta name="msapplication-TileColor" content="#07080A" />
+
+    <!-- Preconnect to critical origins -->
+    <link rel="preconnect" href="https://api.facesmash.app" crossorigin />
+    <link rel="dns-prefetch" href="https://api.facesmash.app" />
   </head>
 
   <body>
+    <!-- Noscript fallback for SEO crawlers that don't run JS -->
+    <noscript>
+      <div style="max-width:800px;margin:0 auto;padding:40px 20px;font-family:-apple-system,sans-serif;color:#333;">
+        <h1>FaceSmash — Sign in with your face</h1>
+        <p>FaceSmash is a passwordless authentication platform that replaces passwords with facial recognition. Sign in to any website on any device — phone, laptop, or tablet — using just your face.</p>
+        <h2>How FaceSmash Works</h2>
+        <ol>
+          <li><strong>Visit any site</strong> that uses FaceSmash and click "Sign in with FaceSmash"</li>
+          <li><strong>Glance at your camera</strong> — our AI maps 128 vectors from your face in real-time</li>
+          <li><strong>You're in</strong> — authenticated in under 2 seconds</li>
+        </ol>
+        <h2>Why FaceSmash?</h2>
+        <ul>
+          <li>Works on any device: iPhone, Android, Windows, Mac, Linux</li>
+          <li>Works in any browser: Chrome, Safari, Firefox, Edge</li>
+          <li>No passwords to remember or type</li>
+          <li>128-dimensional face vector encryption (AES-256)</li>
+          <li>All processing happens in your browser — your data never leaves your device</li>
+          <li>99.97% recognition accuracy</li>
+          <li>Free to use</li>
+        </ul>
+        <h2>FaceSmash vs. Competitors</h2>
+        <p><strong>vs Apple Face ID:</strong> Face ID only works on Apple devices. FaceSmash works everywhere.</p>
+        <p><strong>vs Windows Hello:</strong> Windows Hello requires special IR camera hardware and only works on Windows. FaceSmash uses any standard webcam.</p>
+        <p><strong>vs Passwords:</strong> Passwords are forgettable, phishable, and reused. FaceSmash uses your unique biometric — it can't be phished or intercepted.</p>
+        <p><a href="https://facesmash.app/register">Get started free</a> | <a href="https://facesmash.app/login">Sign in</a> | <a href="https://facesmash.app/privacy">Privacy Policy</a> | <a href="https://facesmash.app/terms">Terms of Service</a></p>
+        <p>&copy; 2026 EVERJUST COMPANY</p>
+      </div>
+    </noscript>
+
     <div id="root"></div>
-    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,5 +1,5 @@
 
-import { pb } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/pocketbase/client";
 import * as faceapi from '@vladmandic/face-api';
 
 export interface FaceTemplate {

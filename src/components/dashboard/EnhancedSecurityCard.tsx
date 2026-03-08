@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { pb } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/pocketbase/client";
 
 interface SecurityStats {
   totalTemplates: number;

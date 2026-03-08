@@ -1,8 +1,10 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /dashboard
 
 User-agent: Bingbot
 Allow: /
+Disallow: /dashboard
 
 User-agent: Twitterbot
 Allow: /
@@ -12,3 +14,7 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /dashboard
+
+Sitemap: https://facesmash.app/sitemap.xml
+Host: https://facesmash.app

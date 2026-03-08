@@ -1,4 +1,4 @@
-import { pb } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/pocketbase/client";
 import { FaceScan } from "@/types";
 
 // Convert image blob to a proper JPEG File for PocketBase upload

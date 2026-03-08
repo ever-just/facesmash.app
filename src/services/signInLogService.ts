@@ -1,5 +1,5 @@
 
-import { pb } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/pocketbase/client";
 
 export interface SignInLog {
   id: string;

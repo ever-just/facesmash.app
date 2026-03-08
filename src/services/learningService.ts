@@ -1,5 +1,5 @@
 
-import { pb } from "@/integrations/supabase/client";
+import { pb } from "@/integrations/pocketbase/client";
 import { UserProfile } from "@/types";
 
 export const updateUserLearningMetrics = async (
