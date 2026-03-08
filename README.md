@@ -6,10 +6,6 @@
 
 <img src="public/facesmash-logo.png" alt="FaceSmash Logo" width="180" />
 
-<br/>
-
-<img src="public/facesmash-wordmark.png" alt="FaceSmash" width="320" />
-
 <br/><br/>
 
 ### **One face. Every device. Every browser. Zero passwords.**
