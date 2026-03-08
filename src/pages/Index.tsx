@@ -10,6 +10,8 @@ import {
   Tablet,
   Globe,
   Check,
+  Github,
+  BookOpen,
 } from "lucide-react";
 import { useRef } from "react";
 
@@ -41,6 +43,13 @@ const Index = () => {
             <span className="text-[15px] sm:text-[17px] font-semibold tracking-tight">FaceSmash</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
+            <a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-white/40 hover:text-white/70 text-sm transition-colors">
+              <BookOpen className="size-4" />
+              Docs
+            </a>
+            <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-white/70 transition-colors">
+              <Github className="size-5" />
+            </a>
             <Link to="/login">
               <Button variant="ghost" className="text-white/50 hover:text-white text-sm h-9 px-3 sm:px-4">Sign in</Button>
             </Link>
@@ -486,10 +495,11 @@ const Index = () => {
             <span className="text-sm font-medium">FaceSmash</span>
           </div>
           <p className="text-white/20 text-xs">© 2026 EVERJUST COMPANY</p>
-          <div className="flex gap-6 text-xs text-white/20">
+          <div className="flex items-center gap-6 text-xs text-white/20">
+            <a href="https://docs.facesmash.app" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">Developers</a>
+            <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors flex items-center gap-1"><Github className="size-3.5" /> GitHub</a>
             <Link to="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
             <Link to="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
-            <a href="#" className="hover:text-white/50 transition-colors">Security</a>
           </div>
         </div>
       </footer>
