@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, CheckCircle, Camera } from "lucide-react";
+import { RotateCcw, CheckCircle, Camera, Search, ScanFace } from "lucide-react";
 import { analyzeFaceQuality } from "@/utils/enhancedFaceRecognition";
 import { useFaceAPI } from '@/contexts/FaceAPIContext';
 
@@ -238,10 +238,10 @@ const ContinuousQualityCapture = ({
             : "text-gray-300"
         }`}>
           {captureSuccess
-            ? "✓ Face captured successfully!"
+            ? <><CheckCircle className="inline size-4 mr-1 -mt-0.5" /> Face captured successfully!</>
             : isCapturing
-            ? "🔍 Looking for your face..."
-            : "📸 Ready for face capture"
+            ? <><Search className="inline size-4 mr-1 -mt-0.5" /> Looking for your face...</>
+            : <><ScanFace className="inline size-4 mr-1 -mt-0.5" /> Ready for face capture</>
           }
         </p>
 

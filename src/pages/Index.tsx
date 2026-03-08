@@ -12,6 +12,9 @@ import {
   Check,
   Github,
   BookOpen,
+  Apple,
+  AppWindow,
+  KeyRound,
 } from "lucide-react";
 import { useRef } from "react";
 
@@ -297,25 +300,25 @@ const Index = () => {
             {[
               {
                 name: "Apple Face ID",
-                icon: "🍎",
+                icon: <Apple className="size-6 text-white/50" />,
                 limits: "iOS/macOS only • Unlocks device, not websites • Tied to one Apple device",
                 fs: ["Works in any browser on any device", "Signs you into websites directly", "Cross-platform by design"],
               },
               {
                 name: "Windows Hello",
-                icon: "🪟",
+                icon: <AppWindow className="size-6 text-white/50" />,
                 limits: "Windows only • Requires IR camera hardware • No mobile support",
                 fs: ["Uses any standard webcam", "Works on phone + laptop + tablet", "No special hardware needed"],
               },
               {
                 name: "Samsung Face Recognition",
-                icon: "📱",
+                icon: <Smartphone className="size-6 text-white/50" />,
                 limits: "Samsung Galaxy only • Device unlock only • Less secure (2D)",
                 fs: ["128-dimensional vector mapping", "Not just unlock — full website auth", "Works on competitor devices too"],
               },
               {
                 name: "Passwords / 2FA",
-                icon: "🔑",
+                icon: <KeyRound className="size-6 text-white/50" />,
                 limits: "Forgettable • Phishable • Reused across sites • SMS can be intercepted",
                 fs: ["Nothing to remember or type", "Can't be phished or intercepted", "Unique biometric — can't be reused"],
               },
@@ -330,7 +333,7 @@ const Index = () => {
               >
                 {/* competitor name */}
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{comp.icon}</span>
+                  <span className="flex items-center justify-center">{comp.icon}</span>
                   <span className="text-white/60 font-medium">{comp.name}</span>
                 </div>
                 {/* their limits */}
