@@ -4,10 +4,13 @@
 <!--                        FACESMASH LOGO                         -->
 <!-- ══════════════════════════════════════════════════════════════ -->
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/%F0%9F%94%8D_FaceSmash-Sign_in_with_your_face-10B981?style=for-the-badge&labelColor=07080A">
-  <img alt="FaceSmash" src="https://img.shields.io/badge/%F0%9F%94%8D_FaceSmash-Sign_in_with_your_face-10B981?style=for-the-badge&labelColor=07080A">
-</picture>
+<img src="public/facesmash-logo.png" alt="FaceSmash Logo" width="180" />
+
+<br/>
+
+<img src="public/facesmash-wordmark.png" alt="FaceSmash" width="320" />
+
+<br/><br/>
 
 ### **One face. Every device. Every browser. Zero passwords.**
 
@@ -17,6 +20,8 @@ Browser-native facial recognition authentication that works cross-platform, cros
 <br/>
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-facesmash.app-10B981?style=flat-square&logo=googlechrome&logoColor=white)](https://facesmash.app)
+[![Docs](https://img.shields.io/badge/Docs-docs.facesmash.app-10B981?style=flat-square&logo=readthedocs&logoColor=white)](https://docs.facesmash.app)
+[![npm](https://img.shields.io/npm/v/@facesmash/sdk?style=flat-square&logo=npm&logoColor=white&label=SDK&color=CB3837)](https://www.npmjs.com/package/@facesmash/sdk)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react&logoColor=white)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev)
@@ -25,7 +30,7 @@ Browser-native facial recognition authentication that works cross-platform, cros
 
 <br/>
 
-[**Try the Live Demo →**](https://facesmash.app/register)&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;[**Read the Docs**](#-getting-started)&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;[**View Changelog**](#-changelog)
+[**Try the Live Demo →**](https://facesmash.app/register)&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;[**SDK Docs →**](https://docs.facesmash.app)&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;[**npm Package →**](https://www.npmjs.com/package/@facesmash/sdk)&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;[**View Changelog**](#-changelog)
 
 <br/>
 
@@ -81,6 +86,45 @@ Unlike Apple Face ID (iOS only), Windows Hello (Windows only), or Samsung Face R
 <!-- ══════════════════════════════════════════════════════════════ -->
 <!--                        QUICK SPECS                            -->
 <!-- ══════════════════════════════════════════════════════════════ -->
+
+## 📦 JavaScript SDK — `@facesmash/sdk`
+
+Add face login to **any** website with the FaceSmash SDK:
+
+```bash
+npm install @facesmash/sdk
+```
+
+### React (3 lines)
+
+```tsx
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+<FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+  <FaceLogin onResult={(r) => r.success && console.log(`Welcome, ${r.user.name}!`)} />
+</FaceSmashProvider>
+```
+
+### Vanilla JS (4 lines)
+
+```javascript
+import { createFaceSmash } from '@facesmash/sdk';
+
+const client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+await client.init();
+const result = await client.login(images); // base64 data URLs from webcam
+```
+
+**Two entry points:**
+
+| Entry Point | Use Case |
+|---|---|
+| `@facesmash/sdk` | Core client + utilities — works with any framework or vanilla JS |
+| `@facesmash/sdk/react` | `<FaceLogin>`, `<FaceRegister>`, `<FaceSmashProvider>`, 4 hooks |
+
+📖 **[Full SDK Documentation →](https://docs.facesmash.app)**
+
+<br/>
 
 ## ⚡ At a Glance
 
@@ -341,7 +385,7 @@ facesmash.app/
 │   │   ├── useLoginLogic.ts
 │   │   └── ...
 │   ├── integrations/
-│   │   └── supabase/        # Supabase client (legacy, migrating to PocketBase)
+│   │   └── pocketbase/      # PocketBase client & service layer
 │   ├── pages/
 │   │   ├── Index.tsx         # Landing page
 │   │   ├── Register.tsx      # Face registration flow
@@ -354,7 +398,16 @@ facesmash.app/
 │   ├── utils/                # Utility functions (face recognition, storage)
 │   ├── App.tsx               # Root component + routing
 │   └── main.tsx              # Entry point
-├── supabase/                 # Supabase config (legacy)
+├── packages/
+│   └── sdk/                 # @facesmash/sdk — publishable npm package
+│       ├── src/
+│       │   ├── core/        # Client, detection, matching, types
+│       │   └── react/       # Provider, FaceLogin, FaceRegister, hooks
+│       ├── package.json
+│       └── tsup.config.ts
+├── docs/                    # Documentation site (Fumadocs/Next.js)
+│   ├── content/docs/        # MDX documentation pages
+│   └── src/                 # Fumadocs app
 ├── package.json
 ├── vite.config.ts
 ├── tailwind.config.ts
@@ -468,6 +521,19 @@ The PocketBase API runs on a DigitalOcean droplet with Caddy reverse proxy:
 
 ## 📋 Changelog
 
+### v2.0.0 — March 7, 2026
+**SDK Release & Documentation**
+- 🚀 Published [`@facesmash/sdk`](https://www.npmjs.com/package/@facesmash/sdk) v0.1.0 to npm
+- 🚀 React components: `<FaceSmashProvider>`, `<FaceLogin>`, `<FaceRegister>`
+- 🚀 React hooks: `useFaceSmash()`, `useFaceLogin()`, `useFaceRegister()`, `useFaceAnalysis()`
+- 🚀 Core client: `createFaceSmash()` — framework-agnostic face auth
+- 🚀 Low-level API: `loadModels()`, `analyzeFace()`, `extractDescriptor()`, `enhancedMatch()`, `multiTemplateMatch()`
+- 📖 Full documentation site at [docs.facesmash.app](https://docs.facesmash.app)
+- 🔐 SDK announcement banner + cookie consent on main site
+- 🧠 Migrated face-api.js → @vladmandic/face-api ^1.7.15 (SSD MobileNet v1 primary, TinyFaceDetector fallback)
+- 🧠 Adaptive threshold matching with lighting compensation and confidence boost
+- 🧠 Multi-template learning — accuracy improves with each login
+
 ### v1.3.0 — March 7, 2026
 **Legal & Compliance**
 - ✅ Added **Privacy Policy** page — BIPA, GDPR, and CCPA/CPRA compliant
@@ -511,7 +577,7 @@ The PocketBase API runs on a DigitalOcean droplet with Caddy reverse proxy:
 
 **Built by [EVERJUST COMPANY](https://facesmash.app)** · © 2026
 
-[Live Demo](https://facesmash.app) · [Privacy Policy](https://facesmash.app/privacy) · [Terms of Service](https://facesmash.app/terms)
+[Live Demo](https://facesmash.app) · [SDK Docs](https://docs.facesmash.app) · [npm Package](https://www.npmjs.com/package/@facesmash/sdk) · [Privacy Policy](https://facesmash.app/privacy) · [Terms of Service](https://facesmash.app/terms)
 
 <br/>
 

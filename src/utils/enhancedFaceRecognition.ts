@@ -132,11 +132,57 @@ export const analyzeLightingConditions = (
   }
 };
 
+// Apply linear contrast stretch to combat dirty-lens haze / low-contrast images
+// This normalizes pixel intensities to use the full 0-255 range (~5-15ms)
+const contrastStretchImage = (img: HTMLImageElement): HTMLCanvasElement | HTMLImageElement => {
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return img;
+
+    canvas.width = img.width || 640;
+    canvas.height = img.height || 480;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+
+    // Find min/max brightness across all pixels
+    let minVal = 255;
+    let maxVal = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const gray = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+      if (gray < minVal) minVal = gray;
+      if (gray > maxVal) maxVal = gray;
+    }
+
+    const range = maxVal - minVal;
+    // Only stretch if the image has reduced contrast (dirty lens / haze)
+    if (range < 180 && range > 10) {
+      const scale = 255 / range;
+      for (let i = 0; i < pixels.length; i += 4) {
+        pixels[i]     = Math.min(255, Math.max(0, (pixels[i] - minVal) * scale));     // R
+        pixels[i + 1] = Math.min(255, Math.max(0, (pixels[i + 1] - minVal) * scale)); // G
+        pixels[i + 2] = Math.min(255, Math.max(0, (pixels[i + 2] - minVal) * scale)); // B
+      }
+      ctx.putImageData(imageData, 0, 0);
+      return canvas;
+    }
+    return img; // No stretch needed — image already has good contrast
+  } catch (e) {
+    console.warn('Contrast stretch failed, using original image:', e);
+    return img;
+  }
+};
+
 // Enhanced face analysis with better error handling and reliability
 export const analyzeFaceQuality = async (imageData: string): Promise<FaceAnalysis | null> => {
   try {
     console.log('Analyzing face quality with enhanced detection...');
-    const img = await faceapi.fetchImage(imageData);
+    const rawImg = await faceapi.fetchImage(imageData);
+    
+    // Apply contrast stretch to improve detection on dirty-lens / low-contrast images
+    const img = contrastStretchImage(rawImg);
     
     // Use SsdMobilenetv1 as primary detector (more reliable, fewer null-box errors)
     let detection = await faceapi
@@ -286,15 +332,15 @@ export const enhancedFaceMatch = (
   // Adaptive threshold based on user experience and lighting
   let adaptedThreshold = userThreshold;
   
-  // Adjust for lighting conditions
+  // Adjust for lighting conditions (wider relaxation helps dirty-lens scenarios)
   if (lightingScore < 0.4) {
-    adaptedThreshold = Math.max(0.35, adaptedThreshold - 0.05); // More lenient in poor lighting
+    adaptedThreshold = Math.max(0.30, adaptedThreshold - 0.08); // More lenient in poor lighting / dirty lens
   } else if (lightingScore > 0.8) {
     adaptedThreshold = Math.min(0.6, adaptedThreshold + 0.02); // Slightly stricter in good lighting
   }
   
   // Apply confidence boost for experienced users
-  adaptedThreshold = Math.max(0.35, adaptedThreshold - (confidenceBoost * 0.05));
+  adaptedThreshold = Math.max(0.30, adaptedThreshold - (confidenceBoost * 0.05));
   
   const isMatch = similarity >= adaptedThreshold;
   

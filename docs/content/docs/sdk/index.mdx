@@ -3,84 +3,341 @@ title: SDK Overview
 description: The FaceSmash JavaScript SDK for browser-based facial recognition
 ---
 
-## Overview
-
-The FaceSmash SDK (`@facesmash/sdk`) provides everything you need to add facial recognition authentication to your web application. It runs entirely in the browser using WebGL-accelerated TensorFlow.js models.
+The **FaceSmash SDK** (`@facesmash/sdk`) provides everything you need to add facial recognition authentication to any web application. It runs entirely in the browser using WebGL-accelerated TensorFlow.js neural networks — no server-side ML infrastructure required.
 
 ```bash
 npm install @facesmash/sdk
 ```
 
-## Entry Points
+<Callout type="info">
+  **v0.1.0** — The SDK is published on npm and ready for integration.
+  [View on npm →](https://www.npmjs.com/package/@facesmash/sdk)
+  [View source on GitHub →](https://github.com/ever-just/facesmash.app/tree/main/packages/sdk)
+</Callout>
 
-| Import | Description |
-|---|---|
-| `@facesmash/sdk` | Core client — framework-agnostic, works with vanilla JS or any framework |
-| `@facesmash/sdk/react` | React components and hooks — drop-in `<FaceLogin>`, `<FaceRegister>`, provider, and hooks |
+---
 
-## Core Capabilities
+## What the SDK Does
 
-| Capability | Description |
-|---|---|
-| **Face Detection** | SSD MobileNet v1 primary detector with TinyFaceDetector fallback |
-| **Descriptor Extraction** | 128-dimensional face descriptor via @vladmandic/face-api |
-| **Quality Analysis** | Lighting, head pose, eye aspect ratio, and face size scoring |
-| **Template Matching** | Multi-template weighted matching with adaptive thresholds |
-| **Adaptive Learning** | Face embeddings improve over time with each successful login |
+FaceSmash handles the complete biometric authentication pipeline:
+
+1. **Model Loading** — Downloads and initializes five neural networks (SSD MobileNet v1, TinyFaceDetector, FaceLandmark68, FaceRecognition, FaceExpression) into the browser's WebGL runtime. Models are loaded from a CDN (jsdelivr by default) and cached by the browser.
+
+2. **Face Detection** — Finds faces in webcam frames using SSD MobileNet v1 as the primary detector. If SSD fails to find a face above the confidence threshold, it automatically falls back to TinyFaceDetector (smaller, faster, less accurate).
+
+3. **Quality Analysis** — Scores each detected face on multiple dimensions before using it for matching:
+   - **Detection confidence** — SSD MobileNet's raw detection score
+   - **Lighting** — Measures brightness, contrast, and evenness across the face region
+   - **Head pose** — Estimates yaw, pitch, and roll from facial landmarks; rejects non-frontal faces
+   - **Face size** — Ensures the face is between 2% and 65% of the frame area
+   - **Eye aspect ratio** — Detects if eyes are open (liveness signal)
+
+4. **Descriptor Extraction** — Extracts a 128-dimensional floating-point vector (face descriptor) from the detected face using the FaceRecognition neural network. This is the mathematical representation of the face.
+
+5. **Matching** — Compares the extracted descriptor against all registered user profiles and their stored templates using enhanced Euclidean distance matching with adaptive thresholds that adjust based on lighting conditions.
+
+6. **Registration** — Creates a new user profile in PocketBase, stores the face embedding, creates an initial face template, and records a face scan entry.
+
+7. **Adaptive Learning** — On each successful login, the SDK updates the user's stored face embedding using a weighted average (learning rate based on quality, lighting, and confidence). High-quality scans are also saved as additional face templates, improving future matching accuracy.
+
+---
+
+## Package Structure
+
+### Entry Points
+
+| Import Path | Format | Description |
+|---|---|---|
+| `@facesmash/sdk` | ESM + CJS | Core client, detection utilities, matching utilities, all TypeScript types |
+| `@facesmash/sdk/react` | ESM + CJS | React provider, components (`FaceLogin`, `FaceRegister`), and hooks |
+
+Both entry points include full TypeScript type declarations (`.d.ts`).
+
+### What's Exported from `@facesmash/sdk`
+
+```typescript
+// Factory function (recommended)
+import { createFaceSmash } from '@facesmash/sdk';
+
+// Class (alternative)
+import { FaceSmashClient } from '@facesmash/sdk';
+
+// Low-level detection utilities
+import {
+  loadModels,
+  areModelsLoaded,
+  extractDescriptor,
+  analyzeFace,
+  processImages,
+  normalizeDescriptor,
+} from '@facesmash/sdk';
+
+// Low-level matching utilities
+import {
+  calculateSimilarity,
+  facesMatch,
+  enhancedMatch,
+  multiTemplateMatch,
+  calculateLearningWeight,
+} from '@facesmash/sdk';
+
+// TypeScript types
+import type {
+  FaceSmashConfig,
+  ResolvedConfig,
+  FaceAnalysis,
+  MatchResult,
+  MultiTemplateMatchResult,
+  LoginResult,
+  RegisterResult,
+  UserProfile,
+  FaceTemplate,
+  HeadPose,
+  FaceSizeCheck,
+  LightingAnalysis,
+  OnProgress,
+  FaceSmashEvent,
+  FaceSmashEventListener,
+} from '@facesmash/sdk';
+```
+
+### What's Exported from `@facesmash/sdk/react`
+
+```typescript
+// Provider (required, wraps your app)
+import { FaceSmashProvider } from '@facesmash/sdk/react';
+
+// Drop-in components
+import { FaceLogin, FaceRegister } from '@facesmash/sdk/react';
+
+// Hooks
+import {
+  useFaceSmash,
+  useFaceLogin,
+  useFaceRegister,
+  useFaceAnalysis,
+} from '@facesmash/sdk/react';
+
+// All core exports are also re-exported
+import { createFaceSmash, FaceSmashClient } from '@facesmash/sdk/react';
+```
+
+---
+
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│                        Your Application                           │
+│                                                                   │
+│  ┌─────────────────────────┐  ┌─────────────────────────────────┐ │
+│  │  React Components       │  │  Vanilla JS                     │ │
+│  │  <FaceSmashProvider>    │  │  const client = createFaceSmash()│ │
+│  │  <FaceLogin>            │  │  client.init()                  │ │
+│  │  <FaceRegister>         │  │  client.login(images)           │ │
+│  │  useFaceLogin()         │  │  client.register(name, images)  │ │
+│  └────────────┬────────────┘  └──────────────┬──────────────────┘ │
+│               │                              │                     │
+│               ▼                              ▼                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │              FaceSmashClient (Core)                          │   │
+│  │                                                             │   │
+│  │  ┌──────────────┐  ┌────────────────┐  ┌────────────────┐  │   │
+│  │  │  detection.ts │  │  matching.ts   │  │  types.ts      │  │   │
+│  │  │              │  │                │  │                │  │   │
+│  │  │  loadModels  │  │  enhanced-     │  │  FaceSmash-    │  │   │
+│  │  │  analyzeFace │  │    Match       │  │    Config      │  │   │
+│  │  │  extract-    │  │  multi-        │  │  FaceAnalysis  │  │   │
+│  │  │    Descriptor│  │    Template-   │  │  LoginResult   │  │   │
+│  │  │  normalize-  │  │    Match       │  │  RegisterResult│  │   │
+│  │  │    Descriptor│  │  calculate-    │  │  UserProfile   │  │   │
+│  │  │  estimate-   │  │    Similarity  │  │  Events        │  │   │
+│  │  │    HeadPose  │  │  calculate-    │  │                │  │   │
+│  │  │  analyze-    │  │    Learning-   │  │                │  │   │
+│  │  │    Lighting  │  │    Weight      │  │                │  │   │
+│  │  └──────────────┘  └────────────────┘  └────────────────┘  │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│               │                              │                     │
+│               ▼                              ▼                     │
+│  ┌─────────────────────┐      ┌─────────────────────────────┐     │
+│  │  @vladmandic/face-api│      │  PocketBase REST API        │     │
+│  │  TF.js + WebGL      │      │  api.facesmash.app           │     │
+│  │  5 Neural Networks  │      │                             │     │
+│  │  jsdelivr CDN       │      │  Collections:               │     │
+│  └─────────────────────┘      │  ├── user_profiles          │     │
+│                               │  ├── face_templates         │     │
+│                               │  ├── face_scans             │     │
+│                               │  └── sign_in_logs           │     │
+│                               └─────────────────────────────┘     │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow: Login
+
+1. User faces the camera
+2. SDK captures 3 webcam frames (configurable) at 500ms intervals
+3. Each frame is analyzed: face detection → quality scoring → descriptor extraction
+4. The highest-quality frame's descriptor is selected
+5. SDK fetches all `user_profiles` from PocketBase
+6. For each profile, it runs `enhancedMatch()` against the stored `face_embedding`
+7. If the profile has `face_templates`, it also runs `multiTemplateMatch()` and uses the better result
+8. If a match is found (similarity ≥ adaptive threshold), the user is authenticated
+9. A `sign_in_logs` entry and `face_scans` entry are created
+10. If quality is high enough (>0.5), the stored embedding is updated via weighted averaging
+11. If quality is very high (>0.6), a new template is stored (oldest template is evicted if at max)
+
+### Data Flow: Registration
+
+1. User faces the camera and provides their name
+2. SDK captures 3 webcam frames and selects the best
+3. SDK checks all existing `user_profiles` for duplicate faces (similarity ≥ 0.75)
+4. If no duplicate, creates a `user_profiles` record with the face embedding
+5. Creates an initial `face_templates` record labeled `registration`
+6. Creates a `face_scans` record of type `registration`
+
+---
+
+## Neural Networks
+
+The SDK loads five neural networks from `@vladmandic/face-api`:
+
+| Model | Size | Purpose |
+|---|---|---|
+| **SSD MobileNet v1** | ~5.4 MB | Primary face detector — accurate, reliable |
+| **TinyFaceDetector** | ~190 KB | Fallback detector — fast, lightweight |
+| **FaceLandmark68** | ~350 KB | 68-point facial landmark detection for head pose estimation |
+| **FaceRecognition** | ~6.2 MB | 128-dimensional face descriptor extraction |
+| **FaceExpression** | ~310 KB | Facial expression classification (used for liveness signals) |
+
+**Total download**: ~12.5 MB (cached by the browser after first load).
+
+All models are loaded in parallel from the jsdelivr CDN by default. You can host them yourself by setting `modelUrl` in the configuration.
+
+---
 
 ## Browser Requirements
 
-- **WebGL** — Required for TensorFlow.js GPU acceleration
-- **getUserMedia** — Camera access via the MediaDevices API
+### Required APIs
+
+| API | Purpose | Fallback |
+|---|---|---|
+| **WebGL** | TF.js GPU acceleration for neural network inference | None — required |
+| **getUserMedia** | Camera access for capturing face images | None — required |
+| **Canvas 2D** | Frame capture and lighting analysis | None — required |
+| **localStorage** | Used by PocketBase client for auth tokens | None — required |
 
 ### Supported Browsers
 
-| Browser | Min Version |
-|---|---|
-| Chrome | 80+ |
-| Firefox | 78+ |
-| Safari | 14+ |
-| Edge | 80+ |
+| Browser | Min Version | Notes |
+|---|---|---|
+| **Chrome** | 80+ | Best WebGL performance; recommended |
+| **Firefox** | 78+ | Full support |
+| **Safari** | 14+ | Requires user gesture for camera; slower WebGL |
+| **Edge** | 80+ | Chromium-based; same as Chrome |
+| **Mobile Chrome** | 80+ | Works on Android; front camera used by default |
+| **Mobile Safari** | 14+ | Works on iOS; requires HTTPS |
 
-## Quick Example (React)
+<Callout type="warn">
+  **HTTPS Required** — `getUserMedia` is only available on secure origins (`https://` or `localhost`). The SDK will not work on plain HTTP in production.
+</Callout>
+
+### Performance
+
+| Device | Model Load | Detection (per frame) | Full Login Flow |
+|---|---|---|---|
+| Modern laptop (M1/i7) | 2–4 seconds | 30–80 ms | 3–5 seconds |
+| Mid-range phone | 4–8 seconds | 60–150 ms | 5–10 seconds |
+| Older laptop (2018) | 5–10 seconds | 100–200 ms | 8–15 seconds |
+
+---
+
+## Dependencies
+
+| Package | Version | Purpose |
+|---|---|---|
+| `@vladmandic/face-api` | ^1.7.15 | Face detection, landmarks, recognition (wraps TF.js) |
+| `pocketbase` | ^0.26.8 | Client for PocketBase REST API |
+
+### Peer Dependencies (optional)
+
+| Package | Version | When Needed |
+|---|---|---|
+| `react` | >=17 | Only if using `@facesmash/sdk/react` |
+| `react-dom` | >=17 | Only if using `@facesmash/sdk/react` |
+
+---
+
+## Quick Example: React
 
 ```tsx
 import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
 
 function App() {
   return (
-    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+    <FaceSmashProvider
+      config={{
+        apiUrl: 'https://api.facesmash.app',
+        debug: true,
+      }}
+      onReady={() => console.log('Models loaded')}
+      onError={(err) => console.error('Init failed:', err)}
+    >
       <FaceLogin
         onResult={(result) => {
           if (result.success) {
             console.log('Welcome back,', result.user.name);
+            console.log('Match similarity:', result.similarity);
           } else {
             console.error('Login failed:', result.error);
           }
         }}
+        className="w-full h-80 rounded-xl overflow-hidden"
       />
     </FaceSmashProvider>
   );
 }
 ```
 
-## Quick Example (Vanilla JS)
+## Quick Example: Vanilla JS
 
 ```typescript
 import { createFaceSmash } from '@facesmash/sdk';
 
 const client = createFaceSmash({
   apiUrl: 'https://api.facesmash.app',
+  debug: true,
 });
 
+// Subscribe to events
+const unsubscribe = client.on((event) => {
+  if (event.type === 'models-loading') {
+    console.log(`Loading: ${event.progress}%`);
+  }
+});
+
+// Initialize models
 await client.init();
 
+// Login with webcam captures (array of base64 data URLs)
 const result = await client.login(images);
-// { success: true, user: { name: 'Jane Doe', email: '...' }, similarity: 0.78 }
+
+if (result.success) {
+  console.log('Welcome back,', result.user.name);
+  console.log('Email:', result.user.email);
+  console.log('Similarity:', result.similarity);
+} else {
+  console.error(result.error);
+}
+
+// Cleanup
+unsubscribe();
 ```
+
+---
 
 ## Next Steps
 
-- [React Components](/docs/sdk/react-components) — Drop-in UI components and hooks
-- [Vanilla JS](/docs/sdk/vanilla-js) — Framework-agnostic integration
-- [Configuration](/docs/sdk/configuration) — Options, thresholds, and events
+- [**React Components**](/docs/sdk/react-components) — `<FaceLogin>`, `<FaceRegister>`, provider, and all 4 hooks with full prop tables
+- [**Vanilla JS**](/docs/sdk/vanilla-js) — `createFaceSmash()`, `client.login()`, `client.register()`, low-level utilities, and complete webcam capture examples
+- [**Configuration**](/docs/sdk/configuration) — Every config option explained, threshold tuning guide, event system, PocketBase collections, and self-hosting
+- [**Quickstart**](/docs/quickstart) — Get a working face login in 5 minutes

@@ -3,92 +3,309 @@ title: Quickstart
 description: Get FaceSmash running in your app in 5 minutes
 ---
 
+Add face login to your web application in under 5 minutes. This guide walks you through installation, setup, and your first working face authentication flow.
+
+---
+
 ## Prerequisites
 
-- A modern browser with WebGL support (Chrome, Firefox, Safari, Edge)
-- A device with a camera (webcam, phone camera, tablet)
-- Node.js 18+ (for the JavaScript SDK)
+| Requirement | Details |
+|---|---|
+| **Browser** | Chrome 80+, Firefox 78+, Safari 14+, or Edge 80+ with WebGL |
+| **Camera** | Webcam, phone camera, or tablet camera |
+| **HTTPS** | Required for `getUserMedia` — `localhost` works for development |
+| **Node.js** | 18+ (for npm install) |
+| **React** (optional) | 17+ if using the React bindings |
 
-## Installation
+---
+
+## Step 1: Install the SDK
 
 ```bash
 npm install @facesmash/sdk
 ```
 
-## React (Recommended)
+This installs both the core client and the React bindings. The package is ~200 KB (excluding peer dependencies). The neural network models (~12.5 MB) are loaded from a CDN at runtime and cached by the browser.
 
-The fastest way to add face login to a React app:
+<Callout type="info">
+  Using yarn or pnpm? Those work too: `yarn add @facesmash/sdk` or `pnpm add @facesmash/sdk`
+</Callout>
+
+---
+
+## Step 2: Choose Your Integration
+
+### Option A: React (Recommended)
+
+The fastest path. Three components give you a complete face auth flow:
 
 ```tsx
-import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+import { useState } from 'react';
+import { FaceSmashProvider, FaceLogin, FaceRegister } from '@facesmash/sdk/react';
 
 function App() {
+  const [user, setUser] = useState(null);
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+
+  if (user) {
+    return (
+      <div>
+        <h1>Welcome, {user.name}!</h1>
+        <p>Email: {user.email}</p>
+        <button onClick={() => setUser(null)}>Sign Out</button>
+      </div>
+    );
+  }
+
   return (
-    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
-      <LoginPage />
+    <FaceSmashProvider
+      config={{ apiUrl: 'https://api.facesmash.app' }}
+      onReady={() => console.log('Face recognition models loaded')}
+      onError={(err) => console.error('Failed to load models:', err)}
+    >
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: 20 }}>
+        <h1>FaceSmash Demo</h1>
+
+        {/* Toggle between login and register */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button
+            onClick={() => setMode('login')}
+            style={{ fontWeight: mode === 'login' ? 'bold' : 'normal' }}
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => setMode('register')}
+            style={{ fontWeight: mode === 'register' ? 'bold' : 'normal' }}
+          >
+            Register
+          </button>
+        </div>
+
+        {mode === 'login' ? (
+          <FaceLogin
+            onResult={(result) => {
+              if (result.success) {
+                setUser(result.user);
+              } else {
+                alert(`Login failed: ${result.error}`);
+              }
+            }}
+            className="w-full h-72 rounded-xl overflow-hidden bg-black"
+          />
+        ) : (
+          <FaceRegister
+            name="New User"
+            onResult={(result) => {
+              if (result.success) {
+                alert(`Registered as ${result.user.name}! Now sign in.`);
+                setMode('login');
+              } else {
+                alert(`Registration failed: ${result.error}`);
+              }
+            }}
+            className="w-full h-72 rounded-xl overflow-hidden bg-black"
+          />
+        )}
+      </div>
     </FaceSmashProvider>
   );
 }
 
-function LoginPage() {
-  return (
-    <FaceLogin
-      onResult={(result) => {
-        if (result.success) {
-          console.log('Welcome back,', result.user.name);
-          window.location.href = '/dashboard';
-        } else {
-          console.error('Login failed:', result.error);
-        }
-      }}
-      className="w-full h-80 rounded-xl overflow-hidden"
-    />
-  );
-}
+export default App;
 ```
 
-That's it — the `<FaceSmashProvider>` loads the ML models automatically, and `<FaceLogin>` handles the webcam, face detection, capture, and authentication.
+**What happens:**
 
-## Vanilla JavaScript
+1. `<FaceSmashProvider>` creates the SDK client and loads 5 neural networks (~12.5 MB, cached after first load)
+2. `<FaceLogin>` opens the webcam, waits 2 seconds, captures 3 frames, and runs face matching against all registered users
+3. `<FaceRegister>` opens the webcam, captures 3 frames, checks for duplicate faces, and creates a new user profile
+4. Results are delivered via `onResult` callbacks with typed `LoginResult` or `RegisterResult` objects
 
-No framework? Use the core client directly:
+### Option B: Vanilla JavaScript
 
-```javascript
-import { createFaceSmash } from '@facesmash/sdk';
+Works with any framework or no framework at all:
 
-const client = createFaceSmash({
-  apiUrl: 'https://api.facesmash.app',
-});
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FaceSmash Demo</title>
+</head>
+<body>
+  <h1>FaceSmash Login</h1>
+  <video id="camera" autoplay playsinline muted width="640" height="480"></video>
+  <p id="status">Loading face recognition...</p>
+  <button id="login-btn" disabled>Sign In with Face</button>
+  <button id="register-btn" disabled>Register New Face</button>
 
-// Load ML models (do this once on page load)
-await client.init((progress) => {
-  console.log(`Loading: ${progress}%`);
-});
+  <script type="module">
+    import { createFaceSmash } from '@facesmash/sdk';
 
-// Capture images from webcam (base64 data URLs)
-// Then authenticate:
-const result = await client.login(images);
+    const client = createFaceSmash({
+      apiUrl: 'https://api.facesmash.app',
+      debug: true,
+    });
 
-if (result.success) {
-  console.log('Welcome back,', result.user.name);
-} else {
-  console.error(result.error);
-}
+    const video = document.getElementById('camera');
+    const status = document.getElementById('status');
+    const loginBtn = document.getElementById('login-btn');
+    const registerBtn = document.getElementById('register-btn');
+
+    // Step 1: Load models
+    const success = await client.init((progress) => {
+      status.textContent = `Loading face recognition: ${progress}%`;
+    });
+
+    if (!success) {
+      status.textContent = 'Failed to load — check WebGL support';
+      throw new Error('Model loading failed');
+    }
+
+    // Step 2: Start camera
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' },
+    });
+    video.srcObject = stream;
+    status.textContent = 'Ready — click a button below';
+    loginBtn.disabled = false;
+    registerBtn.disabled = false;
+
+    // Helper: capture frames from webcam
+    async function captureFrames(count = 3, delay = 500) {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+
+      const images = [];
+      for (let i = 0; i < count; i++) {
+        ctx.drawImage(video, 0, 0);
+        images.push(canvas.toDataURL('image/jpeg', 0.9));
+        if (i < count - 1) await new Promise(r => setTimeout(r, delay));
+      }
+      return images;
+    }
+
+    // Step 3: Login
+    loginBtn.addEventListener('click', async () => {
+      status.textContent = 'Scanning your face...';
+      loginBtn.disabled = true;
+
+      const images = await captureFrames();
+      const result = await client.login(images);
+
+      if (result.success) {
+        status.textContent = `Welcome back, ${result.user.name}! (${(result.similarity * 100).toFixed(0)}% match)`;
+      } else {
+        status.textContent = `Login failed: ${result.error}`;
+      }
+      loginBtn.disabled = false;
+    });
+
+    // Step 4: Register
+    registerBtn.addEventListener('click', async () => {
+      const name = prompt('Enter your name:');
+      if (!name) return;
+
+      status.textContent = 'Capturing your face for registration...';
+      registerBtn.disabled = true;
+
+      const images = await captureFrames(5, 400);
+      const result = await client.register(name, images);
+
+      if (result.success) {
+        status.textContent = `Registered as ${result.user.name}! You can now sign in.`;
+      } else {
+        status.textContent = `Registration failed: ${result.error}`;
+      }
+      registerBtn.disabled = false;
+    });
+  </script>
+</body>
+</html>
 ```
 
-See [Vanilla JS guide](/docs/sdk/vanilla-js) for a complete webcam capture example.
+---
 
-## Try It Now
+## Step 3: Test It
 
-Visit [facesmash.app](https://facesmash.app) to see FaceSmash in action:
+1. **Start your dev server** — `npm run dev` (Vite, CRA, Next.js, etc.)
+2. **Open the page** — Navigate to `http://localhost:5173` (or your dev server URL)
+3. **Allow camera access** — The browser will prompt for webcam permission
+4. **Register a face** — Click Register, enter a name, and look at the camera
+5. **Sign in** — Click Sign In and look at the camera — authentication happens in 3–5 seconds
 
-1. Click **Register** and follow the prompts to capture your face
-2. Enter your name and complete registration
-3. Click **Sign In** and look at your camera — you'll be authenticated in seconds
+<Callout type="warn">
+  **First load is slower.** The SDK downloads ~12.5 MB of neural network weights on first use. Subsequent loads use the browser's HTTP cache and are much faster (typically 2–4 seconds).
+</Callout>
+
+---
+
+## What Just Happened?
+
+When you registered:
+1. The SDK captured 3 webcam frames at 500ms intervals
+2. Each frame was analyzed for face quality (lighting, pose, size, confidence)
+3. The best frame's 128-dimensional face descriptor was extracted
+4. The SDK checked for duplicate faces among existing users
+5. A new `user_profiles` record was created in PocketBase with the face embedding
+6. An initial `face_templates` record was stored for future multi-template matching
+
+When you logged in:
+1. The SDK captured 3 frames and picked the best-quality face
+2. It fetched all registered user profiles from PocketBase
+3. For each user, it compared the new face descriptor against the stored embedding
+4. If the user had multiple templates, multi-template matching was also performed
+5. The best match above the threshold (default: 0.45) was returned
+6. A `sign_in_logs` entry was created and the stored embedding was updated (adaptive learning)
+
+---
+
+## Common Issues
+
+### "No face detected"
+
+- **Face the camera directly** — The SDK requires a frontal face
+- **Improve lighting** — Avoid backlighting; face a light source
+- **Move closer** — Your face should be at least 80×80 pixels in the frame
+- **Stay still** — Quick movements cause motion blur
+
+### "Face quality too low"
+
+- **Better lighting** — The quality score factors in brightness and evenness
+- **Face the camera straight on** — Head tilts reduce the quality score
+- **Open your eyes** — Eye aspect ratio is part of the quality check
+
+### Camera not working
+
+- **HTTPS required** — `getUserMedia` only works on `https://` or `localhost`
+- **Grant permission** — Click "Allow" when the browser asks for camera access
+- **Check other apps** — Another app might be using the camera
+
+### Models loading slowly
+
+- **First load**: ~12.5 MB download (2–10 seconds depending on connection)
+- **Subsequent loads**: Cached by browser (2–4 seconds to initialize)
+- **Tip**: Show a loading progress bar using `client.init(progress => ...)` or `useFaceSmash().loadProgress`
+
+---
+
+## Try the Live Demo
+
+Visit [facesmash.app](https://facesmash.app) to see FaceSmash in action with the full production UI:
+
+1. Click **Register** and follow the on-screen prompts
+2. Enter your name and look at the camera
+3. After registration, click **Sign In** — you'll be authenticated in seconds
+4. Check the **Dashboard** for login history, activity graphs, and face quality metrics
+
+---
 
 ## Next Steps
 
-- [SDK Reference](/docs/sdk) — Full SDK documentation
-- [React Components](/docs/sdk/react-components) — Drop-in components and hooks
-- [Configuration](/docs/sdk/configuration) — Options, thresholds, and events
-- [Integration Guides](/docs/guides) — Step-by-step tutorials
+- [**SDK Overview**](/docs/sdk) — Architecture, exports, neural networks, browser support
+- [**React Components**](/docs/sdk/react-components) — `<FaceLogin>`, `<FaceRegister>`, provider, 4 hooks, full prop tables
+- [**Vanilla JS**](/docs/sdk/vanilla-js) — Complete client API, low-level utilities, Vue/Svelte/Angular examples
+- [**Configuration**](/docs/sdk/configuration) — Every option explained, threshold tuning, event system, PocketBase schemas
+- [**Security & Privacy**](/docs/security) — How biometric data is processed and stored

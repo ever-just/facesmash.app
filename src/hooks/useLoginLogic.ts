@@ -84,7 +84,7 @@ export const useLoginLogic = () => {
       }
 
       // ── Quality gate: reject very low quality scans ──
-      if (faceAnalysis.qualityScore < 0.2) {
+      if (faceAnalysis.qualityScore < 0.05) {
         clearTimeout(timeoutId);
         setIsScanning(false);
         setScanComplete(true);
@@ -180,50 +180,57 @@ export const useLoginLogic = () => {
             faceAnalysis.confidence
           );
           
-          // Store the enhanced login scan (image + embedding in one record)
-          try {
-            const imageBlob = base64ToBlob(images[bestImageIndex]);
-            const imageFile = await prepareImageFile(imageBlob, 'login');
-            
-            await createFaceScan(
-              profile.email,
-              faceAnalysis.descriptor,
-              'login',
-              faceAnalysis.confidence,
-              faceAnalysis.qualityScore,
-              imageFile
-            );
-            
-            // Enhanced learning: Update user embedding and templates
-            await updateUserEmbeddingWithScan(
-              profile.email,
-              faceAnalysis.descriptor,
-              learningWeight
-            );
-            
-            // Store new face template if quality is good
-            if (faceAnalysis.qualityScore > 0.6) {
-              await manageFaceTemplates(
-                profile.email,
-                faceAnalysis.descriptor,
-                faceAnalysis.qualityScore,
-                faceAnalysis.confidence,
-                faceAnalysis.environmentalConditions
+          // Fire-and-forget: post-match bookkeeping runs in background
+          // (non-blocking so the UI can respond immediately)
+          const bookkeepingEmail = profile.email;
+          const bookkeepingDescriptor = faceAnalysis.descriptor;
+          const bookkeepingQuality = faceAnalysis.qualityScore;
+          const bookkeepingConfidence = faceAnalysis.confidence;
+          const bookkeepingConditions = faceAnalysis.environmentalConditions;
+          const bookkeepingImageIndex = bestImageIndex;
+          
+          (async () => {
+            try {
+              const imageBlob = base64ToBlob(images[bookkeepingImageIndex]);
+              const imageFile = await prepareImageFile(imageBlob, 'login');
+              
+              await createFaceScan(
+                bookkeepingEmail,
+                bookkeepingDescriptor,
+                'login',
+                bookkeepingConfidence,
+                bookkeepingQuality,
+                imageFile
               );
+              
+              await updateUserEmbeddingWithScan(
+                bookkeepingEmail,
+                bookkeepingDescriptor,
+                learningWeight
+              );
+              
+              if (bookkeepingQuality > 0.6) {
+                await manageFaceTemplates(
+                  bookkeepingEmail,
+                  bookkeepingDescriptor,
+                  bookkeepingQuality,
+                  bookkeepingConfidence,
+                  bookkeepingConditions
+                );
+              }
+              
+              await updateUserLearningMetrics(
+                bookkeepingEmail,
+                true,
+                bookkeepingConfidence,
+                bookkeepingQuality
+              );
+              
+              console.log(`Enhanced learning applied - Weight: ${learningWeight.toFixed(2)}, Quality: ${bookkeepingQuality.toFixed(3)}`);
+            } catch (storageError) {
+              console.error('Error storing login scan:', storageError);
             }
-            
-            // Update learning metrics
-            await updateUserLearningMetrics(
-              profile.email,
-              true,
-              faceAnalysis.confidence,
-              faceAnalysis.qualityScore
-            );
-            
-            console.log(`Enhanced learning applied - Weight: ${learningWeight.toFixed(2)}, Quality: ${faceAnalysis.qualityScore.toFixed(3)}`);
-          } catch (storageError) {
-            console.error('Error storing login scan:', storageError);
-          }
+          })();
           
           localStorage.setItem('currentUserName', profile.email);
           await createSignInLog(profile.email);

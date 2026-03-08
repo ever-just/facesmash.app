@@ -118,7 +118,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
 
     let cancelled = false;
     let detectionCount = 0;
-    const maxDetections = 3;
+    const maxDetections = 2;
     const detectionInterval = 1500;
     let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -142,7 +142,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
               images.push(capturedImage);
             }
             if (i < 2) {
-              await new Promise(resolve => setTimeout(resolve, 500));
+              await new Promise(resolve => setTimeout(resolve, 200));
             }
           }
           if (!cancelled && images.length > 0) {
@@ -158,7 +158,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     };
 
     // Start auto-detection after face is stable
-    const startTimer = setTimeout(autoDetect, 2000);
+    const startTimer = setTimeout(autoDetect, 1000);
 
     return () => {
       cancelled = true;

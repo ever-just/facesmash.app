@@ -3,17 +3,47 @@ title: Vanilla JavaScript
 description: Framework-agnostic integration for any web application
 ---
 
+The core entry point (`@facesmash/sdk`) provides a framework-agnostic client that works with vanilla JS, Vue, Svelte, Angular, or any other framework. No React dependency required.
+
 ## Installation
 
 ```bash
 npm install @facesmash/sdk
 ```
 
-The core entry point (`@facesmash/sdk`) is framework-agnostic — no React or other framework required.
+---
 
-## Basic Usage
+## FaceSmashClient API
 
-### Initialize
+The SDK exposes two ways to create a client:
+
+```javascript
+// Factory function (recommended)
+import { createFaceSmash } from '@facesmash/sdk';
+const client = createFaceSmash(config);
+
+// Class constructor (equivalent)
+import { FaceSmashClient } from '@facesmash/sdk';
+const client = new FaceSmashClient(config);
+```
+
+Both produce an identical `FaceSmashClient` instance. The factory function is simply a convenience wrapper.
+
+---
+
+### `client.init(onProgress?)`
+
+Initialize the TF.js WebGL backend and load all five neural networks. **Must be called once before any face operations.** Subsequent calls are no-ops that return `true` immediately.
+
+```typescript
+init(onProgress?: (progress: number) => void): Promise<boolean>
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `onProgress` | `(progress: number) => void` | Optional callback fired with 0–100 progress values |
+
+**Returns**: `true` if models loaded successfully, `false` on failure.
 
 ```javascript
 import { createFaceSmash } from '@facesmash/sdk';
@@ -23,17 +53,91 @@ const client = createFaceSmash({
   debug: true,
 });
 
-// Load ML models (call once on page load)
-await client.init((progress) => {
-  console.log(`Loading models: ${progress}%`);
+const success = await client.init((progress) => {
+  document.getElementById('loader').textContent = `Loading: ${progress}%`;
 });
 
-console.log('Ready!', client.isReady);
+if (!success) {
+  console.error('Failed to load models — check WebGL support');
+}
 ```
 
-### Login
+**What happens during init:**
 
-Pass an array of base64 image data URLs captured from a webcam or file input:
+1. TF.js backend is set to `webgl` with optimization flags (`CANVAS2D_WILL_READ_FREQUENTLY`, `WEBGL_EXP_CONV`)
+2. Five models load in parallel from the configured `modelUrl`:
+   - `ssdMobilenetv1` — primary face detector (~5.4 MB)
+   - `tinyFaceDetector` — fallback detector (~190 KB)
+   - `faceLandmark68Net` — landmark detection (~350 KB)
+   - `faceRecognitionNet` — descriptor extraction (~6.2 MB)
+   - `faceExpressionNet` — expression classification (~310 KB)
+3. Progress jumps from 0 → 10 (TF.js init) → 100 (all models loaded)
+
+---
+
+### `client.isReady`
+
+```typescript
+readonly isReady: boolean
+```
+
+Returns `true` after `init()` completes successfully. Use this to gate UI interactions:
+
+```javascript
+if (!client.isReady) {
+  alert('Face recognition is still loading');
+  return;
+}
+```
+
+---
+
+### `client.login(images)`
+
+Authenticate a user by comparing captured face images against all registered profiles.
+
+```typescript
+login(images: string[]): Promise<LoginResult>
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `images` | `string[]` | Array of base64 data URLs (`data:image/jpeg;base64,...`) captured from webcam |
+
+**Returns**: `LoginResult`
+
+```typescript
+interface LoginResult {
+  success: boolean;
+  user?: UserProfile;    // Present on success
+  similarity?: number;   // 0–1 match score (present on success or partial match)
+  error?: string;        // Present on failure
+}
+
+interface UserProfile {
+  id: string;            // PocketBase record ID (e.g., "a1b2c3d4e5f6")
+  name: string;          // Display name
+  email: string;         // Email address
+  face_embedding: number[]; // 128-dimensional descriptor as plain array
+  created: string;       // ISO date (e.g., "2026-03-07 20:15:00.000Z")
+  updated: string;       // ISO date
+}
+```
+
+**Login flow in detail:**
+
+1. Each image is analyzed with `analyzeFace()` — the highest quality non-rejected result is selected
+2. If no face is detected or quality is below `minQualityScore`, login fails immediately
+3. All `user_profiles` are fetched from PocketBase
+4. For each profile:
+   - `enhancedMatch()` compares the new descriptor against the stored `face_embedding`
+   - If the profile has `face_templates`, `multiTemplateMatch()` is also run; the better similarity wins
+   - Threshold adapts based on lighting score (more lenient in poor lighting)
+5. If a match is found, the SDK:
+   - Creates a `sign_in_logs` entry
+   - Creates a `face_scans` entry
+   - If quality > 0.5: updates the stored embedding via weighted average (adaptive learning)
+   - If quality > 0.6: stores a new face template (evicts the oldest if at `maxTemplatesPerUser`)
 
 ```javascript
 const result = await client.login(images);
@@ -41,13 +145,54 @@ const result = await client.login(images);
 if (result.success) {
   console.log('Welcome back,', result.user.name);
   console.log('Email:', result.user.email);
-  console.log('Similarity:', result.similarity);
+  console.log('User ID:', result.user.id);
+  console.log('Similarity:', result.similarity); // e.g., 0.78
 } else {
   console.error('Login failed:', result.error);
+  // Possible errors:
+  // - "No face detected in any image"
+  // - "Face quality too low. Improve lighting and face the camera directly."
+  // - "No registered users found"
+  // - "Face not recognized."
+  // - "Face partially matched but did not meet security threshold."
 }
 ```
 
-### Register a User
+---
+
+### `client.register(name, images, email?)`
+
+Register a new user with facial biometrics.
+
+```typescript
+register(name: string, images: string[], email?: string): Promise<RegisterResult>
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `name` | `string` | Display name for the new user |
+| `images` | `string[]` | Array of base64 data URLs |
+| `email` | `string` (optional) | Email address. If omitted, auto-generated as `name.lowercase@facesmash.app` |
+
+**Returns**: `RegisterResult`
+
+```typescript
+interface RegisterResult {
+  success: boolean;
+  user?: UserProfile;  // Present on success
+  error?: string;      // Present on failure
+}
+```
+
+**Registration flow in detail:**
+
+1. Each image is analyzed; the highest quality result is selected
+2. Quality must meet `minQualityScore` (default: 0.2)
+3. All existing `user_profiles` are checked for duplicate faces (similarity ≥ 0.75)
+4. If no duplicate found, creates:
+   - A `user_profiles` record with `name`, `email`, and `face_embedding`
+   - A `face_templates` record labeled `"registration"` with the descriptor and quality score
+   - A `face_scans` record of type `"registration"`
 
 ```javascript
 const result = await client.register('Jane Doe', images, 'jane@example.com');
@@ -55,171 +200,464 @@ const result = await client.register('Jane Doe', images, 'jane@example.com');
 if (result.success) {
   console.log('Registered:', result.user.name);
   console.log('User ID:', result.user.id);
+  console.log('Email:', result.user.email);
 } else {
   console.error('Registration failed:', result.error);
-  // e.g. "This face is already registered to John Doe"
+  // Possible errors:
+  // - "No face detected in any image"
+  // - "Face quality too low for registration."
+  // - "This face is already registered to John Doe"
 }
 ```
 
-### Analyze a Face
+---
 
-Get detailed quality metrics for a single image:
+### `client.analyzeFace(imageData)`
+
+Analyze a single image for face quality without performing login or registration. Useful for building preview UIs or quality feedback indicators.
+
+```typescript
+analyzeFace(imageData: string): Promise<FaceAnalysis | null>
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `imageData` | `string` | Base64 data URL of a face image |
+
+**Returns**: `FaceAnalysis` object, or `null` if no face detected. Also emits `face-detected` or `face-lost` events.
+
+```typescript
+interface FaceAnalysis {
+  descriptor: Float32Array;           // Raw 128-D face embedding
+  normalizedDescriptor: Float32Array; // L2-normalized version
+  confidence: number;                 // SSD detection confidence (0–1)
+  qualityScore: number;               // Composite quality (0–1)
+  lightingScore: number;              // Lighting quality (0–1)
+  headPose: HeadPose;                 // Yaw, pitch, roll, isFrontal
+  faceSizeCheck: FaceSizeCheck;       // Size validation
+  eyeAspectRatio: number;            // Eye openness (~0.2–0.35 for open eyes)
+  rejectionReason?: string;           // Present if face should not be used
+}
+
+interface HeadPose {
+  yaw: number;       // Left/right (-1 to 1, 0 = center)
+  pitch: number;     // Up/down (-1 to 1, 0 = center)
+  roll: number;      // Tilt (radians)
+  isFrontal: boolean; // true if |yaw| < 0.35, |pitch| < 0.4, |roll| < 0.25
+}
+
+interface FaceSizeCheck {
+  isValid: boolean;  // true if face is 2–65% of frame and >= 80×80px
+  ratio: number;     // face area / frame area
+  reason?: string;   // "Face too far from camera", "Face too close", etc.
+}
+```
+
+**Quality score calculation:**
+
+The quality score is a composite of several factors:
+- Starts at the raw SSD detection confidence (0–1)
+- Multiplied by lighting factor: `0.7 + lightingScore * 0.3`
+- Multiplied by size factor: `0.8 + sizeRatio * 0.2` (where sizeRatio normalizes to 30% max coverage)
+- Multiplied by pose penalty if head is not frontal: `max(0.5, 1 - (|yaw| + |pitch|) * 0.3)`
+- Clamped to [0, 1]
 
 ```javascript
 const analysis = await client.analyzeFace(base64Image);
 
-if (analysis) {
-  console.log('Quality:', analysis.qualityScore);
-  console.log('Confidence:', analysis.confidence);
-  console.log('Lighting:', analysis.lightingScore);
-  console.log('Head pose:', analysis.headPose); // { yaw, pitch, roll, isFrontal }
-  console.log('Eye aspect ratio:', analysis.eyeAspectRatio);
-  console.log('Rejection reason:', analysis.rejectionReason); // undefined if accepted
+if (!analysis) {
+  console.log('No face detected in image');
+} else if (analysis.rejectionReason) {
+  console.log('Face rejected:', analysis.rejectionReason);
+} else {
+  console.log('Quality:', (analysis.qualityScore * 100).toFixed(0) + '%');
+  console.log('Confidence:', (analysis.confidence * 100).toFixed(0) + '%');
+  console.log('Lighting:', (analysis.lightingScore * 100).toFixed(0) + '%');
+  console.log('Frontal:', analysis.headPose.isFrontal);
+  console.log('Eyes open:', analysis.eyeAspectRatio > 0.2);
+  console.log('Face size valid:', analysis.faceSizeCheck.isValid);
 }
 ```
 
-## Event System
+---
 
-Subscribe to SDK events for real-time feedback:
+### `client.on(listener)`
+
+Subscribe to all SDK events. Returns an unsubscribe function.
+
+```typescript
+on(listener: FaceSmashEventListener): () => void
+```
+
+You can register multiple listeners. Listener errors are caught internally and do not break the SDK.
 
 ```javascript
-const unsubscribe = client.on((event) => {
-  switch (event.type) {
-    case 'models-loading':
-      console.log(`Loading: ${event.progress}%`);
-      break;
-    case 'models-loaded':
-      console.log('Models ready');
-      break;
-    case 'face-detected':
-      console.log('Quality:', event.analysis.qualityScore);
-      break;
-    case 'face-lost':
-      console.log('No face detected');
-      break;
-    case 'login-success':
-      console.log('Matched:', event.user.name, 'Similarity:', event.similarity);
-      break;
-    case 'login-failed':
-      console.log('Failed:', event.error, 'Best:', event.bestSimilarity);
-      break;
-    case 'register-success':
-      console.log('Registered:', event.user.name);
-      break;
-    case 'register-failed':
-      console.log('Registration failed:', event.error);
-      break;
-  }
+const unsub = client.on((event) => {
+  console.log('[FaceSmash]', event.type, event);
 });
 
 // Later: stop listening
-unsubscribe();
+unsub();
 ```
+
+---
+
+### `client.config`
+
+Access the resolved configuration (all defaults applied):
+
+```typescript
+readonly config: ResolvedConfig
+```
+
+```javascript
+console.log(client.config.apiUrl);               // "https://api.facesmash.app"
+console.log(client.config.modelUrl);              // "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model"
+console.log(client.config.matchThreshold);        // 0.45
+console.log(client.config.minQualityScore);       // 0.2
+console.log(client.config.minDetectionConfidence); // 0.3
+console.log(client.config.maxTemplatesPerUser);   // 10
+console.log(client.config.debug);                 // false
+```
+
+---
+
+### `client.pb`
+
+Direct access to the underlying PocketBase client instance. Use this for custom queries against the database.
+
+```typescript
+readonly pb: PocketBase
+```
+
+```javascript
+// Query all registered users
+const users = await client.pb.collection('user_profiles').getFullList();
+console.log('Registered users:', users.length);
+
+// Get a specific user's templates
+const templates = await client.pb.collection('face_templates').getList(1, 50, {
+  filter: 'user_email="jane@example.com"',
+  sort: '-quality_score',
+});
+console.log('Templates:', templates.items.length);
+
+// Get recent sign-in logs
+const logs = await client.pb.collection('sign_in_logs').getList(1, 20, {
+  sort: '-created',
+});
+```
+
+---
+
+## Event System
+
+The SDK emits typed events for every significant action. Events are delivered synchronously to all registered listeners.
+
+### All Event Types
+
+| Event Type | Payload | When |
+|---|---|---|
+| `models-loading` | `{ progress: number }` | During `init()` — progress 0–100 |
+| `models-loaded` | `{}` | Models loaded successfully |
+| `models-error` | `{ error: string }` | Model loading failed |
+| `face-detected` | `{ analysis: FaceAnalysis }` | `analyzeFace()` found a face |
+| `face-lost` | `{}` | `analyzeFace()` found no face |
+| `login-start` | `{}` | `login()` called |
+| `login-success` | `{ user: UserProfile, similarity: number }` | Match found |
+| `login-failed` | `{ error: string, bestSimilarity?: number }` | No match found |
+| `register-start` | `{}` | `register()` called |
+| `register-success` | `{ user: UserProfile }` | New user created |
+| `register-failed` | `{ error: string }` | Registration failed |
+
+### TypeScript Event Type
+
+```typescript
+type FaceSmashEvent =
+  | { type: 'models-loading'; progress: number }
+  | { type: 'models-loaded' }
+  | { type: 'models-error'; error: string }
+  | { type: 'face-detected'; analysis: FaceAnalysis }
+  | { type: 'face-lost' }
+  | { type: 'login-start' }
+  | { type: 'login-success'; user: UserProfile; similarity: number }
+  | { type: 'login-failed'; error: string; bestSimilarity?: number }
+  | { type: 'register-start' }
+  | { type: 'register-success'; user: UserProfile }
+  | { type: 'register-failed'; error: string };
+
+type FaceSmashEventListener = (event: FaceSmashEvent) => void;
+```
+
+### Example: Progress Bar + Status Updates
+
+```javascript
+const statusEl = document.getElementById('status');
+const progressEl = document.getElementById('progress');
+
+client.on((event) => {
+  switch (event.type) {
+    case 'models-loading':
+      progressEl.style.width = `${event.progress}%`;
+      statusEl.textContent = 'Loading face recognition...';
+      break;
+    case 'models-loaded':
+      statusEl.textContent = 'Ready — look at the camera';
+      break;
+    case 'models-error':
+      statusEl.textContent = `Error: ${event.error}`;
+      break;
+    case 'login-start':
+      statusEl.textContent = 'Analyzing your face...';
+      break;
+    case 'login-success':
+      statusEl.textContent = `Welcome back, ${event.user.name}! (${(event.similarity * 100).toFixed(0)}% match)`;
+      break;
+    case 'login-failed':
+      statusEl.textContent = event.bestSimilarity
+        ? `Not recognized (best match: ${(event.bestSimilarity * 100).toFixed(0)}%)`
+        : `Not recognized: ${event.error}`;
+      break;
+    case 'register-success':
+      statusEl.textContent = `Registered as ${event.user.name}!`;
+      break;
+    case 'register-failed':
+      statusEl.textContent = `Registration failed: ${event.error}`;
+      break;
+  }
+});
+```
+
+---
 
 ## Low-Level API
 
-For full control over the face recognition pipeline, import individual functions:
+For full control over the face recognition pipeline, import individual detection and matching functions. These are the same functions the `FaceSmashClient` uses internally.
 
-```javascript
+### Detection Functions
+
+```typescript
 import {
   loadModels,
+  areModelsLoaded,
   extractDescriptor,
   analyzeFace,
-  calculateSimilarity,
-  enhancedMatch,
-  multiTemplateMatch,
+  processImages,
+  normalizeDescriptor,
 } from '@facesmash/sdk';
 ```
 
-### Extract a face descriptor
+#### `loadModels(config, onProgress?)`
 
-```javascript
-const config = { modelUrl: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model', minDetectionConfidence: 0.3, debug: false };
-await loadModels(config);
+Load neural networks directly (without creating a client).
 
-const descriptor = await extractDescriptor(base64Image, config);
-// Float32Array(128) — the face embedding
+```typescript
+loadModels(config: ResolvedConfig, onProgress?: (p: number) => void): Promise<boolean>
 ```
 
-### Compare two faces
+```javascript
+import { loadModels } from '@facesmash/sdk';
+
+const config = {
+  apiUrl: 'https://api.facesmash.app',
+  modelUrl: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model',
+  minDetectionConfidence: 0.3,
+  matchThreshold: 0.45,
+  minQualityScore: 0.2,
+  maxTemplatesPerUser: 10,
+  debug: false,
+};
+
+await loadModels(config, (p) => console.log(`${p}%`));
+```
+
+#### `areModelsLoaded()`
+
+```typescript
+areModelsLoaded(): boolean
+```
+
+#### `extractDescriptor(input, config)`
+
+Extract a 128-D face descriptor from any supported input.
+
+```typescript
+extractDescriptor(
+  input: string | HTMLVideoElement | HTMLCanvasElement | HTMLImageElement,
+  config: ResolvedConfig
+): Promise<Float32Array | null>
+```
+
+Uses SSD MobileNet as primary detector, falls back to TinyFaceDetector if SSD finds nothing.
+
+```javascript
+import { extractDescriptor } from '@facesmash/sdk';
+
+// From a base64 string
+const desc1 = await extractDescriptor('data:image/jpeg;base64,...', config);
+
+// From a video element (live webcam)
+const desc2 = await extractDescriptor(videoElement, config);
+
+// From a canvas
+const desc3 = await extractDescriptor(canvasElement, config);
+
+// Returns Float32Array(128) or null if no face found
+```
+
+#### `analyzeFace(imageData, config)`
+
+Full quality analysis (same function `client.analyzeFace()` uses internally).
+
+```typescript
+analyzeFace(imageData: string, config: ResolvedConfig): Promise<FaceAnalysis | null>
+```
+
+#### `processImages(images, config)`
+
+Extract descriptors from multiple images and average them.
+
+```typescript
+processImages(images: string[], config: ResolvedConfig): Promise<Float32Array | null>
+```
+
+If one image is provided, returns its descriptor directly. For multiple images, averages all successfully extracted descriptors element-wise.
+
+#### `normalizeDescriptor(descriptor)`
+
+L2-normalize a face descriptor.
+
+```typescript
+normalizeDescriptor(descriptor: Float32Array): Float32Array
+```
+
+### Matching Functions
+
+```typescript
+import {
+  calculateSimilarity,
+  facesMatch,
+  enhancedMatch,
+  multiTemplateMatch,
+  calculateLearningWeight,
+} from '@facesmash/sdk';
+```
+
+#### `calculateSimilarity(d1, d2)`
+
+```typescript
+calculateSimilarity(d1: Float32Array, d2: Float32Array): number
+```
+
+Returns `1 - euclideanDistance(d1, d2)`. Range: 0 (completely different) to 1 (identical).
 
 ```javascript
 const similarity = calculateSimilarity(descriptor1, descriptor2);
-// 0-1 score (1 = identical)
-
-const match = enhancedMatch(descriptor1, descriptor2, 0.45, 0, 0.7);
-// { isMatch: true, similarity: 0.72, adaptedThreshold: 0.45 }
+console.log(`${(similarity * 100).toFixed(1)}% similar`);
 ```
 
-### Multi-template matching
-
-```javascript
-const templates = [
-  { descriptor: stored1, quality: 0.9, weight: 1.5 },
-  { descriptor: stored2, quality: 0.7, weight: 1.0 },
-];
-
-const result = multiTemplateMatch(newDescriptor, templates, 0.45, 0.8);
-// { isMatch: true, bestSimilarity: 0.78, avgSimilarity: 0.71, matchCount: 2 }
-```
-
-## TypeScript Support
-
-The SDK is fully typed. Key types:
+#### `facesMatch(d1, d2, threshold?)`
 
 ```typescript
-interface FaceSmashConfig {
-  apiUrl?: string;
-  modelUrl?: string;
-  matchThreshold?: number;
-  minQualityScore?: number;
-  minDetectionConfidence?: number;
-  maxTemplatesPerUser?: number;
-  debug?: boolean;
-}
+facesMatch(d1: Float32Array, d2: Float32Array, threshold?: number): boolean
+```
 
-interface FaceAnalysis {
-  descriptor: Float32Array;
-  normalizedDescriptor: Float32Array;
-  confidence: number;
-  qualityScore: number;
-  lightingScore: number;
-  headPose: { yaw: number; pitch: number; roll: number; isFrontal: boolean };
-  faceSizeCheck: { isValid: boolean; ratio: number; reason?: string };
-  eyeAspectRatio: number;
-  rejectionReason?: string;
-}
+Simple boolean check: `calculateSimilarity(d1, d2) >= threshold`. Default threshold: 0.45.
 
-interface LoginResult {
-  success: boolean;
-  user?: UserProfile;
-  similarity?: number;
-  error?: string;
-}
+#### `enhancedMatch(d1, d2, baseThreshold?, confidenceBoost?, lightingScore?)`
 
-interface RegisterResult {
-  success: boolean;
-  user?: UserProfile;
-  error?: string;
-}
+Adaptive matching that adjusts the threshold based on conditions.
 
+```typescript
+enhancedMatch(
+  d1: Float32Array,
+  d2: Float32Array,
+  baseThreshold?: number,     // default: 0.45
+  confidenceBoost?: number,   // default: 0
+  lightingScore?: number      // default: 0.5
+): MatchResult
+```
+
+**Threshold adaptation rules:**
+- Poor lighting (score < 0.4): threshold drops by 0.05 (more lenient)
+- Good lighting (score > 0.8): threshold increases by 0.02 (more strict)
+- Confidence boost reduces threshold by `confidenceBoost * 0.05`
+- Threshold is clamped to minimum 0.35
+
+```typescript
 interface MatchResult {
   isMatch: boolean;
   similarity: number;
   adaptedThreshold: number;
 }
+```
 
+```javascript
+const result = enhancedMatch(newDescriptor, storedDescriptor, 0.45, 0, 0.7);
+console.log(result);
+// { isMatch: true, similarity: 0.72, adaptedThreshold: 0.47 }
+```
+
+#### `multiTemplateMatch(descriptor, templates, baseThreshold, lightingScore?)`
+
+Match against multiple stored templates with quality-weighted averaging.
+
+```typescript
+multiTemplateMatch(
+  newDescriptor: Float32Array,
+  templates: { descriptor: Float32Array; quality: number; weight: number }[],
+  baseThreshold: number,
+  lightingScore?: number
+): MultiTemplateMatchResult
+```
+
+A match is declared if the best similarity meets the threshold OR 60%+ of templates match.
+
+```typescript
 interface MultiTemplateMatchResult {
   isMatch: boolean;
   bestSimilarity: number;
-  avgSimilarity: number;
-  matchCount: number;
+  avgSimilarity: number;   // Quality-weighted average
+  matchCount: number;       // How many templates matched
 }
 ```
 
+```javascript
+const templates = [
+  { descriptor: template1, quality: 0.9, weight: 1.5 },
+  { descriptor: template2, quality: 0.7, weight: 1.0 },
+  { descriptor: template3, quality: 0.85, weight: 1.2 },
+];
+
+const result = multiTemplateMatch(newDescriptor, templates, 0.45, 0.8);
+console.log(result);
+// { isMatch: true, bestSimilarity: 0.78, avgSimilarity: 0.71, matchCount: 3 }
+```
+
+#### `calculateLearningWeight(qualityScore, lightingScore, confidence)`
+
+Calculate a weight for adaptive learning (used internally to decide how much a new scan should influence the stored embedding).
+
+```typescript
+calculateLearningWeight(
+  qualityScore: number,
+  lightingScore: number,
+  confidence: number
+): number   // 0.1 to 3.0
+```
+
+**Weight factors:**
+- Quality > 0.8 → ×1.5 | Quality > 0.6 → ×1.2 | Quality < 0.4 → ×0.5
+- Lighting > 0.7 → ×1.3 | Lighting < 0.4 → ×0.7
+- Confidence > 0.8 → ×1.2 | Confidence < 0.5 → ×0.8
+
+---
+
 ## Capturing Images from Webcam
 
-The SDK expects base64 data URLs. Here's a minimal example of capturing from a webcam:
+The SDK expects base64 data URLs (`data:image/jpeg;base64,...`). Here are complete examples for capturing webcam frames.
+
+### Minimal Capture Function
 
 ```javascript
 async function captureFromWebcam(count = 3, delay = 500) {
@@ -230,6 +668,7 @@ async function captureFromWebcam(count = 3, delay = 500) {
   const video = document.createElement('video');
   video.srcObject = stream;
   video.autoplay = true;
+  video.playsInline = true;
   await new Promise((r) => video.addEventListener('playing', r, { once: true }));
 
   const canvas = document.createElement('canvas');
@@ -247,8 +686,165 @@ async function captureFromWebcam(count = 3, delay = 500) {
   stream.getTracks().forEach((t) => t.stop());
   return images;
 }
+```
 
-// Usage
-const images = await captureFromWebcam();
-const result = await client.login(images);
+### Full Login Flow with Visible Camera
+
+```html
+<div id="camera-container">
+  <video id="camera" autoplay playsinline muted></video>
+  <div id="status">Initializing...</div>
+  <div id="progress-bar" style="width: 0%; height: 4px; background: #10b981;"></div>
+  <button id="login-btn" disabled>Sign In</button>
+</div>
+
+<script type="module">
+import { createFaceSmash } from '@facesmash/sdk';
+
+const client = createFaceSmash({
+  apiUrl: 'https://api.facesmash.app',
+  debug: true,
+});
+
+const video = document.getElementById('camera');
+const status = document.getElementById('status');
+const progress = document.getElementById('progress-bar');
+const loginBtn = document.getElementById('login-btn');
+
+// Track events
+client.on((event) => {
+  switch (event.type) {
+    case 'models-loading':
+      progress.style.width = `${event.progress}%`;
+      break;
+    case 'models-loaded':
+      status.textContent = 'Ready — click Sign In';
+      break;
+    case 'login-start':
+      status.textContent = 'Scanning...';
+      loginBtn.disabled = true;
+      break;
+    case 'login-success':
+      status.textContent = `Welcome, ${event.user.name}!`;
+      break;
+    case 'login-failed':
+      status.textContent = `Failed: ${event.error}`;
+      loginBtn.disabled = false;
+      break;
+  }
+});
+
+// Init models
+await client.init();
+
+// Start camera
+const stream = await navigator.mediaDevices.getUserMedia({
+  video: { width: 640, height: 480, facingMode: 'user' },
+});
+video.srcObject = stream;
+loginBtn.disabled = false;
+
+// Capture + login on click
+loginBtn.addEventListener('click', async () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+
+  const images = [];
+  for (let i = 0; i < 3; i++) {
+    ctx.drawImage(video, 0, 0);
+    images.push(canvas.toDataURL('image/jpeg', 0.9));
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  const result = await client.login(images);
+
+  if (result.success) {
+    // Redirect or update UI
+    stream.getTracks().forEach((t) => t.stop());
+  }
+});
+</script>
+```
+
+---
+
+## Error Handling
+
+All client methods catch errors internally and return structured results. They never throw. However, calling methods before `init()` throws an error:
+
+```javascript
+try {
+  // This throws if models aren't loaded
+  const result = await client.login(images);
+} catch (err) {
+  // "FaceSmash models not loaded. Call client.init() first."
+  console.error(err.message);
+}
+```
+
+**Best practice:** Always check `client.isReady` before calling `login()`, `register()`, or `analyzeFace()`.
+
+---
+
+## Using with Other Frameworks
+
+### Vue 3
+
+```vue
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue';
+import { createFaceSmash } from '@facesmash/sdk';
+
+const client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+const isReady = ref(false);
+const progress = ref(0);
+
+onMounted(async () => {
+  await client.init((p) => { progress.value = p; });
+  isReady.value = true;
+});
+
+onUnmounted(() => {
+  // Cleanup if needed
+});
+</script>
+```
+
+### Svelte
+
+```svelte
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { createFaceSmash } from '@facesmash/sdk';
+
+  const client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+  let isReady = false;
+  let progress = 0;
+
+  onMount(async () => {
+    await client.init((p) => { progress = p; });
+    isReady = true;
+  });
+</script>
+```
+
+### Angular
+
+```typescript
+import { Component, OnInit } from '@angular/core';
+import { createFaceSmash } from '@facesmash/sdk';
+
+@Component({ selector: 'app-face-auth', template: '...' })
+export class FaceAuthComponent implements OnInit {
+  client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+  isReady = false;
+  progress = 0;
+
+  async ngOnInit() {
+    await this.client.init((p) => { this.progress = p; });
+    this.isReady = true;
+  }
+}
 ```

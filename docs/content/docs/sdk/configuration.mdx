@@ -1,11 +1,15 @@
 ---
 title: Configuration
-description: SDK options, thresholds, and customization
+description: SDK options, thresholds, events, PocketBase collections, and self-hosting
 ---
 
-## FaceSmashConfig
+Every aspect of the FaceSmash SDK is configurable through the `FaceSmashConfig` object. All options are optional — sensible defaults are applied for any option you omit.
 
-Pass a configuration object when creating a client:
+---
+
+## Passing Configuration
+
+### Vanilla JS / Any Framework
 
 ```typescript
 import { createFaceSmash } from '@facesmash/sdk';
@@ -21,118 +25,619 @@ const client = createFaceSmash({
 });
 ```
 
-Or with the React provider:
+### React
 
 ```tsx
+import { FaceSmashProvider } from '@facesmash/sdk/react';
+
 <FaceSmashProvider config={{
   apiUrl: 'https://api.facesmash.app',
   matchThreshold: 0.45,
   debug: true,
 }}>
+  {/* children */}
+</FaceSmashProvider>
 ```
 
-## All Options
+### Accessing Resolved Config
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `apiUrl` | `string` | `https://api.facesmash.app` | PocketBase API URL for your backend |
-| `modelUrl` | `string` | jsdelivr CDN | URL to load face-api.js models from |
-| `minDetectionConfidence` | `number` | `0.3` | SSD MobileNet minimum confidence (0-1) |
-| `matchThreshold` | `number` | `0.45` | Similarity threshold for face matching (0-1) |
-| `minQualityScore` | `number` | `0.2` | Minimum quality score to accept a face scan (0-1) |
-| `maxTemplatesPerUser` | `number` | `10` | Maximum face templates stored per user |
-| `debug` | `boolean` | `false` | Enable console logging |
-
-## Understanding Thresholds
-
-### matchThreshold
-
-Similarity scores range from 0 (completely different) to 1 (identical):
-
-| Score Range | Meaning |
-|---|---|
-| `0.80 - 1.00` | Almost certainly the same person |
-| `0.60 - 0.80` | Very likely the same person |
-| `0.45 - 0.60` | Probably the same person (default match zone) |
-| `0.30 - 0.45` | Uncertain — could be same or different |
-| `0.00 - 0.30` | Almost certainly different people |
-
-<Callout type="warn">
-  Setting `matchThreshold` too low (below 0.35) increases false positives — strangers may be incorrectly identified.
-  Setting it too high (above 0.65) increases false negatives — legitimate users may fail to login.
-  The default of 0.45 with adaptive thresholds provides the best balance.
-</Callout>
-
-### Adaptive Thresholds
-
-The SDK automatically adjusts the threshold based on conditions:
-
-- **Poor lighting** (score < 0.4): threshold is lowered by up to 0.05 to compensate
-- **Good lighting** (score > 0.8): threshold is raised slightly for stricter matching
-- **User confidence boost**: experienced users with many successful logins get a small threshold reduction
-
-### minQualityScore
-
-Quality scoring combines detection confidence, lighting analysis, face size relative to the frame, and head pose (yaw/pitch/roll). A score of 0.2 is deliberately lenient to work in challenging conditions. Raise to 0.4–0.5 for higher security.
-
-### minDetectionConfidence
-
-This is the SSD MobileNet detection confidence. If the primary SSD detector fails to find a face above this threshold, the SDK falls back to TinyFaceDetector automatically.
-
-## Events
-
-Subscribe to SDK events for real-time feedback:
+After creating a client, `client.config` contains the fully resolved configuration with all defaults applied:
 
 ```typescript
-const unsubscribe = client.on((event) => {
-  console.log(event.type, event);
+const client = createFaceSmash({ debug: true });
+console.log(client.config);
+// {
+//   apiUrl: 'https://api.facesmash.app',
+//   modelUrl: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model',
+//   minDetectionConfidence: 0.3,
+//   matchThreshold: 0.45,
+//   minQualityScore: 0.2,
+//   maxTemplatesPerUser: 10,
+//   debug: true,
+// }
+```
+
+---
+
+## TypeScript Types
+
+```typescript
+/** Configuration you pass to createFaceSmash() or FaceSmashProvider */
+interface FaceSmashConfig {
+  apiUrl?: string;
+  modelUrl?: string;
+  minDetectionConfidence?: number;
+  matchThreshold?: number;
+  minQualityScore?: number;
+  maxTemplatesPerUser?: number;
+  debug?: boolean;
+}
+
+/** Resolved config with all defaults applied (what client.config returns) */
+interface ResolvedConfig {
+  apiUrl: string;
+  modelUrl: string;
+  minDetectionConfidence: number;
+  matchThreshold: number;
+  minQualityScore: number;
+  maxTemplatesPerUser: number;
+  debug: boolean;
+}
+```
+
+---
+
+## All Options — Deep Dive
+
+### `apiUrl`
+
+| | |
+|---|---|
+| **Type** | `string` |
+| **Default** | `"https://api.facesmash.app"` |
+
+The URL of your PocketBase backend. The SDK creates a `PocketBase` client pointing at this URL and uses it for all database operations (user lookups, template storage, scan logging, etc.).
+
+```typescript
+// Use the hosted FaceSmash API
+createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+
+// Self-hosted PocketBase
+createFaceSmash({ apiUrl: 'https://my-pocketbase.example.com' });
+
+// Local development
+createFaceSmash({ apiUrl: 'http://localhost:8090' });
+```
+
+<Callout type="info">
+  The PocketBase client is accessible via `client.pb` for custom queries. Auto-cancellation is disabled (`pb.autoCancellation(false)`) to prevent race conditions during face matching.
+</Callout>
+
+---
+
+### `modelUrl`
+
+| | |
+|---|---|
+| **Type** | `string` |
+| **Default** | `"https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model"` |
+
+The base URL where the five neural network model files are hosted. The SDK appends filenames like `/ssd_mobilenetv1_model-weights_manifest.json` to this URL.
+
+**Default CDN** — The jsdelivr CDN serves model files from the `@vladmandic/face-api` npm package. This is fast, free, and globally distributed. Files are cached by the browser after first load (~12.5 MB total).
+
+**Self-hosting models** — To avoid CDN dependency or for air-gapped deployments:
+
+1. Copy the model files from `node_modules/@vladmandic/face-api/model/` to your static file server
+2. Ensure all `.json` manifest files and `.bin` weight files are served with correct MIME types
+3. Point the SDK at your server:
+
+```typescript
+createFaceSmash({
+  modelUrl: 'https://static.mysite.com/face-models',
 });
 ```
 
-| Event | Payload |
+**Required model files** (all must be present):
+
+| Model | Manifest | Weights |
+|---|---|---|
+| SSD MobileNet v1 | `ssd_mobilenetv1_model-weights_manifest.json` | `ssd_mobilenetv1_model-shard1`, `ssd_mobilenetv1_model-shard2` |
+| TinyFaceDetector | `tiny_face_detector_model-weights_manifest.json` | `tiny_face_detector_model-shard1` |
+| FaceLandmark68 | `face_landmark_68_model-weights_manifest.json` | `face_landmark_68_model-shard1` |
+| FaceRecognition | `face_recognition_model-weights_manifest.json` | `face_recognition_model-shard1`, `face_recognition_model-shard2` |
+| FaceExpression | `face_expression_model-weights_manifest.json` | `face_expression_model-shard1` |
+
+---
+
+### `minDetectionConfidence`
+
+| | |
 |---|---|
-| `models-loading` | `{ progress: number }` |
-| `models-loaded` | — |
-| `models-error` | `{ error: string }` |
-| `face-detected` | `{ analysis: FaceAnalysis }` |
-| `face-lost` | — |
-| `login-start` | — |
-| `login-success` | `{ user: UserProfile, similarity: number }` |
-| `login-failed` | `{ error: string, bestSimilarity?: number }` |
-| `register-start` | — |
-| `register-success` | `{ user: UserProfile }` |
-| `register-failed` | `{ error: string }` |
+| **Type** | `number` |
+| **Default** | `0.3` |
+| **Range** | `0.0` – `1.0` |
+
+The minimum confidence score for the SSD MobileNet v1 face detector to consider a detection valid. If SSD fails to find a face above this threshold, the SDK automatically falls back to the TinyFaceDetector (which uses a fixed score threshold of 0.4 and input size of 224px).
+
+| Value | Behavior |
+|---|---|
+| `0.1 – 0.2` | Very permissive — may detect non-faces, partial faces, or distant faces |
+| `0.3` | **Default** — Good balance, works in most conditions |
+| `0.5 – 0.7` | Moderate — only strong face detections pass |
+| `0.8 – 1.0` | Very strict — may reject faces in poor lighting or at angles |
+
+```typescript
+// More permissive (catch faces in challenging conditions)
+createFaceSmash({ minDetectionConfidence: 0.2 });
+
+// Stricter (reduce false positives in face detection)
+createFaceSmash({ minDetectionConfidence: 0.5 });
+```
+
+---
+
+### `matchThreshold`
+
+| | |
+|---|---|
+| **Type** | `number` |
+| **Default** | `0.45` |
+| **Range** | `0.0` – `1.0` |
+
+The base similarity score required to consider two face descriptors a match. Similarity is calculated as `1 - euclideanDistance(descriptor1, descriptor2)`.
+
+#### Similarity Score Ranges
+
+| Score | Interpretation |
+|---|---|
+| `0.85 – 1.00` | Near-identical — same photo or very close conditions |
+| `0.70 – 0.85` | Very high confidence — almost certainly the same person |
+| `0.55 – 0.70` | High confidence — same person in different conditions |
+| `0.45 – 0.55` | Moderate confidence — **default match zone** |
+| `0.35 – 0.45` | Low confidence — could be same or different person |
+| `0.00 – 0.35` | Very low — almost certainly different people |
+
+#### Tuning Guidelines
+
+| Use Case | Recommended | Rationale |
+|---|---|---|
+| **Casual / consumer app** | `0.40 – 0.45` | Fewer login failures, slightly higher false positive risk |
+| **Standard (default)** | `0.45` | Balanced security and usability |
+| **High security** | `0.50 – 0.60` | More strict, may require better lighting and conditions |
+| **Critical / financial** | `0.60+` | Very strict — combine with additional authentication factors |
+
+<Callout type="warn">
+  **Never set below 0.35.** The adaptive threshold system has a hard floor of 0.35 — even with lighting compensation, it won't go lower. Values below 0.35 create unacceptable false positive rates.
+</Callout>
+
+#### Adaptive Threshold System
+
+The SDK does **not** use `matchThreshold` as-is. It runs through an adaptive system that adjusts the effective threshold based on real-time conditions:
+
+**Step 1: Lighting adjustment**
+- If `lightingScore < 0.4` (poor lighting): threshold drops by 0.05 → more lenient
+- If `lightingScore > 0.8` (good lighting): threshold rises by 0.02 → more strict
+- Otherwise: no adjustment
+
+**Step 2: Confidence boost** (for returning users with high-quality templates)
+- Reduces threshold by `confidenceBoost × 0.05`
+
+**Step 3: Floor clamp**
+- Effective threshold is clamped to minimum 0.35
+
+**Example:**
+
+```
+Base threshold:     0.45
+Poor lighting:      0.45 - 0.05 = 0.40
+Confidence boost 2: 0.40 - (2 × 0.05) = 0.30 → clamped to 0.35
+Final threshold:    0.35
+```
+
+---
+
+### `minQualityScore`
+
+| | |
+|---|---|
+| **Type** | `number` |
+| **Default** | `0.2` |
+| **Range** | `0.0` – `1.0` |
+
+The minimum composite quality score required to use a face scan for login or registration. Scans below this threshold are rejected with an error message.
+
+#### How Quality Is Calculated
+
+The quality score is a composite of four factors:
+
+1. **Detection confidence** (base) — SSD MobileNet's raw score (0–1)
+2. **Lighting factor** — `0.7 + lightingScore × 0.3` (range: 0.7–1.0)
+3. **Size factor** — `0.8 + sizeRatio × 0.2` where `sizeRatio = min(faceArea / imageArea, 0.3) / 0.3`
+4. **Pose penalty** — If not frontal: `max(0.5, 1 - (|yaw| + |pitch|) × 0.3)`
+
+```
+qualityScore = confidence × lightingFactor × sizeFactor × posePenalty
+// Clamped to [0, 1]
+```
+
+#### Tuning Guidelines
+
+| Value | Use Case |
+|---|---|
+| `0.1` | Maximum leniency — accept almost any detectable face |
+| `0.2` | **Default** — works in most conditions including dim rooms |
+| `0.3 – 0.4` | Moderate — requires decent lighting and face positioning |
+| `0.5 – 0.7` | Strict — requires good conditions for registration/login |
+| `0.8+` | Very strict — near-optimal lighting, frontal pose, large face required |
+
+```typescript
+// Lenient (indoor/mobile use)
+createFaceSmash({ minQualityScore: 0.15 });
+
+// Strict (kiosk/controlled environment)
+createFaceSmash({ minQualityScore: 0.5 });
+```
+
+---
+
+### `maxTemplatesPerUser`
+
+| | |
+|---|---|
+| **Type** | `number` |
+| **Default** | `10` |
+| **Range** | `1` – any |
+
+The maximum number of face templates stored per user in the `face_templates` collection. When a new high-quality scan comes in and the user already has this many templates, the oldest (lowest quality) template is deleted to make room.
+
+**Why templates matter:** Each successful login with a quality score > 0.6 stores a new template. Multiple templates capture a user's face under different lighting, angles, and conditions, dramatically improving future recognition accuracy.
+
+| Value | Behavior |
+|---|---|
+| `1` | Only the registration template is kept — no adaptive improvement |
+| `5` | Moderate learning — suitable for low-storage environments |
+| `10` | **Default** — good balance of accuracy and storage |
+| `20+` | Maximum adaptive learning — best accuracy, more database storage |
+
+```typescript
+// Minimal storage footprint
+createFaceSmash({ maxTemplatesPerUser: 3 });
+
+// Maximum adaptive learning
+createFaceSmash({ maxTemplatesPerUser: 25 });
+```
+
+---
+
+### `debug`
+
+| | |
+|---|---|
+| **Type** | `boolean` |
+| **Default** | `false` |
+
+When `true`, the SDK logs detailed information to `console.log` and `console.error`:
+
+- TF.js backend initialization and version
+- Model loading success/failure
+- Face detection results and descriptor extraction
+- Matching scores and threshold decisions
+- PocketBase query results
+
+```typescript
+// Enable for development
+createFaceSmash({ debug: true });
+
+// Disable for production (no console output from the SDK)
+createFaceSmash({ debug: false });
+```
+
+---
+
+## Preset Configurations
+
+### Casual / Consumer App
+
+```typescript
+createFaceSmash({
+  matchThreshold: 0.40,
+  minQualityScore: 0.15,
+  minDetectionConfidence: 0.25,
+  maxTemplatesPerUser: 15,
+});
+```
+
+### Standard (Default)
+
+```typescript
+createFaceSmash({
+  // All defaults — no config needed
+});
+```
+
+### High Security
+
+```typescript
+createFaceSmash({
+  matchThreshold: 0.55,
+  minQualityScore: 0.4,
+  minDetectionConfidence: 0.4,
+  maxTemplatesPerUser: 5,
+});
+```
+
+### Controlled Environment (Kiosk)
+
+```typescript
+createFaceSmash({
+  matchThreshold: 0.60,
+  minQualityScore: 0.5,
+  minDetectionConfidence: 0.5,
+  maxTemplatesPerUser: 3,
+});
+```
+
+---
+
+## Event System
+
+The SDK emits typed, discriminated-union events for every significant operation. Subscribe via `client.on()` (vanilla JS) or the `onEvent` prop on `<FaceSmashProvider>` (React).
+
+### Subscribing
+
+```typescript
+// Vanilla JS
+const unsubscribe = client.on((event) => {
+  console.log(event.type, event);
+});
+
+// Later: stop listening
+unsubscribe();
+```
+
+```tsx
+// React
+<FaceSmashProvider onEvent={(event) => console.log(event)}>
+```
+
+### All Events
+
+#### Model Events
+
+| Event Type | Fields | Description |
+|---|---|---|
+| `models-loading` | `progress: number` | Fired during `init()` — progress goes 0 → 10 → 100 |
+| `models-loaded` | — | All 5 neural networks loaded and ready |
+| `models-error` | `error: string` | Model loading failed (network error, WebGL unavailable, etc.) |
+
+#### Face Detection Events
+
+| Event Type | Fields | Description |
+|---|---|---|
+| `face-detected` | `analysis: FaceAnalysis` | `analyzeFace()` found a valid face — includes full quality metrics |
+| `face-lost` | — | `analyzeFace()` returned `null` (no face in image) |
+
+#### Login Events
+
+| Event Type | Fields | Description |
+|---|---|---|
+| `login-start` | — | `login()` was called |
+| `login-success` | `user: UserProfile`, `similarity: number` | User authenticated successfully |
+| `login-failed` | `error: string`, `bestSimilarity?: number` | Authentication failed. `bestSimilarity` is the highest score achieved (if any) |
+
+#### Registration Events
+
+| Event Type | Fields | Description |
+|---|---|---|
+| `register-start` | — | `register()` was called |
+| `register-success` | `user: UserProfile` | New user profile created |
+| `register-failed` | `error: string` | Registration failed (no face, low quality, duplicate, etc.) |
+
+### TypeScript Event Union
+
+```typescript
+type FaceSmashEvent =
+  | { type: 'models-loading'; progress: number }
+  | { type: 'models-loaded' }
+  | { type: 'models-error'; error: string }
+  | { type: 'face-detected'; analysis: FaceAnalysis }
+  | { type: 'face-lost' }
+  | { type: 'login-start' }
+  | { type: 'login-success'; user: UserProfile; similarity: number }
+  | { type: 'login-failed'; error: string; bestSimilarity?: number }
+  | { type: 'register-start' }
+  | { type: 'register-success'; user: UserProfile }
+  | { type: 'register-failed'; error: string };
+
+type FaceSmashEventListener = (event: FaceSmashEvent) => void;
+```
+
+### Example: Analytics Integration
+
+```typescript
+client.on((event) => {
+  switch (event.type) {
+    case 'login-success':
+      analytics.track('face_login_success', {
+        userId: event.user.id,
+        similarity: event.similarity,
+      });
+      break;
+    case 'login-failed':
+      analytics.track('face_login_failed', {
+        error: event.error,
+        bestSimilarity: event.bestSimilarity,
+      });
+      break;
+    case 'register-success':
+      analytics.track('face_register', {
+        userId: event.user.id,
+        email: event.user.email,
+      });
+      break;
+  }
+});
+```
+
+### Example: Loading Progress UI
+
+```typescript
+client.on((event) => {
+  if (event.type === 'models-loading') {
+    const bar = document.getElementById('progress');
+    bar.style.width = `${event.progress}%`;
+    bar.textContent = event.progress < 100
+      ? `Loading face recognition (${event.progress}%)...`
+      : 'Ready!';
+  }
+});
+```
+
+---
 
 ## PocketBase Backend
 
-The SDK connects to a [PocketBase](https://pocketbase.io) instance. You can access the underlying PocketBase client directly:
+The SDK uses [PocketBase](https://pocketbase.io) as its data layer. PocketBase is an open-source, self-contained backend (Go binary) that provides a REST API, real-time subscriptions, and an admin dashboard.
+
+### Accessing PocketBase Directly
+
+The `client.pb` property exposes the full PocketBase JS client:
 
 ```typescript
-const client = createFaceSmash({ apiUrl: 'https://your-api.example.com' });
-client.pb; // PocketBase instance — for custom queries
+const client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+
+// List all users
+const users = await client.pb.collection('user_profiles').getFullList();
+
+// Get a specific user's templates
+const templates = await client.pb.collection('face_templates').getList(1, 50, {
+  filter: 'user_email="jane@example.com"',
+  sort: '-quality_score',
+});
+
+// Get recent login logs
+const logs = await client.pb.collection('sign_in_logs').getList(1, 20, {
+  filter: 'user_email="jane@example.com"',
+  sort: '-created',
+});
+
+// Delete a user profile
+await client.pb.collection('user_profiles').delete(userId);
 ```
 
 ### Required Collections
 
-Your PocketBase instance needs these collections:
+Your PocketBase instance must have these four collections. The SDK will not work without them.
 
-| Collection | Key Fields |
-|---|---|
-| `user_profiles` | `name`, `email`, `face_embedding` (JSON array of 128 floats) |
-| `face_templates` | `user_email`, `descriptor` (JSON array), `quality_score`, `label` |
-| `face_scans` | `user_email`, `face_embedding`, `confidence`, `scan_type`, `quality_score` |
-| `sign_in_logs` | `user_email`, `success` |
+#### `user_profiles`
+
+Stores registered users and their primary face embeddings.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `text` | Yes | User's display name |
+| `email` | `email` | Yes | User's email (unique identifier) |
+| `face_embedding` | `json` | Yes | Array of 128 `number` values — the face descriptor |
+| `created` | `autodate` | Auto | Record creation timestamp |
+| `updated` | `autodate` | Auto | Last update timestamp |
+
+#### `face_templates`
+
+Stores multiple face descriptors per user for improved matching accuracy.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `user_email` | `text` | Yes | Email of the user this template belongs to |
+| `descriptor` | `json` | Yes | Array of 128 `number` values |
+| `quality_score` | `number` | Yes | Quality score when this template was captured (0–1) |
+| `label` | `text` | No | `"registration"` for initial, `"auto"` for learned templates |
+| `created` | `autodate` | Auto | When this template was stored |
+
+#### `face_scans`
+
+Audit log of every face scan (both logins and registrations).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `user_email` | `text` | Yes | Email of the scanned user |
+| `face_embedding` | `text` | Yes | JSON-stringified array of 128 numbers |
+| `confidence` | `text` | Yes | Detection confidence as a string (e.g., `"0.95"`) |
+| `scan_type` | `text` | Yes | `"login"` or `"registration"` |
+| `quality_score` | `text` | Yes | Quality score as a string (e.g., `"0.72"`) |
+| `created` | `autodate` | Auto | Scan timestamp |
+
+#### `sign_in_logs`
+
+Simple log of successful sign-in events.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `user_email` | `text` | Yes | Email of the user who signed in |
+| `success` | `bool` | Yes | Always `true` (only successful logins are logged) |
+| `created` | `autodate` | Auto | Sign-in timestamp |
+
+---
 
 ## Self-Hosting
 
-To use FaceSmash with your own backend instead of `api.facesmash.app`:
+To run FaceSmash entirely on your own infrastructure:
 
-1. Install PocketBase on your server
-2. Create the collections listed above
-3. Point the SDK to your PocketBase URL:
+### 1. Install PocketBase
+
+Download PocketBase from [pocketbase.io](https://pocketbase.io/docs/) and run it:
+
+```bash
+./pocketbase serve --http=0.0.0.0:8090
+```
+
+### 2. Create Collections
+
+Open the PocketBase admin UI at `http://your-server:8090/_/` and create the four collections listed above with the specified field types.
+
+### 3. Configure CORS
+
+If your frontend and PocketBase are on different domains, configure CORS. With Caddy as a reverse proxy:
+
+```
+api.yourdomain.com {
+    header Access-Control-Allow-Origin "{header.Origin}"
+    header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    header Access-Control-Allow-Headers "Content-Type, Authorization"
+    header Access-Control-Allow-Credentials "true"
+
+    @options method OPTIONS
+    handle @options {
+        header Access-Control-Max-Age "86400"
+        respond 204
+    }
+
+    reverse_proxy localhost:8090
+}
+```
+
+### 4. (Optional) Self-Host Models
+
+Copy neural network model files from `node_modules/@vladmandic/face-api/model/` to your static server and set `modelUrl`:
+
+```typescript
+createFaceSmash({
+  apiUrl: 'https://api.yourdomain.com',
+  modelUrl: 'https://static.yourdomain.com/face-models',
+});
+```
+
+### 5. Point the SDK
 
 ```typescript
 const client = createFaceSmash({
-  apiUrl: 'https://your-pocketbase-instance.com',
+  apiUrl: 'https://api.yourdomain.com',
 });
+
+await client.init();
+// Ready to use with your own backend
 ```
+
+<Callout type="info">
+  **No API keys required.** PocketBase collections can be configured with public read/write rules for prototyping, or locked down with auth rules for production. The SDK does not require authentication tokens — it uses PocketBase's REST API directly.
+</Callout>

@@ -7,36 +7,140 @@ description: FaceSmash — Passwordless facial recognition authentication for an
 
 FaceSmash is a **browser-based facial recognition platform** that replaces passwords with your face. It handles the entire biometric authentication pipeline — face detection, quality analysis, descriptor extraction, template matching, and identity verification — all running client-side in the browser using WebGL-accelerated neural networks.
 
-### Key Features
+The [`@facesmash/sdk`](https://www.npmjs.com/package/@facesmash/sdk) package gives you everything you need: a framework-agnostic core client, drop-in React components, and low-level utilities for building custom face recognition flows.
 
-- **Passwordless login** — Users sign in by looking at their camera
-- **Browser-native** — No native SDKs or app installs required; works on any device with a camera
-- **Privacy-first** — Face descriptors are processed client-side; raw images never leave the device
-- **Adaptive matching** — Thresholds adjust automatically based on lighting, quality, and user history
-- **Multi-template learning** — Accuracy improves over time as the system learns each user's face from different angles and conditions
-- **Liveness detection** — Built-in anti-spoofing checks to prevent photo/video attacks
+```bash
+npm install @facesmash/sdk
+```
 
-### How It Works
+---
 
-1. **Registration** — User captures their face via webcam. FaceSmash extracts a 128-dimensional face descriptor and stores it securely.
-2. **Login** — User presents their face. FaceSmash extracts a new descriptor and compares it against all registered users using enhanced Euclidean distance matching with adaptive thresholds.
-3. **Verification** — If the similarity exceeds the threshold, the user is authenticated. Learning metrics are updated for future accuracy improvements.
+## Key Features
+
+- **Passwordless login** — Users sign in by looking at their camera. No passwords, PINs, or OTP codes.
+- **Browser-native** — No native SDKs, plugins, or app installs. Works on any device with a camera and a modern browser.
+- **Privacy-first** — Face descriptors are extracted client-side using TF.js. Raw images never leave the device; only compact 128-D numeric vectors are transmitted.
+- **Adaptive matching** — Similarity thresholds adjust automatically based on lighting conditions, detection confidence, and user login history.
+- **Multi-template learning** — Accuracy improves over time. Each successful login stores a new face template, building a richer model of each user's appearance under different conditions.
+- **Liveness detection** — Built-in anti-spoofing checks analyze eye aspect ratios, head pose variation, and face quality to prevent photo and video replay attacks.
+- **Dual-model detection** — SSD MobileNet v1 as primary detector with TinyFaceDetector fallback ensures faces are found in challenging conditions.
+- **Full TypeScript support** — Every function, interface, and event is fully typed with exported type definitions.
+
+---
+
+## How It Works
+
+### Registration Flow
+
+```
+User opens webcam → SDK captures 3+ frames → Each frame analyzed for quality
+→ Best frame selected → 128-D face descriptor extracted via FaceRecognitionNet
+→ Duplicate check against all existing users (similarity ≥ 0.75 = duplicate)
+→ New user_profiles record created → Initial face_templates record stored
+→ face_scans audit log entry created
+```
+
+### Login Flow
+
+```
+User opens webcam → SDK captures 3+ frames → Best quality frame selected
+→ Face descriptor extracted → All user_profiles fetched from PocketBase
+→ For each user: enhancedMatch() with adaptive threshold
+→ If user has templates: multiTemplateMatch() also evaluated
+→ Best match above threshold wins → sign_in_logs entry created
+→ If quality > 0.5: stored embedding updated (adaptive learning)
+→ If quality > 0.6: new face_template stored (template learning)
+```
 
 ### Architecture
 
 ```
-Browser (Client)                    Server (PocketBase API)
-┌─────────────────┐                ┌──────────────────────┐
-│ WebGL + TF.js   │                │ user_profiles        │
-│ SSD MobileNet   │  ──REST API──▶ │ face_templates       │
-│ Face Descriptors│                │ face_scans           │
-│ Quality Analysis│                │ sign_in_logs         │
-└─────────────────┘                └──────────────────────┘
+Browser (Client-Side)                     Server (PocketBase API)
+┌──────────────────────────────┐         ┌──────────────────────────┐
+│ TensorFlow.js (WebGL)        │         │                          │
+│ ┌──────────────────────────┐ │         │ user_profiles            │
+│ │ SSD MobileNet v1         │ │         │   → name, email,         │
+│ │ TinyFaceDetector         │ │  REST   │     face_embedding[128]  │
+│ │ FaceLandmark68Net        │ │  API    │                          │
+│ │ FaceRecognitionNet       │ │ ◄─────► │ face_templates           │
+│ │ FaceExpressionNet        │ │         │   → descriptor, quality  │
+│ └──────────────────────────┘ │         │                          │
+│                              │         │ face_scans               │
+│ Quality Analysis             │         │   → audit log            │
+│ Adaptive Matching            │         │                          │
+│ Multi-template Comparison    │         │ sign_in_logs             │
+│ Descriptor Normalization     │         │   → login history        │
+└──────────────────────────────┘         └──────────────────────────┘
+       ~12.5 MB models                    PocketBase (Go binary)
+       Cached by browser                  Self-hostable
 ```
 
-### Next Steps
+**All face processing happens in the browser.** The server only stores compact numeric vectors (128 floats per face) and metadata. Raw face images are never transmitted or stored on the server.
 
-- [Quickstart](/docs/quickstart) — Get up and running in 5 minutes
-- [JavaScript SDK](/docs/sdk) — Drop-in components for React and vanilla JS
-- [API Reference](/docs/api-reference) — REST API endpoints
-- [Security & Privacy](/docs/security) — How biometric data is handled
+---
+
+## The SDK at a Glance
+
+### Two Entry Points
+
+| Entry Point | Use Case |
+|---|---|
+| `@facesmash/sdk` | Core client + low-level utilities. Works with any framework or vanilla JS |
+| `@facesmash/sdk/react` | React components (`<FaceLogin>`, `<FaceRegister>`, `<FaceSmashProvider>`) and hooks |
+
+### 5 Lines to Face Login (React)
+
+```tsx
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+<FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+  <FaceLogin onResult={(r) => r.success && alert(`Welcome, ${r.user.name}!`)} />
+</FaceSmashProvider>
+```
+
+### 5 Lines to Face Login (Vanilla JS)
+
+```javascript
+import { createFaceSmash } from '@facesmash/sdk';
+
+const client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
+await client.init();
+const result = await client.login(images); // base64 data URLs from webcam
+```
+
+---
+
+## Browser Support
+
+| Browser | Minimum Version | WebGL | getUserMedia |
+|---|---|---|---|
+| Chrome | 80+ | ✅ | ✅ |
+| Firefox | 78+ | ✅ | ✅ |
+| Safari | 14+ | ✅ | ✅ |
+| Edge | 80+ | ✅ | ✅ |
+| Chrome Android | 80+ | ✅ | ✅ |
+| Safari iOS | 14.5+ | ✅ | ✅ (requires user gesture) |
+
+**Requirements:** WebGL for TensorFlow.js acceleration, `getUserMedia` for camera access, and HTTPS (or `localhost` for development).
+
+---
+
+## Documentation Map
+
+### Getting Started
+- [**Quickstart**](/docs/quickstart) — Install, configure, and run your first face login in 5 minutes
+
+### SDK Reference
+- [**SDK Overview**](/docs/sdk) — Architecture, neural networks, exports, dependencies, performance
+- [**React Components**](/docs/sdk/react-components) — `<FaceSmashProvider>`, `<FaceLogin>`, `<FaceRegister>`, 4 hooks, full prop tables
+- [**Vanilla JS**](/docs/sdk/vanilla-js) — `FaceSmashClient` API, low-level utilities, event system, Vue/Svelte/Angular examples
+- [**Configuration**](/docs/sdk/configuration) — Every option deep-dive, threshold tuning, PocketBase schemas, self-hosting guide
+
+### Guides
+- [**React Integration**](/docs/guides/react-integration) — Step-by-step React setup with provider, components, and hooks
+- [**Custom UI**](/docs/guides/custom-ui) — Build your own face login UI using the low-level API
+- [**Improving Accuracy**](/docs/guides/improving-accuracy) — Tuning thresholds, lighting tips, multi-template strategies
+
+### Reference
+- [**API Reference**](/docs/api-reference) — PocketBase REST API endpoints
+- [**Security & Privacy**](/docs/security) — How biometric data is processed, stored, and protected
