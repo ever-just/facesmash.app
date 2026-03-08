@@ -331,6 +331,7 @@ export default function HomePage() {
           <a href="https://everjust.co" className="font-medium underline underline-offset-4 hover:text-fd-foreground transition-colors" target="_blank" rel="noopener noreferrer">
             EVERJUST
           </a>
+          <span className="ml-3 text-[10px] opacity-40 font-mono">v1.2.0</span>
         </p>
       </section>
     </div>
