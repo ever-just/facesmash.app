@@ -8,6 +8,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { FaceAPIProvider } from "@/contexts/FaceAPIContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import GlobalLoadingScreen from "@/components/GlobalLoadingScreen";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
+import CookieConsentBanner from "@/components/CookieConsentBanner";
 import Index from "./pages/Index";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -35,6 +37,7 @@ const App = () => (
             <Sonner />
             <GlobalLoadingScreen />
             <BrowserRouter>
+              <AnnouncementBanner />
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/register" element={<Register />} />
@@ -44,6 +47,7 @@ const App = () => (
                 <Route path="/terms" element={<Terms />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <CookieConsentBanner />
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
