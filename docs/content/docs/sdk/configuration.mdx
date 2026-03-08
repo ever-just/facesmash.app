@@ -3,86 +3,49 @@ title: Configuration
 description: SDK options, thresholds, and customization
 ---
 
-## Initialization Options
+## FaceSmashConfig
+
+Pass a configuration object when creating a client:
 
 ```typescript
-const facesmash = new FaceSmash({
-  // Required
-  apiKey: 'fs_live_...',
+import { createFaceSmash } from '@facesmash/sdk';
 
-  // Optional
-  apiUrl: 'https://api.facesmash.app',  // Custom API endpoint
-  debug: false,                          // Enable console logging
-  modelUrl: undefined,                   // Custom model CDN URL
+const client = createFaceSmash({
+  apiUrl: 'https://api.facesmash.app',
+  modelUrl: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model',
+  matchThreshold: 0.45,
+  minQualityScore: 0.2,
+  minDetectionConfidence: 0.3,
+  maxTemplatesPerUser: 10,
+  debug: false,
 });
 ```
 
-## Detection Options
+Or with the React provider:
 
-Control how faces are detected in the camera feed:
+```tsx
+<FaceSmashProvider config={{
+  apiUrl: 'https://api.facesmash.app',
+  matchThreshold: 0.45,
+  debug: true,
+}}>
+```
+
+## All Options
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `detector` | `'ssd' \| 'tiny'` | `'ssd'` | Detection model. SSD is more accurate, Tiny is faster |
-| `detectionInterval` | `number` | `300` | Milliseconds between detection passes |
-| `minConfidence` | `number` | `0.5` | Minimum detection confidence (0-1) |
-| `inputSize` | `number` | `416` | Input tensor size (higher = more accurate, slower) |
+| `apiUrl` | `string` | `https://api.facesmash.app` | PocketBase API URL for your backend |
+| `modelUrl` | `string` | jsdelivr CDN | URL to load face-api.js models from |
+| `minDetectionConfidence` | `number` | `0.3` | SSD MobileNet minimum confidence (0-1) |
+| `matchThreshold` | `number` | `0.45` | Similarity threshold for face matching (0-1) |
+| `minQualityScore` | `number` | `0.2` | Minimum quality score to accept a face scan (0-1) |
+| `maxTemplatesPerUser` | `number` | `10` | Maximum face templates stored per user |
+| `debug` | `boolean` | `false` | Enable console logging |
 
-```typescript
-facesmash.configure({
-  detection: {
-    detector: 'ssd',
-    detectionInterval: 300,
-    minConfidence: 0.5,
-  },
-});
-```
+## Understanding Thresholds
 
-## Quality Thresholds
-
-Control the minimum quality required for face captures:
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `qualityThreshold` | `number` | `0.35` | Minimum overall quality score (0-1) |
-| `minFaceSize` | `number` | `0.15` | Minimum face size relative to frame |
-| `maxHeadAngle` | `number` | `30` | Maximum head rotation in degrees |
-| `minLightingScore` | `number` | `0.2` | Minimum lighting quality |
-
-```typescript
-facesmash.configure({
-  quality: {
-    qualityThreshold: 0.35,
-    minFaceSize: 0.15,
-    maxHeadAngle: 30,
-    minLightingScore: 0.2,
-  },
-});
-```
-
-## Matching Thresholds
-
-Control how strictly faces are matched during login:
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `matchThreshold` | `number` | `0.45` | Base similarity threshold for a match (0-1) |
-| `adaptiveThreshold` | `boolean` | `true` | Auto-adjust threshold based on lighting and user history |
-| `duplicateThreshold` | `number` | `0.80` | Threshold for duplicate detection during registration |
-| `maxTemplates` | `number` | `5` | Max stored face templates per user |
-
-```typescript
-facesmash.configure({
-  matching: {
-    matchThreshold: 0.45,
-    adaptiveThreshold: true,
-    duplicateThreshold: 0.80,
-    maxTemplates: 5,
-  },
-});
-```
-
-### Understanding Thresholds
+### matchThreshold
 
 Similarity scores range from 0 (completely different) to 1 (identical):
 
@@ -100,27 +63,76 @@ Similarity scores range from 0 (completely different) to 1 (identical):
   The default of 0.45 with adaptive thresholds provides the best balance.
 </Callout>
 
-## Camera Options
+### Adaptive Thresholds
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `facingMode` | `'user' \| 'environment'` | `'user'` | Front or rear camera |
-| `width` | `number` | `640` | Preferred video width |
-| `height` | `number` | `480` | Preferred video height |
-| `showOverlay` | `boolean` | `true` | Show face detection bounding box |
-| `showQualityIndicator` | `boolean` | `true` | Show real-time quality feedback |
-| `mirrored` | `boolean` | `true` | Mirror the camera preview |
+The SDK automatically adjusts the threshold based on conditions:
 
-## Error Codes
+- **Poor lighting** (score < 0.4): threshold is lowered by up to 0.05 to compensate
+- **Good lighting** (score > 0.8): threshold is raised slightly for stricter matching
+- **User confidence boost**: experienced users with many successful logins get a small threshold reduction
 
-| Code | Description |
+### minQualityScore
+
+Quality scoring combines detection confidence, lighting analysis, face size relative to the frame, and head pose (yaw/pitch/roll). A score of 0.2 is deliberately lenient to work in challenging conditions. Raise to 0.4–0.5 for higher security.
+
+### minDetectionConfidence
+
+This is the SSD MobileNet detection confidence. If the primary SSD detector fails to find a face above this threshold, the SDK falls back to TinyFaceDetector automatically.
+
+## Events
+
+Subscribe to SDK events for real-time feedback:
+
+```typescript
+const unsubscribe = client.on((event) => {
+  console.log(event.type, event);
+});
+```
+
+| Event | Payload |
 |---|---|
-| `CAMERA_DENIED` | User denied camera permission |
-| `CAMERA_UNAVAILABLE` | No camera found on device |
-| `MODEL_LOAD_FAILED` | ML models failed to load |
-| `NO_FACE_DETECTED` | No face found in capture |
-| `LOW_QUALITY` | Face quality below threshold |
-| `NO_MATCH` | No matching user found |
-| `DUPLICATE_FACE` | Face already registered (during registration) |
-| `API_ERROR` | Server communication error |
-| `DESCRIPTOR_MISMATCH` | Stored descriptor has unexpected format |
+| `models-loading` | `{ progress: number }` |
+| `models-loaded` | — |
+| `models-error` | `{ error: string }` |
+| `face-detected` | `{ analysis: FaceAnalysis }` |
+| `face-lost` | — |
+| `login-start` | — |
+| `login-success` | `{ user: UserProfile, similarity: number }` |
+| `login-failed` | `{ error: string, bestSimilarity?: number }` |
+| `register-start` | — |
+| `register-success` | `{ user: UserProfile }` |
+| `register-failed` | `{ error: string }` |
+
+## PocketBase Backend
+
+The SDK connects to a [PocketBase](https://pocketbase.io) instance. You can access the underlying PocketBase client directly:
+
+```typescript
+const client = createFaceSmash({ apiUrl: 'https://your-api.example.com' });
+client.pb; // PocketBase instance — for custom queries
+```
+
+### Required Collections
+
+Your PocketBase instance needs these collections:
+
+| Collection | Key Fields |
+|---|---|
+| `user_profiles` | `name`, `email`, `face_embedding` (JSON array of 128 floats) |
+| `face_templates` | `user_email`, `descriptor` (JSON array), `quality_score`, `label` |
+| `face_scans` | `user_email`, `face_embedding`, `confidence`, `scan_type`, `quality_score` |
+| `sign_in_logs` | `user_email`, `success` |
+
+## Self-Hosting
+
+To use FaceSmash with your own backend instead of `api.facesmash.app`:
+
+1. Install PocketBase on your server
+2. Create the collections listed above
+3. Point the SDK to your PocketBase URL:
+
+```typescript
+const client = createFaceSmash({
+  apiUrl: 'https://your-pocketbase-instance.com',
+});
+```

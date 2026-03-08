@@ -5,35 +5,33 @@ description: The FaceSmash JavaScript SDK for browser-based facial recognition
 
 ## Overview
 
-The FaceSmash SDK provides everything you need to add facial recognition authentication to your web application. It runs entirely in the browser using WebGL-accelerated TensorFlow.js models.
+The FaceSmash SDK (`@facesmash/sdk`) provides everything you need to add facial recognition authentication to your web application. It runs entirely in the browser using WebGL-accelerated TensorFlow.js models.
 
-<Callout type="warn">
-  The SDK package (`@facesmash/sdk`) is currently in development. This documentation describes the planned API surface. Sign up at [everjust.co](https://everjust.co) for early access.
-</Callout>
+```bash
+npm install @facesmash/sdk
+```
+
+## Entry Points
+
+| Import | Description |
+|---|---|
+| `@facesmash/sdk` | Core client — framework-agnostic, works with vanilla JS or any framework |
+| `@facesmash/sdk/react` | React components and hooks — drop-in `<FaceLogin>`, `<FaceRegister>`, provider, and hooks |
 
 ## Core Capabilities
 
 | Capability | Description |
 |---|---|
-| **Face Detection** | SSD MobileNet v1 neural network for reliable face detection |
-| **Descriptor Extraction** | 128-dimensional face descriptor via face-api.js (vladmandic fork) |
-| **Quality Analysis** | Lighting, blur, head pose, eye aspect ratio, and face size scoring |
+| **Face Detection** | SSD MobileNet v1 primary detector with TinyFaceDetector fallback |
+| **Descriptor Extraction** | 128-dimensional face descriptor via @vladmandic/face-api |
+| **Quality Analysis** | Lighting, head pose, eye aspect ratio, and face size scoring |
 | **Template Matching** | Multi-template weighted matching with adaptive thresholds |
-| **Liveness Detection** | Blink detection, head movement, texture analysis for anti-spoofing |
-
-## Packages
-
-| Package | Description | Status |
-|---|---|---|
-| `@facesmash/sdk` | Core SDK — detection, matching, templates | Coming Soon |
-| `@facesmash/react` | React components — `<FaceLogin>`, `<FaceRegister>` | Coming Soon |
-| `@facesmash/api` | REST API client for server-side operations | Coming Soon |
+| **Adaptive Learning** | Face embeddings improve over time with each successful login |
 
 ## Browser Requirements
 
 - **WebGL** — Required for TensorFlow.js GPU acceleration
 - **getUserMedia** — Camera access via the MediaDevices API
-- **Web Workers** — Optional, for offloading face processing
 
 ### Supported Browsers
 
@@ -44,40 +42,45 @@ The FaceSmash SDK provides everything you need to add facial recognition authent
 | Safari | 14+ |
 | Edge | 80+ |
 
-## Quick Example
+## Quick Example (React)
+
+```tsx
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+function App() {
+  return (
+    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+      <FaceLogin
+        onResult={(result) => {
+          if (result.success) {
+            console.log('Welcome back,', result.user.name);
+          } else {
+            console.error('Login failed:', result.error);
+          }
+        }}
+      />
+    </FaceSmashProvider>
+  );
+}
+```
+
+## Quick Example (Vanilla JS)
 
 ```typescript
-import { FaceSmash } from '@facesmash/sdk';
+import { createFaceSmash } from '@facesmash/sdk';
 
-// Initialize
-const facesmash = new FaceSmash({
-  apiKey: 'fs_live_...',
+const client = createFaceSmash({
   apiUrl: 'https://api.facesmash.app',
 });
 
-// Wait for models to load
-await facesmash.init();
+await client.init();
 
-// Register a user
-const registration = await facesmash.register({
-  email: 'user@example.com',
-  videoElement: document.getElementById('webcam'),
-});
-
-console.log(registration);
-// { success: true, userId: 'abc123', qualityScore: 0.85 }
-
-// Verify / Login
-const login = await facesmash.verify({
-  videoElement: document.getElementById('webcam'),
-});
-
-console.log(login);
-// { success: true, user: { email: 'user@example.com', similarity: 0.78 } }
+const result = await client.login(images);
+// { success: true, user: { name: 'Jane Doe', email: '...' }, similarity: 0.78 }
 ```
 
 ## Next Steps
 
-- [React Components](/docs/sdk/react-components) — Drop-in UI components
+- [React Components](/docs/sdk/react-components) — Drop-in UI components and hooks
 - [Vanilla JS](/docs/sdk/vanilla-js) — Framework-agnostic integration
-- [Configuration](/docs/sdk/configuration) — Options, thresholds, and callbacks
+- [Configuration](/docs/sdk/configuration) — Options, thresholds, and events

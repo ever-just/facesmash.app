@@ -15,71 +15,80 @@ description: Get FaceSmash running in your app in 5 minutes
 npm install @facesmash/sdk
 ```
 
-<Callout type="info">
-  The SDK is coming soon. Currently, FaceSmash is available as a hosted application at [facesmash.app](https://facesmash.app).
-  Sign up for early access to the SDK at [everjust.co](https://everjust.co).
-</Callout>
+## React (Recommended)
 
-## Quick Integration (Preview)
-
-Once the SDK is available, integration will look like this:
-
-### React
+The fastest way to add face login to a React app:
 
 ```tsx
-import { FaceSmash } from '@facesmash/react';
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+function App() {
+  return (
+    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+      <LoginPage />
+    </FaceSmashProvider>
+  );
+}
 
 function LoginPage() {
   return (
-    <FaceSmash
-      apiKey="your-api-key"
-      onAuthenticated={(user) => {
-        console.log('Welcome back,', user.email);
-        // Redirect to dashboard
+    <FaceLogin
+      onResult={(result) => {
+        if (result.success) {
+          console.log('Welcome back,', result.user.name);
+          window.location.href = '/dashboard';
+        } else {
+          console.error('Login failed:', result.error);
+        }
       }}
-      onError={(error) => {
-        console.error('Authentication failed:', error);
-      }}
+      className="w-full h-80 rounded-xl overflow-hidden"
     />
   );
 }
 ```
 
-### Vanilla JavaScript
+That's it — the `<FaceSmashProvider>` loads the ML models automatically, and `<FaceLogin>` handles the webcam, face detection, capture, and authentication.
 
-```html
-<div id="facesmash-container"></div>
+## Vanilla JavaScript
 
-<script type="module">
-  import { FaceSmash } from '@facesmash/sdk';
+No framework? Use the core client directly:
 
-  const fs = new FaceSmash({
-    apiKey: 'your-api-key',
-    container: '#facesmash-container',
-  });
+```javascript
+import { createFaceSmash } from '@facesmash/sdk';
 
-  fs.on('authenticated', (user) => {
-    console.log('Welcome back,', user.email);
-  });
+const client = createFaceSmash({
+  apiUrl: 'https://api.facesmash.app',
+});
 
-  fs.on('error', (error) => {
-    console.error('Authentication failed:', error);
-  });
+// Load ML models (do this once on page load)
+await client.init((progress) => {
+  console.log(`Loading: ${progress}%`);
+});
 
-  fs.mount();
-</script>
+// Capture images from webcam (base64 data URLs)
+// Then authenticate:
+const result = await client.login(images);
+
+if (result.success) {
+  console.log('Welcome back,', result.user.name);
+} else {
+  console.error(result.error);
+}
 ```
+
+See [Vanilla JS guide](/docs/sdk/vanilla-js) for a complete webcam capture example.
 
 ## Try It Now
 
 Visit [facesmash.app](https://facesmash.app) to see FaceSmash in action:
 
 1. Click **Register** and follow the prompts to capture your face
-2. Enter your email and complete registration
+2. Enter your name and complete registration
 3. Click **Sign In** and look at your camera — you'll be authenticated in seconds
 
 ## Next Steps
 
 - [SDK Reference](/docs/sdk) — Full SDK documentation
-- [API Reference](/docs/api-reference) — REST API endpoints
+- [React Components](/docs/sdk/react-components) — Drop-in components and hooks
+- [Configuration](/docs/sdk/configuration) — Options, thresholds, and events
 - [Integration Guides](/docs/guides) — Step-by-step tutorials

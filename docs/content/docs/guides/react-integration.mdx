@@ -7,27 +7,29 @@ description: Add face login to a React application step by step
 
 This guide walks you through adding FaceSmash face authentication to an existing React application. By the end, you'll have a working face login and registration flow.
 
-<Callout type="info">
-  This guide uses the upcoming `@facesmash/react` package. During the preview period, you can reference the [FaceSmash source code](https://github.com/ever-just/facesmash.app) to see how the components work internally.
-</Callout>
-
-## Step 1: Install Dependencies
+## Step 1: Install the SDK
 
 ```bash
-npm install @facesmash/react
+npm install @facesmash/sdk
 ```
+
+React bindings are included in the `@facesmash/sdk/react` entry point. React 17+ is required.
 
 ## Step 2: Add the Provider
 
-Wrap your app with the `FaceSmashProvider` to initialize models once:
+Wrap your app (or the section that uses face auth) with `FaceSmashProvider`:
 
 ```tsx
 // src/App.tsx
-import { FaceSmashProvider } from '@facesmash/react';
+import { FaceSmashProvider } from '@facesmash/sdk/react';
 
 function App() {
   return (
-    <FaceSmashProvider apiKey="fs_live_...">
+    <FaceSmashProvider
+      config={{ apiUrl: 'https://api.facesmash.app' }}
+      onReady={() => console.log('Models loaded')}
+      onError={(err) => console.error('Model loading failed:', err)}
+    >
       <Router>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -41,14 +43,13 @@ function App() {
 The provider handles:
 - Loading TensorFlow.js and face detection models
 - Initializing the WebGL backend
-- Managing camera permissions
-- Providing context to child components
+- Providing the SDK client to child components via context
 
 ## Step 3: Add Face Login
 
 ```tsx
 // src/pages/LoginPage.tsx
-import { FaceLogin } from '@facesmash/react';
+import { FaceLogin } from '@facesmash/sdk/react';
 import { useNavigate } from 'react-router-dom';
 
 function LoginPage() {
@@ -58,17 +59,15 @@ function LoginPage() {
     <div className="max-w-md mx-auto mt-20">
       <h1 className="text-2xl font-bold mb-6">Sign In</h1>
       <FaceLogin
-        onAuthenticated={(result) => {
-          // Store user session
-          localStorage.setItem('user', JSON.stringify(result.user));
-          navigate('/dashboard');
-        }}
-        onError={(error) => {
-          if (error.code === 'NO_MATCH') {
-            alert('Face not recognized. Please register first.');
+        onResult={(result) => {
+          if (result.success) {
+            localStorage.setItem('user', JSON.stringify(result.user));
+            navigate('/dashboard');
+          } else {
+            alert(result.error || 'Face not recognized.');
           }
         }}
-        showConfidence
+        className="w-full h-80 rounded-xl overflow-hidden"
       />
     </div>
   );
@@ -79,119 +78,137 @@ function LoginPage() {
 
 ```tsx
 // src/pages/RegisterPage.tsx
-import { FaceRegister } from '@facesmash/react';
+import { useState } from 'react';
+import { FaceRegister } from '@facesmash/sdk/react';
 import { useNavigate } from 'react-router-dom';
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const [name, setName] = useState('');
 
   return (
     <div className="max-w-md mx-auto mt-20">
       <h1 className="text-2xl font-bold mb-6">Register</h1>
-      <FaceRegister
-        fields={['email', 'fullName']}
-        onRegistered={(result) => {
-          alert(`Welcome, ${result.user.email}!`);
-          navigate('/login');
-        }}
-        onDuplicate={(match) => {
-          alert(`This face is already registered as ${match.email}`);
-          navigate('/login');
-        }}
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Your name"
+        className="w-full p-3 mb-4 border rounded-lg"
       />
-    </div>
-  );
-}
-```
-
-## Step 5: Protect Routes
-
-Use the `useFaceAuth` hook to check authentication status:
-
-```tsx
-// src/components/ProtectedRoute.tsx
-import { useFaceAuth } from '@facesmash/react';
-import { Navigate } from 'react-router-dom';
-
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading } = useFaceAuth();
-
-  if (isLoading) return <div>Loading...</div>;
-  if (!isAuthenticated) return <Navigate to="/login" />;
-
-  return children;
-}
-```
-
-## Customizing the UI
-
-### Theme
-
-```tsx
-<FaceLogin
-  theme="dark"
-  className="rounded-xl shadow-lg"
-/>
-```
-
-### Custom Camera Overlay
-
-```tsx
-import { FaceCamera, useFaceDetection } from '@facesmash/react';
-
-function CustomLogin() {
-  const { facePosition, confidence } = useFaceDetection();
-
-  return (
-    <div className="relative">
-      <FaceCamera showOverlay={false} />
-      {facePosition && (
-        <div
-          className="absolute border-2 border-green-500 rounded-lg"
-          style={{
-            left: facePosition.x,
-            top: facePosition.y,
-            width: facePosition.width,
-            height: facePosition.height,
+      {name && (
+        <FaceRegister
+          name={name}
+          onResult={(result) => {
+            if (result.success) {
+              alert(`Welcome, ${result.user.name}!`);
+              navigate('/login');
+            } else {
+              alert(result.error || 'Registration failed.');
+            }
           }}
-        >
-          <span className="text-green-500 text-xs">
-            {(confidence * 100).toFixed(0)}%
-          </span>
-        </div>
+          className="w-full h-80 rounded-xl overflow-hidden"
+        />
       )}
     </div>
   );
 }
 ```
 
-## Error Handling
+## Step 5: Use Hooks for Custom Logic
 
-Handle all possible error states:
+For more control, use the programmatic hooks instead of the drop-in components:
+
+```tsx
+// src/pages/CustomLoginPage.tsx
+import { useFaceSmash, useFaceLogin } from '@facesmash/sdk/react';
+import { useNavigate } from 'react-router-dom';
+
+function CustomLoginPage() {
+  const navigate = useNavigate();
+  const { isReady, isLoading, error: initError } = useFaceSmash();
+  const { login, isScanning, result, reset } = useFaceLogin();
+
+  // You handle the camera and image capture yourself
+  const handleCapture = async (images: string[]) => {
+    const loginResult = await login(images);
+    if (loginResult.success) {
+      localStorage.setItem('user', JSON.stringify(loginResult.user));
+      navigate('/dashboard');
+    }
+  };
+
+  if (isLoading) return <p>Loading face recognition models...</p>;
+  if (initError) return <p>Error: {initError}</p>;
+  if (!isReady) return <p>Initializing...</p>;
+
+  return (
+    <div>
+      {/* Your custom camera UI here */}
+      {isScanning && <p>Scanning...</p>}
+      {result && !result.success && <p>Error: {result.error}</p>}
+    </div>
+  );
+}
+```
+
+## Customizing the UI
+
+### Custom Overlay
+
+Pass any React content as an overlay on top of the video feed:
 
 ```tsx
 <FaceLogin
-  onError={(error) => {
-    switch (error.code) {
-      case 'CAMERA_DENIED':
-        // Show instructions to enable camera
+  onResult={handleResult}
+  className="w-full h-80 rounded-xl overflow-hidden"
+  overlay={
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="w-48 h-48 border-2 border-green-500 rounded-full" />
+    </div>
+  }
+/>
+```
+
+### Custom Loading and Error States
+
+```tsx
+<FaceLogin
+  onResult={handleResult}
+  loadingContent={
+    <div className="flex items-center justify-center h-80">
+      <p>Loading face recognition...</p>
+    </div>
+  }
+  errorContent={(error, retry) => (
+    <div className="flex flex-col items-center justify-center h-80 gap-4">
+      <p className="text-red-500">{error}</p>
+      <button onClick={retry} className="px-4 py-2 bg-blue-500 text-white rounded">
+        Retry
+      </button>
+    </div>
+  )}
+/>
+```
+
+## Event Listening
+
+Listen to all SDK events via the provider:
+
+```tsx
+<FaceSmashProvider
+  config={{ apiUrl: 'https://api.facesmash.app' }}
+  onEvent={(event) => {
+    switch (event.type) {
+      case 'models-loading':
+        console.log(`Loading: ${event.progress}%`);
         break;
-      case 'CAMERA_UNAVAILABLE':
-        // Show alternative login method
+      case 'login-success':
+        console.log('Matched:', event.user.name, event.similarity);
         break;
-      case 'NO_FACE_DETECTED':
-        // Prompt user to face the camera
-        break;
-      case 'LOW_QUALITY':
-        // Suggest better lighting
-        break;
-      case 'NO_MATCH':
-        // Offer registration
-        break;
-      case 'MODEL_LOAD_FAILED':
-        // Show fallback or retry
+      case 'login-failed':
+        console.log('Failed:', event.error);
         break;
     }
   }}
-/>
+>
 ```

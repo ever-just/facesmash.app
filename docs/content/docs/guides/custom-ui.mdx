@@ -5,7 +5,7 @@ description: Build your own face capture interface using the low-level SDK
 
 ## Overview
 
-If the pre-built `<FaceLogin>` and `<FaceRegister>` components don't fit your design, you can use the low-level SDK to build a fully custom face capture experience.
+If the pre-built `<FaceLogin>` and `<FaceRegister>` components don't fit your design, you can use the low-level SDK functions to build a fully custom face capture experience.
 
 ## Architecture
 
@@ -13,12 +13,19 @@ If the pre-built `<FaceLogin>` and `<FaceRegister>` components don't fit your de
 Your UI Layer
     │
     ▼
-FaceSmash Core SDK
-    ├── initModels()        → Load neural networks
-    ├── detectFace()        → Find face in frame
-    ├── extractDescriptor() → Get 128-d vector
-    ├── analyzeQuality()    → Score lighting, pose, sharpness
-    └── matchDescriptors()  → Compare against stored faces
+@facesmash/sdk
+    ├── createFaceSmash()      → Create client
+    ├── client.init()          → Load neural networks
+    ├── client.analyzeFace()   → Detect + quality score
+    ├── client.login()         → Match against stored faces
+    ├── client.register()      → Register new user
+    │
+    └── Low-level exports:
+        ├── extractDescriptor()    → Get 128-d vector
+        ├── analyzeFace()          → Full quality analysis
+        ├── calculateSimilarity()  → Compare two descriptors
+        ├── enhancedMatch()        → Adaptive threshold matching
+        └── multiTemplateMatch()   → Match against templates
 ```
 
 ## Step 1: Set Up Camera
@@ -37,134 +44,167 @@ async function setupCamera(videoElement: HTMLVideoElement) {
   videoElement.srcObject = stream;
   await videoElement.play();
 }
+
+function captureFrame(video: HTMLVideoElement): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(video, 0, 0);
+  return canvas.toDataURL('image/jpeg', 0.9);
+}
 ```
 
-## Step 2: Detection Loop
-
-Run face detection on each frame:
+## Step 2: Initialize and Analyze
 
 ```typescript
-import { initModels, detectFace } from '@facesmash/sdk/core';
+import { createFaceSmash } from '@facesmash/sdk';
 
-await initModels();
+const client = createFaceSmash({
+  apiUrl: 'https://api.facesmash.app',
+  debug: true,
+});
 
-let animationId: number;
+await client.init((progress) => {
+  console.log(`Loading models: ${progress}%`);
+});
+```
 
-function startDetectionLoop(video: HTMLVideoElement) {
-  async function loop() {
-    const detection = await detectFace(video);
+### Real-time quality feedback
 
-    if (detection) {
-      const { box, score } = detection;
-      drawBoundingBox(box);          // Your custom overlay
-      updateConfidence(score);        // Your custom UI
-    } else {
-      clearOverlay();
-    }
+Run analysis on captured frames to give the user feedback before login/registration:
 
-    animationId = requestAnimationFrame(loop);
+```typescript
+async function analyzeCurrentFrame(video: HTMLVideoElement) {
+  const frame = captureFrame(video);
+  const analysis = await client.analyzeFace(frame);
+
+  if (analysis) {
+    updateUI({
+      quality: analysis.qualityScore,
+      lighting: analysis.lightingScore,
+      headPose: analysis.headPose,
+      isFrontal: analysis.headPose.isFrontal,
+      rejection: analysis.rejectionReason,
+    });
+  } else {
+    showMessage('No face detected');
+  }
+}
+
+// Run every 300ms
+const interval = setInterval(() => analyzeCurrentFrame(video), 300);
+```
+
+## Step 3: Capture Multiple Frames and Authenticate
+
+When quality is good, capture several frames and login:
+
+```typescript
+async function captureAndLogin(video: HTMLVideoElement) {
+  const images: string[] = [];
+
+  for (let i = 0; i < 3; i++) {
+    images.push(captureFrame(video));
+    await new Promise((r) => setTimeout(r, 500));
   }
 
-  loop();
-}
+  const result = await client.login(images);
 
-function stopDetectionLoop() {
-  cancelAnimationFrame(animationId);
-}
-```
-
-## Step 3: Capture and Analyze
-
-When you want to capture a face (e.g., on button click or auto-trigger):
-
-```typescript
-import { extractDescriptor, analyzeQuality } from '@facesmash/sdk/core';
-
-async function captureFace(video: HTMLVideoElement) {
-  const detection = await detectFace(video);
-  if (!detection) throw new Error('No face detected');
-
-  // Extract the 128-dimensional face descriptor
-  const descriptor = await extractDescriptor(video, detection);
-
-  // Analyze quality
-  const quality = analyzeQuality(detection, video);
-
-  return {
-    descriptor,                    // Float32Array(128)
-    quality: quality.overallScore, // 0-1
-    lighting: quality.lightingScore,
-    sharpness: quality.sharpness,
-  };
-}
-```
-
-## Step 4: Match or Register
-
-```typescript
-import { matchDescriptors } from '@facesmash/sdk/core';
-
-// For login — match against stored faces
-async function loginWithFace(descriptor: Float32Array) {
-  const storedFaces = await fetch('/api/faces').then(r => r.json());
-
-  const result = matchDescriptors(descriptor, storedFaces, {
-    threshold: 0.45,
-    adaptiveThreshold: true,
-  });
-
-  if (result.isMatch) {
-    return { success: true, user: result.matchedUser };
+  if (result.success) {
+    console.log('Welcome back,', result.user.name);
+    console.log('Similarity:', result.similarity);
+  } else {
+    console.error('Login failed:', result.error);
   }
-  return { success: false, bestSimilarity: result.bestSimilarity };
 }
+```
 
-// For registration — store the face
-async function registerFace(email: string, descriptor: Float32Array) {
-  await fetch('/api/faces/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      descriptor: Array.from(descriptor),
-    }),
-  });
-}
+## Step 4: Low-Level Descriptor Matching
+
+For full control without using PocketBase, use the exported utility functions directly:
+
+```typescript
+import {
+  extractDescriptor,
+  calculateSimilarity,
+  enhancedMatch,
+  multiTemplateMatch,
+} from '@facesmash/sdk';
+
+// Extract a descriptor from an image
+const config = client.config; // or build your own ResolvedConfig
+const descriptor = await extractDescriptor(base64Image, config);
+
+// Compare two descriptors
+const similarity = calculateSimilarity(descriptor1, descriptor2);
+// 0-1 (1 = identical)
+
+// Adaptive matching with lighting adjustment
+const match = enhancedMatch(descriptor1, descriptor2, 0.45, 0, lightingScore);
+// { isMatch: boolean, similarity: number, adaptedThreshold: number }
+
+// Match against multiple stored templates
+const templates = [
+  { descriptor: template1, quality: 0.9, weight: 1.5 },
+  { descriptor: template2, quality: 0.7, weight: 1.0 },
+];
+const result = multiTemplateMatch(descriptor, templates, 0.45, lightingScore);
+// { isMatch, bestSimilarity, avgSimilarity, matchCount }
 ```
 
 ## Custom Overlay Example
 
-Draw a face bounding box with quality indicators:
+Draw a face quality indicator on a canvas overlay:
 
 ```typescript
-function drawBoundingBox(
+function drawQualityOverlay(
   ctx: CanvasRenderingContext2D,
-  box: { x: number; y: number; width: number; height: number },
-  quality: number
+  quality: number,
+  isFrontal: boolean
 ) {
-  // Color based on quality
   const color = quality > 0.6 ? '#22c55e'   // green
               : quality > 0.35 ? '#eab308'   // yellow
               : '#ef4444';                     // red
 
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
-  ctx.strokeRect(box.x, box.y, box.width, box.height);
+  // Draw quality bar
+  ctx.fillStyle = color;
+  ctx.fillRect(10, 10, quality * 200, 8);
 
-  // Quality label
+  // Draw label
   ctx.fillStyle = color;
   ctx.font = '14px Inter, sans-serif';
   ctx.fillText(
-    `Quality: ${(quality * 100).toFixed(0)}%`,
-    box.x,
-    box.y - 8
+    `Quality: ${(quality * 100).toFixed(0)}%${isFrontal ? '' : ' — face the camera'}`,
+    10,
+    36
   );
+}
+```
+
+## React Custom UI
+
+In React, use the hooks for a custom UI instead of the drop-in components:
+
+```tsx
+import { useFaceSmash, useFaceLogin, useFaceAnalysis } from '@facesmash/sdk/react';
+
+function CustomFaceLogin() {
+  const { isReady } = useFaceSmash();
+  const { login, isScanning, result } = useFaceLogin();
+  const { analyze, analysis } = useFaceAnalysis();
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Your custom camera setup, quality overlay, and capture logic here
+  // Call analyze(frame) for real-time quality feedback
+  // Call login(images) when ready to authenticate
 }
 ```
 
 ## Tips
 
-- **Debounce detection** — Don't run detection on every frame. 3-5 FPS (200-300ms intervals) is sufficient and saves battery.
-- **Pre-warm models** — Call `initModels()` early (e.g., on app load) so models are ready when the user reaches the login page.
-- **Capture multiple frames** — Average descriptors from 3-5 good captures for more reliable matching.
-- **Show quality feedback** — Guide users to improve lighting, face angle, and distance for better results.
+- **Debounce analysis** — Run `analyzeFace()` every 200-300ms, not on every frame. Saves CPU/GPU.
+- **Pre-warm models** — Call `client.init()` early (e.g., on app load) so models are ready when the user reaches the login page.
+- **Capture multiple frames** — Pass 3-5 images to `login()` for more reliable matching.
+- **Show quality feedback** — Use `analyzeFace()` results to guide users to improve lighting, face angle, and distance.
+- **Listen to events** — Use `client.on()` for real-time event feedback in non-React apps.

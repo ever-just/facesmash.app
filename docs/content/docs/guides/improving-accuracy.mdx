@@ -24,13 +24,12 @@ FaceSmash's multi-template matching automatically uses the best-matching templat
 Reject low-quality captures during registration. A bad registration template leads to all future logins failing.
 
 ```typescript
-// Recommended minimum quality settings for registration
-{
-  qualityThreshold: 0.5,   // Higher than login (0.35)
-  minFaceSize: 0.2,        // Face should be at least 20% of frame
-  maxHeadAngle: 20,        // Stricter than login
-  minLightingScore: 0.4,   // Require decent lighting
-}
+// Recommended SDK config for stricter registration quality
+const client = createFaceSmash({
+  minQualityScore: 0.5,          // Higher than default (0.2)
+  minDetectionConfidence: 0.4,   // Higher than default (0.3)
+  matchThreshold: 0.45,
+});
 ```
 
 ### Guide the User

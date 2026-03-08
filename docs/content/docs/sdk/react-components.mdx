@@ -1,41 +1,32 @@
 ---
 title: React Components
-description: Pre-built React components for face registration and login
+description: Pre-built React components and hooks for face registration and login
 ---
 
 ## Installation
 
 ```bash
-npm install @facesmash/react
+npm install @facesmash/sdk
 ```
 
-<Callout type="info">
-  `@facesmash/react` is coming soon. This page documents the planned component API.
-</Callout>
+React bindings are available from the `@facesmash/sdk/react` entry point. React 17+ is required as a peer dependency.
 
-## `<FaceLogin />`
+## `<FaceSmashProvider>`
 
-A complete face login UI with camera preview, face tracking overlay, and authentication flow.
+Context provider that initializes the SDK client and loads ML models. Wrap your app (or the section that uses face auth) with this provider.
 
 ```tsx
-import { FaceLogin } from '@facesmash/react';
+import { FaceSmashProvider } from '@facesmash/sdk/react';
 
-function LoginPage() {
+function App() {
   return (
-    <FaceLogin
-      apiKey="fs_live_..."
-      onAuthenticated={(result) => {
-        console.log('Logged in as', result.user.email);
-        console.log('Similarity:', result.similarity);
-        console.log('Quality:', result.qualityScore);
-        window.location.href = '/dashboard';
-      }}
-      onError={(error) => {
-        console.error('Login failed:', error.message);
-      }}
-      theme="dark"
-      showConfidence
-    />
+    <FaceSmashProvider
+      config={{ apiUrl: 'https://api.facesmash.app' }}
+      onReady={() => console.log('Models loaded!')}
+      onError={(err) => console.error(err)}
+    >
+      {/* Your face auth UI goes here */}
+    </FaceSmashProvider>
   );
 }
 ```
@@ -44,52 +35,86 @@ function LoginPage() {
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `apiKey` | `string` | *required* | Your FaceSmash API key |
-| `onAuthenticated` | `(result: AuthResult) => void` | *required* | Called on successful authentication |
-| `onError` | `(error: FaceSmashError) => void` | `undefined` | Called on error |
-| `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | UI theme |
-| `showConfidence` | `boolean` | `false` | Display confidence score to user |
-| `maxAttempts` | `number` | `3` | Max scan attempts before failure |
-| `qualityThreshold` | `number` | `0.35` | Minimum face quality score (0-1) |
-| `matchThreshold` | `number` | `0.45` | Minimum similarity for a match (0-1) |
-| `className` | `string` | `''` | Additional CSS classes |
+| `config` | `FaceSmashConfig` | `{}` | SDK configuration (see [Configuration](/docs/sdk/configuration)) |
+| `onReady` | `() => void` | `undefined` | Called when ML models finish loading |
+| `onError` | `(error: string) => void` | `undefined` | Called on model loading error |
+| `onEvent` | `(event: FaceSmashEvent) => void` | `undefined` | Called for any SDK event |
 
-### AuthResult
+## `<FaceLogin />`
+
+Drop-in login component. Renders a webcam feed, auto-captures face images, and authenticates.
+
+```tsx
+import { FaceSmashProvider, FaceLogin } from '@facesmash/sdk/react';
+
+function LoginPage() {
+  return (
+    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+      <FaceLogin
+        onResult={(result) => {
+          if (result.success) {
+            console.log('Welcome back,', result.user.name);
+            window.location.href = '/dashboard';
+          } else {
+            console.error('Login failed:', result.error);
+          }
+        }}
+        className="w-full h-80 rounded-xl overflow-hidden"
+      />
+    </FaceSmashProvider>
+  );
+}
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `onResult` | `(result: LoginResult) => void` | *required* | Called with the login result |
+| `captureCount` | `number` | `3` | Number of images to capture for matching |
+| `captureDelay` | `number` | `500` | Delay between captures in ms |
+| `autoStart` | `boolean` | `true` | Auto-start scanning when component mounts |
+| `className` | `string` | `undefined` | CSS class for the container |
+| `overlay` | `ReactNode` | `undefined` | Custom overlay rendered on top of the video |
+| `loadingContent` | `ReactNode` | `undefined` | Custom loading UI |
+| `errorContent` | `(error: string, retry: () => void) => ReactNode` | `undefined` | Custom error UI |
+
+### LoginResult
 
 ```typescript
-interface AuthResult {
-  user: {
-    email: string;
-    id: string;
-    lastLogin: string;
-  };
-  similarity: number;       // 0-1 match similarity
-  qualityScore: number;     // 0-1 face quality
-  lightingScore: number;    // 0-1 lighting conditions
-  matchedTemplate: string;  // Template ID that matched
+interface LoginResult {
+  success: boolean;
+  user?: UserProfile;    // { id, name, email, face_embedding, created, updated }
+  similarity?: number;   // 0-1 match score
+  error?: string;
 }
 ```
 
 ## `<FaceRegister />`
 
-A step-by-step registration flow with face capture, quality feedback, and account creation.
+Drop-in registration component. Renders a webcam feed, captures face images, and registers a new user.
 
 ```tsx
-import { FaceRegister } from '@facesmash/react';
+import { FaceSmashProvider, FaceRegister } from '@facesmash/sdk/react';
 
 function RegisterPage() {
+  const [name, setName] = useState('');
+
   return (
-    <FaceRegister
-      apiKey="fs_live_..."
-      onRegistered={(result) => {
-        console.log('Registered:', result.user.email);
-        window.location.href = '/welcome';
-      }}
-      onDuplicate={(match) => {
-        console.log('Already registered as', match.email);
-      }}
-      fields={['email', 'fullName']}
-    />
+    <FaceSmashProvider config={{ apiUrl: 'https://api.facesmash.app' }}>
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+      <FaceRegister
+        name={name}
+        email="user@example.com"
+        onResult={(result) => {
+          if (result.success) {
+            console.log('Registered:', result.user.name);
+          } else {
+            console.error('Registration failed:', result.error);
+          }
+        }}
+      />
+    </FaceSmashProvider>
   );
 }
 ```
@@ -98,66 +123,72 @@ function RegisterPage() {
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `apiKey` | `string` | *required* | Your FaceSmash API key |
-| `onRegistered` | `(result: RegisterResult) => void` | *required* | Called after successful registration |
-| `onDuplicate` | `(match: DuplicateMatch) => void` | `undefined` | Called if face is already registered |
-| `onError` | `(error: FaceSmashError) => void` | `undefined` | Called on error |
-| `fields` | `string[]` | `['email']` | User info fields to collect |
-| `duplicateThreshold` | `number` | `0.80` | Similarity threshold for duplicate detection |
-| `qualityThreshold` | `number` | `0.35` | Minimum face quality for capture |
-| `maxCaptures` | `number` | `15` | Max capture attempts |
-| `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | UI theme |
-
-## `<FaceCamera />`
-
-Low-level camera component with face tracking overlay. Use this to build custom UIs.
-
-```tsx
-import { FaceCamera, useFaceDetection } from '@facesmash/react';
-
-function CustomUI() {
-  const { isTracking, facePosition, confidence } = useFaceDetection();
-
-  return (
-    <div>
-      <FaceCamera
-        onFaceDetected={(position) => console.log('Face at', position)}
-        onFaceLost={() => console.log('Face lost')}
-        trackingInterval={300}
-        showOverlay
-      />
-      {isTracking && (
-        <p>Face detected! Confidence: {(confidence * 100).toFixed(0)}%</p>
-      )}
-    </div>
-  );
-}
-```
+| `name` | `string` | *required* | User's display name |
+| `email` | `string` | `undefined` | Optional email (auto-generated if not provided) |
+| `onResult` | `(result: RegisterResult) => void` | *required* | Called with the registration result |
+| `captureCount` | `number` | `3` | Number of images to capture |
+| `captureDelay` | `number` | `500` | Delay between captures in ms |
+| `autoStart` | `boolean` | `true` | Auto-start when component mounts |
+| `className` | `string` | `undefined` | CSS class for the container |
+| `overlay` | `ReactNode` | `undefined` | Custom overlay on the video |
+| `loadingContent` | `ReactNode` | `undefined` | Custom loading UI |
+| `errorContent` | `(error: string, retry: () => void) => ReactNode` | `undefined` | Custom error UI |
 
 ## Hooks
 
-### `useFaceDetection()`
+### `useFaceSmash()`
 
-Access face detection state without rendering a camera UI.
+Access the SDK client and loading state from anywhere within `<FaceSmashProvider>`.
 
 ```typescript
-const {
-  isTracking,     // boolean — is a face currently detected?
-  facePosition,   // { x, y, width, height, confidence } | null
-  confidence,     // number 0-1
-  isModelLoaded,  // boolean — are ML models ready?
-} = useFaceDetection(webcamRef);
+import { useFaceSmash } from '@facesmash/sdk/react';
+
+const { client, isReady, isLoading, loadProgress, error, retryInit } = useFaceSmash();
 ```
 
-### `useFaceAuth()`
+| Return | Type | Description |
+|---|---|---|
+| `client` | `FaceSmashClient` | The SDK client instance |
+| `isReady` | `boolean` | Whether ML models are loaded |
+| `isLoading` | `boolean` | Whether models are currently loading |
+| `loadProgress` | `number` | Loading progress (0-100) |
+| `error` | `string \| null` | Error message if loading failed |
+| `retryInit` | `() => void` | Retry model loading |
 
-Programmatic access to the authentication flow.
+### `useFaceLogin()`
+
+Programmatic login hook — call `login()` with base64 images.
 
 ```typescript
-const {
-  register,       // (email: string) => Promise<RegisterResult>
-  verify,         // () => Promise<AuthResult>
-  isProcessing,   // boolean
-  error,          // FaceSmashError | null
-} = useFaceAuth({ apiKey: 'fs_live_...' });
+import { useFaceLogin } from '@facesmash/sdk/react';
+
+const { login, isScanning, result, reset, isReady } = useFaceLogin();
+
+// Trigger login with captured images
+const loginResult = await login(base64Images);
+```
+
+### `useFaceRegister()`
+
+Programmatic registration hook.
+
+```typescript
+import { useFaceRegister } from '@facesmash/sdk/react';
+
+const { register, isRegistering, result, reset, isReady } = useFaceRegister();
+
+const regResult = await register('Jane Doe', base64Images, 'jane@example.com');
+```
+
+### `useFaceAnalysis()`
+
+Analyze a single face image for quality, lighting, and head pose.
+
+```typescript
+import { useFaceAnalysis } from '@facesmash/sdk/react';
+
+const { analyze, analysis, isAnalyzing, isReady } = useFaceAnalysis();
+
+const faceAnalysis = await analyze(base64Image);
+// { qualityScore, confidence, lightingScore, headPose, eyeAspectRatio, ... }
 ```

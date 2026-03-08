@@ -9,164 +9,158 @@ description: Framework-agnostic integration for any web application
 npm install @facesmash/sdk
 ```
 
-Or via CDN:
-
-```html
-<script type="module">
-  import { FaceSmash } from 'https://cdn.facesmash.app/sdk/latest/index.mjs';
-</script>
-```
-
-<Callout type="info">
-  The SDK is coming soon. This page documents the planned JavaScript API.
-</Callout>
+The core entry point (`@facesmash/sdk`) is framework-agnostic — no React or other framework required.
 
 ## Basic Usage
 
 ### Initialize
 
 ```javascript
-import { FaceSmash } from '@facesmash/sdk';
+import { createFaceSmash } from '@facesmash/sdk';
 
-const facesmash = new FaceSmash({
-  apiKey: 'fs_live_...',
+const client = createFaceSmash({
   apiUrl: 'https://api.facesmash.app',
+  debug: true,
 });
 
-// Load ML models (call once on app start)
-await facesmash.init();
-console.log('Models loaded, ready to detect faces');
+// Load ML models (call once on page load)
+await client.init((progress) => {
+  console.log(`Loading models: ${progress}%`);
+});
+
+console.log('Ready!', client.isReady);
+```
+
+### Login
+
+Pass an array of base64 image data URLs captured from a webcam or file input:
+
+```javascript
+const result = await client.login(images);
+
+if (result.success) {
+  console.log('Welcome back,', result.user.name);
+  console.log('Email:', result.user.email);
+  console.log('Similarity:', result.similarity);
+} else {
+  console.error('Login failed:', result.error);
+}
 ```
 
 ### Register a User
 
 ```javascript
-const container = document.getElementById('camera-container');
-
-// Mount the camera UI
-const camera = facesmash.createCamera(container, {
-  showOverlay: true,
-  showQuality: true,
-});
-
-// Start registration flow
-const result = await facesmash.register({
-  email: 'user@example.com',
-  fullName: 'Jane Doe',  // optional
-});
+const result = await client.register('Jane Doe', images, 'jane@example.com');
 
 if (result.success) {
-  console.log('Registered!', result.userId);
-  console.log('Quality score:', result.qualityScore);
+  console.log('Registered:', result.user.name);
+  console.log('User ID:', result.user.id);
 } else {
   console.error('Registration failed:', result.error);
+  // e.g. "This face is already registered to John Doe"
 }
-
-// Clean up
-camera.destroy();
 ```
 
-### Verify / Login
+### Analyze a Face
+
+Get detailed quality metrics for a single image:
 
 ```javascript
-const container = document.getElementById('camera-container');
-const camera = facesmash.createCamera(container);
+const analysis = await client.analyzeFace(base64Image);
 
-const result = await facesmash.verify();
-
-if (result.success) {
-  console.log('Welcome back,', result.user.email);
-  console.log('Match similarity:', result.similarity);
-} else {
-  console.log('No match found');
+if (analysis) {
+  console.log('Quality:', analysis.qualityScore);
+  console.log('Confidence:', analysis.confidence);
+  console.log('Lighting:', analysis.lightingScore);
+  console.log('Head pose:', analysis.headPose); // { yaw, pitch, roll, isFrontal }
+  console.log('Eye aspect ratio:', analysis.eyeAspectRatio);
+  console.log('Rejection reason:', analysis.rejectionReason); // undefined if accepted
 }
-
-camera.destroy();
 ```
 
-## Event-Driven API
+## Event System
 
-For more control, use the event-driven approach:
+Subscribe to SDK events for real-time feedback:
 
 ```javascript
-const facesmash = new FaceSmash({ apiKey: 'fs_live_...' });
-await facesmash.init();
-
-// Listen for events
-facesmash.on('face:detected', (position) => {
-  console.log('Face at', position.x, position.y);
-  console.log('Confidence:', position.confidence);
+const unsubscribe = client.on((event) => {
+  switch (event.type) {
+    case 'models-loading':
+      console.log(`Loading: ${event.progress}%`);
+      break;
+    case 'models-loaded':
+      console.log('Models ready');
+      break;
+    case 'face-detected':
+      console.log('Quality:', event.analysis.qualityScore);
+      break;
+    case 'face-lost':
+      console.log('No face detected');
+      break;
+    case 'login-success':
+      console.log('Matched:', event.user.name, 'Similarity:', event.similarity);
+      break;
+    case 'login-failed':
+      console.log('Failed:', event.error, 'Best:', event.bestSimilarity);
+      break;
+    case 'register-success':
+      console.log('Registered:', event.user.name);
+      break;
+    case 'register-failed':
+      console.log('Registration failed:', event.error);
+      break;
+  }
 });
 
-facesmash.on('face:lost', () => {
-  console.log('No face detected');
-});
-
-facesmash.on('quality:update', (score) => {
-  document.getElementById('quality').textContent =
-    `Quality: ${(score * 100).toFixed(0)}%`;
-});
-
-facesmash.on('match:found', (result) => {
-  console.log('Matched:', result.user.email);
-});
-
-facesmash.on('match:failed', (details) => {
-  console.log('Best similarity:', details.bestSimilarity);
-  console.log('Threshold was:', details.threshold);
-});
-
-facesmash.on('error', (error) => {
-  console.error('Error:', error.code, error.message);
-});
-
-// Start scanning
-const container = document.getElementById('camera');
-facesmash.mount(container);
-facesmash.startVerification();
+// Later: stop listening
+unsubscribe();
 ```
 
 ## Low-Level API
 
-For full control over the face recognition pipeline:
+For full control over the face recognition pipeline, import individual functions:
 
 ```javascript
 import {
-  initModels,
-  detectFace,
+  loadModels,
   extractDescriptor,
-  analyzeFaceQuality,
-  matchDescriptors,
-} from '@facesmash/sdk/core';
+  analyzeFace,
+  calculateSimilarity,
+  enhancedMatch,
+  multiTemplateMatch,
+} from '@facesmash/sdk';
+```
 
-// Load models
-await initModels();
+### Extract a face descriptor
 
-// Detect face in a video element
-const video = document.getElementById('webcam');
-const detection = await detectFace(video);
+```javascript
+const config = { modelUrl: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model', minDetectionConfidence: 0.3, debug: false };
+await loadModels(config);
 
-if (detection) {
-  // Extract 128-d face descriptor
-  const descriptor = await extractDescriptor(video, detection);
+const descriptor = await extractDescriptor(base64Image, config);
+// Float32Array(128) — the face embedding
+```
 
-  // Analyze quality
-  const quality = analyzeFaceQuality(detection, video);
-  console.log('Quality:', quality.overallScore);
-  console.log('Lighting:', quality.lightingScore);
-  console.log('Sharpness:', quality.sharpness);
+### Compare two faces
 
-  // Match against stored descriptors
-  const storedDescriptors = [/* from your backend */];
-  const match = matchDescriptors(descriptor, storedDescriptors, {
-    threshold: 0.45,
-    adaptiveThreshold: true,
-    lightingScore: quality.lightingScore,
-  });
+```javascript
+const similarity = calculateSimilarity(descriptor1, descriptor2);
+// 0-1 score (1 = identical)
 
-  console.log('Best match:', match.bestSimilarity);
-  console.log('Is match:', match.isMatch);
-}
+const match = enhancedMatch(descriptor1, descriptor2, 0.45, 0, 0.7);
+// { isMatch: true, similarity: 0.72, adaptedThreshold: 0.45 }
+```
+
+### Multi-template matching
+
+```javascript
+const templates = [
+  { descriptor: stored1, quality: 0.9, weight: 1.5 },
+  { descriptor: stored2, quality: 0.7, weight: 1.0 },
+];
+
+const result = multiTemplateMatch(newDescriptor, templates, 0.45, 0.8);
+// { isMatch: true, bestSimilarity: 0.78, avgSimilarity: 0.71, matchCount: 2 }
 ```
 
 ## TypeScript Support
@@ -175,33 +169,86 @@ The SDK is fully typed. Key types:
 
 ```typescript
 interface FaceSmashConfig {
-  apiKey: string;
   apiUrl?: string;
+  modelUrl?: string;
+  matchThreshold?: number;
+  minQualityScore?: number;
+  minDetectionConfidence?: number;
+  maxTemplatesPerUser?: number;
   debug?: boolean;
 }
 
-interface FacePosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+interface FaceAnalysis {
+  descriptor: Float32Array;
+  normalizedDescriptor: Float32Array;
   confidence: number;
+  qualityScore: number;
+  lightingScore: number;
+  headPose: { yaw: number; pitch: number; roll: number; isFrontal: boolean };
+  faceSizeCheck: { isValid: boolean; ratio: number; reason?: string };
+  eyeAspectRatio: number;
+  rejectionReason?: string;
 }
 
-interface QualityScore {
-  overallScore: number;    // 0-1
-  lightingScore: number;   // 0-1
-  sharpness: number;       // 0-1
-  headPose: { yaw: number; pitch: number; roll: number };
-  eyeAspectRatio: number;
-  faceSize: number;        // relative to frame
+interface LoginResult {
+  success: boolean;
+  user?: UserProfile;
+  similarity?: number;
+  error?: string;
+}
+
+interface RegisterResult {
+  success: boolean;
+  user?: UserProfile;
+  error?: string;
 }
 
 interface MatchResult {
   isMatch: boolean;
-  bestSimilarity: number;  // 0-1
+  similarity: number;
   adaptedThreshold: number;
-  matchCount: number;
-  avgSimilarity: number;
 }
+
+interface MultiTemplateMatchResult {
+  isMatch: boolean;
+  bestSimilarity: number;
+  avgSimilarity: number;
+  matchCount: number;
+}
+```
+
+## Capturing Images from Webcam
+
+The SDK expects base64 data URLs. Here's a minimal example of capturing from a webcam:
+
+```javascript
+async function captureFromWebcam(count = 3, delay = 500) {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: 640, height: 480, facingMode: 'user' },
+  });
+
+  const video = document.createElement('video');
+  video.srcObject = stream;
+  video.autoplay = true;
+  await new Promise((r) => video.addEventListener('playing', r, { once: true }));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+
+  const images = [];
+  for (let i = 0; i < count; i++) {
+    ctx.drawImage(video, 0, 0);
+    images.push(canvas.toDataURL('image/jpeg', 0.9));
+    if (i < count - 1) await new Promise((r) => setTimeout(r, delay));
+  }
+
+  stream.getTracks().forEach((t) => t.stop());
+  return images;
+}
+
+// Usage
+const images = await captureFromWebcam();
+const result = await client.login(images);
 ```

@@ -239,7 +239,7 @@ export const useLoginLogic = () => {
       if (foundMatch) {
         setLoginResult('success');
         recordLoginAttempt(true);
-        toast.success(`Welcome back, ${matchedUser}!`);
+        toast.success(`Welcome back, ${bestMatch.profile?.email?.split('@')[0] || bestMatch.user}!`);
       } else {
         setLoginResult('failed');
         recordLoginAttempt(false);
