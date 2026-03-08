@@ -25,3 +25,7 @@ dist-ssr
 
 # Local Netlify folder
 .netlify
+
+# Remotion rendered output
+remotion/out
+remotion/node_modules

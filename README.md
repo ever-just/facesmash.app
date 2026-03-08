@@ -30,6 +30,10 @@ Browser-native facial recognition authentication that works cross-platform, cros
 
 <br/>
 
+https://github.com/user-attachments/assets/facesmash-promo.mp4
+
+https://github.com/ever-just/facesmash.app/raw/main/public/facesmash-promo.mp4
+
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════ -->
@@ -404,6 +408,9 @@ facesmash.app/
 ├── docs/                    # Documentation site (Fumadocs/Next.js)
 │   ├── content/docs/        # MDX documentation pages
 │   └── src/                 # Fumadocs app
+├── remotion/                # Programmatic promo video (Remotion)
+│   ├── src/                 # Video compositions & scenes
+│   └── out/                 # Rendered output (git-ignored)
 ├── package.json
 ├── vite.config.ts
 ├── tailwind.config.ts

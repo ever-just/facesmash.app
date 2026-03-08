@@ -1,0 +1,27 @@
+{
+  "name": "facesmash-promo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FaceSmash programmatic promo video built with Remotion",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "preview": "remotion preview src/index.ts",
+    "render": "remotion render src/index.ts FaceSmashPromo out/facesmash-promo.mp4",
+    "render:gif": "remotion render src/index.ts FaceSmashPromo out/facesmash-promo.gif --image-format png"
+  },
+  "keywords": [],
+  "author": "EVERJUST COMPANY",
+  "license": "ISC",
+  "dependencies": {
+    "@remotion/bundler": "^4.0.434",
+    "@remotion/cli": "^4.0.434",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.434",
+    "typescript": "^5.9.3"
+  }
+}
