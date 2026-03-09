@@ -38,8 +38,8 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     facingMode: "user"
   };
 
-  // Initialize face tracking
-  const { facePosition, isTracking } = useFaceTracking({
+  // Initialize face tracking (includes liveness detection — zero extra cost)
+  const { facePosition, isTracking, livenessState } = useFaceTracking({
     webcamRef,
     isActive: hasPermission && !isLoading && !isScanning && !disabled,
     onFaceDetected: () => {
@@ -112,9 +112,11 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     initializeCamera();
   }, []);
 
-  // Auto-detection logic
+  // Auto-detection logic — gated on liveness to reject static photos
   useEffect(() => {
     if (!hasPermission || isLoading || isScanning || disabled || !faceDetected || hasCapturedRef.current) return;
+    // Require liveness confirmation before allowing capture
+    if (!livenessState.isLive) return;
 
     let cancelled = false;
     let detectionCount = 0;
@@ -166,7 +168,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       if (pendingTimer) clearTimeout(pendingTimer);
       setDetectionProgress(0);
     };
-  }, [hasPermission, isLoading, isScanning, disabled, faceDetected]);
+  }, [hasPermission, isLoading, isScanning, disabled, faceDetected, livenessState.isLive]);
 
   const handleRetry = () => {
     window.location.reload();
@@ -248,7 +250,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
                   {/* Dynamic instruction text */}
                   <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
                     <p className="text-white text-xs font-medium bg-black bg-opacity-60 px-2 py-1 rounded">
-                      Face detected - hold steady
+                      {livenessState.isLive ? 'Face detected - hold steady' : 'Verifying liveness...'}
                     </p>
                   </div>
                 </div>
@@ -302,7 +304,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         
         <div className="p-4 text-center">
           <p className="text-gray-400 text-sm">
-            {isScanning ? 'Processing...' : isLoading ? 'Getting ready...' : smoothPosition ? 'Face detected - hold steady' : 'Look directly at the camera'}
+            {isScanning ? 'Processing...' : isLoading ? 'Getting ready...' : smoothPosition ? (livenessState.isLive ? 'Face detected - hold steady' : 'Verifying liveness...') : 'Look directly at the camera'}
           </p>
         </div>
       </CardContent>

@@ -1360,7 +1360,7 @@ const Index = () => {
           {/* bottom bar */}
           <div className="border-t border-white/[0.04] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-white/20">© 2026 EVERJUST COMPANY. All rights reserved.</p>
-            <span className="text-[10px] text-white/10 font-mono">v1.5.0</span>
+            <span className="text-[10px] text-white/10 font-mono">v2.0.0</span>
             <div className="flex items-center gap-4 text-xs text-white/20">
               <Link to="/pricing" className="hover:text-white/50 transition-colors">Pricing</Link>
               <Link to="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>

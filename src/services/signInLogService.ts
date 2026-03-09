@@ -1,5 +1,13 @@
+/**
+ * Sign-In Log Service — now backed by Hono API.
+ *
+ * Key changes from PocketBase version:
+ * - Sign-in logs are created server-side during /api/auth/login
+ * - Client-side createSignInLog is a no-op (kept for backward compat)
+ * - Logs are fetched via /api/logs
+ */
 
-import { pb } from "@/integrations/pocketbase/client";
+import { api } from "@/integrations/api/client";
 
 export interface SignInLog {
   id: string;
@@ -7,31 +15,28 @@ export interface SignInLog {
   created: string;
 }
 
-export const createSignInLog = async (userEmail: string): Promise<SignInLog | null> => {
-  try {
-    console.log('Creating sign-in log for user:', userEmail);
-    
-    const record = await pb.collection('sign_in_logs').create({
-      user_email: userEmail,
-      success: true,
-    });
-
-    console.log('Sign-in log created successfully:', record);
-    return record as unknown as SignInLog;
-  } catch (error) {
-    console.error('Unexpected error creating sign-in log:', error);
-    return null;
-  }
+/**
+ * @deprecated — Sign-in logs are now created server-side during login.
+ * This is a no-op stub for backward compatibility.
+ */
+export const createSignInLog = async (_userEmail: string): Promise<SignInLog | null> => {
+  // Server-side: login endpoint creates the sign-in log automatically
+  console.log('createSignInLog: now handled server-side');
+  return null;
 };
 
-export const getSignInLogsByUser = async (userEmail: string): Promise<SignInLog[]> => {
+export const getSignInLogsByUser = async (_userEmail: string): Promise<SignInLog[]> => {
   try {
-    const records = await pb.collection('sign_in_logs').getList(1, 500, {
-      filter: `user_email="${userEmail}" && success=true`,
-      sort: '-created',
-    });
+    const res = await api.getLogs(1, 500);
+    if (!res.ok) return [];
 
-    return records.items as unknown as SignInLog[];
+    return res.data.logs
+      .filter((l) => l.success)
+      .map((l) => ({
+        id: String(l.id),
+        user_email: '',
+        created: l.createdAt,
+      }));
   } catch (error) {
     console.error('Unexpected error fetching sign-in logs:', error);
     return [];

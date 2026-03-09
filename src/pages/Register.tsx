@@ -11,10 +11,7 @@ import ContinuousQualityCapture from "@/components/ContinuousQualityCapture";
 import InlineNotification from "@/components/InlineNotification";
 import { useFaceAPI } from "@/contexts/FaceAPIContext";
 import { analyzeFaceQuality, base64ToBlob } from "@/utils/enhancedFaceRecognition";
-import { createUserProfile, getUserProfileByName } from "@/services/userProfileService";
-import { prepareImageFile, createFaceScan } from "@/services/faceScanService";
-import { manageFaceTemplates, checkDuplicateUsers } from "@/services/faceTemplateService";
-import { createSignInLog } from "@/services/signInLogService";
+import { api } from "@/integrations/api/client";
 
 const stepLabels = ["Details", "Face scan", "Done"];
 
@@ -31,6 +28,7 @@ const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [lastFaceAnalysis, setLastFaceAnalysis] = useState<{ descriptor: Float32Array; qualityScore: number } | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'duplicate';
@@ -57,18 +55,6 @@ const Register = () => {
           type: 'error',
           title: 'Face Recognition Error',
           message: 'Face recognition failed to load. Please refresh the page.'
-        });
-        return;
-      }
-
-      // Check if email is already registered
-      console.log('Checking if email already exists:', email);
-      const existingProfile = await getUserProfileByName(email);
-      if (existingProfile) {
-        setNotification({
-          type: 'error',
-          title: 'Email Already Registered',
-          message: `An account with email ${email} already exists. Please use a different email or try logging in.`
         });
         return;
       }
@@ -139,94 +125,85 @@ const Register = () => {
 
       console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
 
-      // Enhanced duplicate detection
-      console.log('Performing enhanced duplicate detection...');
+      // Store face analysis for potential re-use (e.g., duplicate-face login flow)
+      setLastFaceAnalysis({ descriptor: faceAnalysis.descriptor, qualityScore: faceAnalysis.qualityScore });
+
+      // Server-side registration: handles duplicate face check, email check,
+      // profile creation, template storage, and scan record in one call.
+      console.log('Registering via server API...');
+
+      const embeddingArray = Array.from(faceAnalysis.descriptor);
+
+      // Prepare image data URL if available
+      let imageDataUrl: string | undefined;
       try {
-        const duplicates = await checkDuplicateUsers(faceAnalysis.descriptor, 0.80);
-        
-        if (duplicates && duplicates.length > 0) {
-          console.log('Duplicate face detected:', duplicates);
-          const duplicateEmail = duplicates[0]?.existing_email || 'unknown user';
-          
+        const imageBlob = base64ToBlob(imageToUse);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        imageDataUrl = await new Promise<string>((resolve, reject) => {
+          img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx?.drawImage(img, 0, 0);
+            URL.revokeObjectURL(img.src);
+            resolve(canvas.toDataURL('image/jpeg', 0.9));
+          };
+          img.onerror = (err) => {
+            URL.revokeObjectURL(img.src);
+            reject(err);
+          };
+          img.src = URL.createObjectURL(imageBlob);
+        });
+      } catch {
+        // Image prep is non-critical
+      }
+
+      const res = await api.register({
+        email,
+        embedding: embeddingArray,
+        qualityScore: faceAnalysis.qualityScore,
+        imageData: imageDataUrl,
+      });
+
+      if (!res.ok) {
+        const errData = res.data as { error?: string; matchedEmail?: string };
+
+        // Server returns 409 with matchedEmail for duplicate face
+        if (res.status === 409 && errData.matchedEmail) {
           setNotification({
             type: 'duplicate',
             title: 'Welcome Back!',
             message: 'This face is already registered. Would you like to continue to your dashboard?',
-            userEmail: duplicateEmail
+            userEmail: errData.matchedEmail,
           });
-          
           setIsRegistering(false);
-          // Move to step 3 to show only the notification
           setStep(3);
           return;
         }
-      } catch (duplicateError) {
-        console.error('Duplicate check failed:', duplicateError);
-        setNotification({
-          type: 'error',
-          title: 'Verification Error',
-          message: 'Unable to verify face uniqueness. Please try again later.'
-        });
-        setIsRegistering(false);
-        return;
-      }
 
-      console.log('No duplicate face found, proceeding with registration...');
+        // 409 for duplicate email
+        if (res.status === 409) {
+          setNotification({
+            type: 'error',
+            title: 'Email Already Registered',
+            message: `Email ${email} is already registered. Please use a different email.`,
+          });
+          setStep(1);
+          setIsRegistering(false);
+          return;
+        }
 
-      // Double-check email availability
-      const existingProfile = await getUserProfileByName(email);
-      if (existingProfile) {
-        setNotification({
-          type: 'error',
-          title: 'Email Already Registered',
-          message: `Email ${email} is already registered. Please use a different email.`
-        });
-        setStep(1);
-        setIsRegistering(false);
-        return;
-      }
-
-      console.log('Creating user profile with enhanced face data...');
-
-      // Create user profile using email
-      const profile = await createUserProfile(email, faceAnalysis.descriptor);
-      if (!profile) {
         setNotification({
           type: 'error',
           title: 'Registration Failed',
-          message: 'Failed to create FaceSmash profile. Please try again.'
+          message: errData.error || 'Failed to create FaceSmash profile. Please try again.',
         });
         setIsRegistering(false);
         return;
       }
 
-      // Upload and store the registration image + embedding in a single record
-      try {
-        const imageBlob = base64ToBlob(imageToUse);
-        const imageFile = await prepareImageFile(imageBlob, 'registration');
-        await createFaceScan(
-          email,
-          faceAnalysis.descriptor,
-          'registration',
-          faceAnalysis.confidence,
-          faceAnalysis.qualityScore,
-          imageFile
-        );
-        console.log('Registration scan stored successfully');
-
-        // Store initial face template
-        await manageFaceTemplates(
-          email,
-          faceAnalysis.descriptor,
-          faceAnalysis.qualityScore,
-          faceAnalysis.confidence,
-          faceAnalysis.environmentalConditions || {}
-        );
-      } catch (storageError) {
-        console.error('Error storing registration image:', storageError);
-      }
-
-      console.log('Enhanced user profile created successfully:', profile.id);
+      console.log('Registration successful:', res.data);
       setStep(4);
       setNotification({
         type: 'success',
@@ -245,11 +222,27 @@ const Register = () => {
   };
 
   const handleContinueToDashboard = async () => {
-    if (notification?.userEmail) {
-      // Set the user as logged in and redirect to dashboard
-      localStorage.setItem('currentUserName', notification.userEmail);
-      await createSignInLog(notification.userEmail);
-      navigate('/dashboard');
+    if (notification?.userEmail && lastFaceAnalysis) {
+      // Authenticate via face login to establish httpOnly session cookie
+      try {
+        const embeddingArray = Array.from(lastFaceAnalysis.descriptor);
+        const res = await api.login({
+          embedding: embeddingArray,
+          qualityScore: lastFaceAnalysis.qualityScore,
+        });
+        if (res.ok && res.data.match) {
+          localStorage.setItem('currentUserName', notification.userEmail);
+          navigate('/dashboard');
+          return;
+        }
+      } catch {
+        // Login failed — fall through to show error
+      }
+      // If login fails, redirect to login page instead
+      navigate('/login');
+    } else if (notification?.userEmail) {
+      // No face analysis available — redirect to login
+      navigate('/login');
     }
   };
 

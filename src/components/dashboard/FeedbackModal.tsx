@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { pb } from "@/integrations/pocketbase/client";
+import { api } from "@/integrations/api/client";
 import { Star } from "lucide-react";
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -38,11 +38,10 @@ const FeedbackModal = ({
   const onSubmit = async (data: FeedbackForm) => {
     setIsSubmitting(true);
     try {
-      await pb.collection('feedback').create({
-        user_email: userEmail,
+      await api.submitFeedback({
         category: data.feedbackType === 'bug_report' ? 'bug' : data.feedbackType === 'feature_request' ? 'feature' : 'general',
         message: `[${data.subject}] ${data.description}`,
-        rating: selectedRating
+        rating: selectedRating,
       });
       toast.success("Thank you for your feedback!");
       form.reset();

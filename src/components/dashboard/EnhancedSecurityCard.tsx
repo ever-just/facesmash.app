@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { pb } from "@/integrations/pocketbase/client";
+import { api } from "@/integrations/api/client";
 
 interface SecurityStats {
   totalTemplates: number;
@@ -29,56 +29,42 @@ const EnhancedSecurityCard = ({ userName }: EnhancedSecurityCardProps) => {
   useEffect(() => {
     const fetchSecurityStats = async () => {
       try {
-        // Get user profile data
-        const profiles = await pb.collection('user_profiles').getList(1, 1, {
-          filter: `email="${userName}"`,
-        });
-        const userProfile = profiles.items.length > 0 ? profiles.items[0] : null;
+        // Fetch profile + stats from the Hono API (2 parallel requests)
+        const [profileRes, statsRes] = await Promise.all([
+          api.getProfile(),
+          api.getProfileStats(),
+        ]);
 
-        // Get face templates count
-        const templates = await pb.collection('face_templates').getList(1, 1, {
-          filter: `user_email="${userName}"`,
-        });
-        const templatesCount = templates.totalItems;
+        const profile = profileRes.ok ? profileRes.data : null;
+        const statsData = statsRes.ok ? statsRes.data : null;
 
-        // Get face scans count and average confidence
-        const scans = await pb.collection('face_scans').getFullList({
-          filter: `user_email="${userName}"`,
-        });
-        const scansCount = scans.length;
-
-        // Get last successful login
-        const loginLogs = await pb.collection('sign_in_logs').getList(1, 1, {
-          filter: `user_email="${userName}" && success=true`,
-          sort: '-created',
-        });
-        const lastLoginData = loginLogs.items.length > 0 ? loginLogs.items[0] : null;
-
-        // Calculate statistics
-        const totalLogins = userProfile?.login_count || 0;
-        const successfulLogins = userProfile?.successful_logins || 0;
-        const successRate = totalLogins > 0 
-          ? (successfulLogins / totalLogins) * 100 
+        const totalLogins = profile?.loginCount || 0;
+        const successfulLogins = profile?.successfulLogins || 0;
+        const successRate = totalLogins > 0
+          ? (successfulLogins / totalLogins) * 100
           : 0;
 
-        const avgConfidence = scans.length > 0
-          ? scans.reduce((sum: number, scan: any) => sum + (scan.confidence || 0), 0) / scans.length
-          : 0;
+        const templatesCount = statsData?.templatesCount || 0;
+        const scansCount = statsData?.scansCount || 0;
+        const avgConfidence = profile?.avgQualityScore || 0;
+
+        // Get last login from recent logs
+        const lastLoginLog = statsData?.recentLogs?.find((l) => l.success);
 
         // Calculate security score (0-100)
         const securityScore = Math.min(100, Math.round(
-          (successRate * 0.4) + 
-          (avgConfidence * 100 * 0.3) + 
-          (Math.min(templatesCount || 0, 5) * 20 * 0.2) + 
-          ((scansCount || 0) > 10 ? 10 : (scansCount || 0)) * 0.1
+          (successRate * 0.4) +
+          (avgConfidence * 100 * 0.3) +
+          (Math.min(templatesCount, 5) * 20 * 0.2) +
+          (scansCount > 10 ? 10 : scansCount) * 0.1
         ));
 
         setStats({
-          totalTemplates: templatesCount || 0,
-          lastLogin: lastLoginData?.created || null,
+          totalTemplates: templatesCount,
+          lastLogin: lastLoginLog?.createdAt || profile?.lastLogin || null,
           successRate: Math.round(successRate),
           avgConfidence: Math.round(avgConfidence * 100),
-          totalScans: scansCount || 0,
+          totalScans: scansCount,
           securityScore
         });
       } catch (error) {

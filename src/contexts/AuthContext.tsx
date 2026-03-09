@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { api } from '@/integrations/api/client';
 
 interface SimpleUser {
   email: string;
@@ -32,20 +33,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing face-auth session in localStorage
-    const currentUser = localStorage.getItem('currentUserName');
-    if (currentUser) {
-      setUser({ email: currentUser });
-    }
-    setIsLoading(false);
+    // Verify session via httpOnly cookie (server checks the JWT)
+    const verifySession = async () => {
+      try {
+        const res = await api.verify();
+        if (res.ok && res.data.valid) {
+          setUser({ email: res.data.user.email });
+          // Keep localStorage in sync for display purposes
+          localStorage.setItem('currentUserName', res.data.user.email);
+        } else {
+          // Cookie expired or invalid — fall back to localStorage for display
+          const currentUser = localStorage.getItem('currentUserName');
+          if (currentUser) {
+            // localStorage has a name but cookie is gone — clear stale state
+            localStorage.removeItem('currentUserName');
+          }
+          setUser(null);
+        }
+      } catch {
+        // Network error — check localStorage as fallback
+        const currentUser = localStorage.getItem('currentUserName');
+        if (currentUser) {
+          setUser({ email: currentUser });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    verifySession();
   }, []);
 
   const signOut = async () => {
     try {
+      await api.logout(); // Clears the httpOnly cookie server-side
       localStorage.removeItem('currentUserName');
       setUser(null);
     } catch (error) {
       console.error('Error signing out:', error);
+      // Still clear local state even if server call fails
+      localStorage.removeItem('currentUserName');
+      setUser(null);
     }
   };
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { ChevronDown, Trash2 } from "lucide-react";
-import { pb } from "@/integrations/pocketbase/client";
+import { api } from "@/integrations/api/client";
 import { useSignOut } from "@/hooks/useSignOut";
 import { loadSettings, type UserSettings as Settings } from "@/hooks/useUserSettings";
 
@@ -38,36 +38,11 @@ const UserSettings = ({ userName }: UserSettingsProps) => {
     }
     setDeleting(true);
     try {
-      // Delete face templates
-      const templates = await pb.collection("face_templates").getFullList({
-        filter: `user_email="${userName}"`,
-      });
-      for (const t of templates) {
-        await pb.collection("face_templates").delete(t.id);
-      }
-
-      // Delete face scans
-      const scans = await pb.collection("face_scans").getFullList({
-        filter: `user_email="${userName}"`,
-      });
-      for (const s of scans) {
-        await pb.collection("face_scans").delete(s.id);
-      }
-
-      // Delete sign-in logs
-      const logs = await pb.collection("sign_in_logs").getFullList({
-        filter: `user_email="${userName}"`,
-      });
-      for (const l of logs) {
-        await pb.collection("sign_in_logs").delete(l.id);
-      }
-
-      // Delete user profile
-      const profiles = await pb.collection("user_profiles").getList(1, 1, {
-        filter: `email="${userName}"`,
-      });
-      if (profiles.items.length > 0) {
-        await pb.collection("user_profiles").delete(profiles.items[0].id);
+      // Single API call deletes profile + all related data (templates, scans, logs)
+      // via CASCADE in PostgreSQL
+      const res = await api.deleteProfile();
+      if (!res.ok) {
+        throw new Error('Failed to delete account');
       }
 
       localStorage.removeItem(SETTINGS_KEY);
