@@ -245,20 +245,24 @@ Works with any framework or no framework at all:
 ## What Just Happened?
 
 When you registered:
-1. The SDK captured 3 webcam frames at 500ms intervals
-2. Each frame was analyzed for face quality (lighting, pose, size, confidence)
-3. The best frame's 128-dimensional face descriptor was extracted
-4. The SDK checked for duplicate faces among existing users
-5. A new `user_profiles` record was created in PocketBase with the face embedding
-6. An initial `face_templates` record was stored for future multi-template matching
+1. Liveness detection validated a real face (blink detection + head pose tracking)
+2. The SDK captured 3 webcam frames at 500ms intervals
+3. Each frame was analyzed for face quality (lighting, pose, size, confidence)
+4. The best frame's 128-dimensional face descriptor was extracted
+5. The descriptor was sent to the Hono API, which checked for duplicate faces via pgvector cosine similarity
+6. A new `user_profiles` row was created in PostgreSQL with the face embedding
+7. An initial `face_templates` row was stored for future multi-template matching
+8. A JWT was returned in an httpOnly cookie on `.facesmash.app`
 
 When you logged in:
-1. The SDK captured 3 frames and picked the best-quality face
-2. It fetched all registered user profiles from PocketBase
-3. For each user, it compared the new face descriptor against the stored embedding
-4. If the user had multiple templates, multi-template matching was also performed
-5. The best match above the threshold (default: 0.45) was returned
-6. A `sign_in_logs` entry was created and the stored embedding was updated (adaptive learning)
+1. Liveness detection validated a real face (blink detection + head pose tracking)
+2. The SDK captured 3 frames and picked the best-quality face
+3. The descriptor was sent to the Hono API
+4. The server performed a pgvector cosine similarity search across all users
+5. Adaptive thresholds adjusted based on lighting and confidence
+6. The best match above the threshold (default: 0.45) was returned
+7. A `sign_in_logs` entry was created and the stored embedding was updated (adaptive learning)
+8. A JWT httpOnly cookie was set for session management
 
 ---
 
@@ -320,5 +324,5 @@ Visit [facesmash.app](https://facesmash.app) to see FaceSmash in action with the
 - [**SDK Overview**](/docs/sdk) — Architecture, exports, neural networks, browser support
 - [**React Components**](/docs/sdk/react-components) — `<FaceLogin>`, `<FaceRegister>`, provider, 4 hooks, full prop tables
 - [**Vanilla JS**](/docs/sdk/vanilla-js) — Complete client API, low-level utilities, Vue/Svelte/Angular examples
-- [**Configuration**](/docs/sdk/configuration) — Every option explained, threshold tuning, event system, PocketBase schemas
+- [**Configuration**](/docs/sdk/configuration) — Every option explained, threshold tuning, event system, database schema
 - [**Security & Privacy**](/docs/security) — How biometric data is processed and stored

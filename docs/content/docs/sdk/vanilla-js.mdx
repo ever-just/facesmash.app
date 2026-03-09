@@ -115,7 +115,7 @@ interface LoginResult {
 }
 
 interface UserProfile {
-  id: string;            // PocketBase record ID (e.g., "a1b2c3d4e5f6")
+  id: string;            // UUID (e.g., "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
   name: string;          // Display name
   email: string;         // Email address
   face_embedding: number[]; // 128-dimensional descriptor as plain array
@@ -128,7 +128,7 @@ interface UserProfile {
 
 1. Each image is analyzed with `analyzeFace()` — the highest quality non-rejected result is selected
 2. If no face is detected or quality is below `minQualityScore`, login fails immediately
-3. All `user_profiles` are fetched from PocketBase
+3. The descriptor is sent to the Hono API for server-side pgvector matching
 4. For each profile:
    - `enhancedMatch()` compares the new descriptor against the stored `face_embedding`
    - If the profile has `face_templates`, `multiTemplateMatch()` is also run; the better similarity wins
@@ -324,28 +324,23 @@ console.log(client.config.debug);                 // false
 
 ### `client.pb`
 
-Direct access to the underlying PocketBase client instance. Use this for custom queries against the database.
+Direct access to the underlying API client for custom queries against the Hono API.
 
 ```typescript
-readonly pb: PocketBase
+readonly api: ApiClient
 ```
 
 ```javascript
-// Query all registered users
-const users = await client.pb.collection('user_profiles').getFullList();
-console.log('Registered users:', users.length);
+// The Hono API handles all database operations server-side.
+// Use the SDK's high-level methods for all face operations:
+const loginResult = await client.login(images);
+const registerResult = await client.register(name, images, email);
 
-// Get a specific user's templates
-const templates = await client.pb.collection('face_templates').getList(1, 50, {
-  filter: 'user_email="jane@example.com"',
-  sort: '-quality_score',
-});
-console.log('Templates:', templates.items.length);
-
-// Get recent sign-in logs
-const logs = await client.pb.collection('sign_in_logs').getList(1, 20, {
-  sort: '-created',
-});
+// Session management is handled via httpOnly cookies automatically.
+// Check the current authenticated user:
+const me = await fetch('https://api.facesmash.app/api/auth/me', {
+  credentials: 'include',
+}).then(r => r.json());
 ```
 
 ---
