@@ -42,7 +42,7 @@ const SERVICE_DEFS: { name: string; url: string; description: string; corsMode: 
     icon: <Globe className="size-5 text-emerald-400" />,
   },
   {
-    name: "PocketBase API",
+    name: "FaceSmash API",
     url: "https://api.facesmash.app/api/health",
     description: "Backend REST API (DigitalOcean)",
     corsMode: "cors",
@@ -122,7 +122,7 @@ const Status = () => {
     setServices(updated);
 
     // Log the API check for uptime history
-    const apiCheck = updated.find((s) => s.name === "PocketBase API");
+    const apiCheck = updated.find((s) => s.name === "FaceSmash API");
     if (apiCheck) {
       setUptimeLog((prev) => {
         const entry: UptimeEntry = {
