@@ -26,9 +26,13 @@ export const prepareImageFile = async (
         canvas.width = img.width;
         canvas.height = img.height;
         ctx?.drawImage(img, 0, 0);
+        URL.revokeObjectURL(img.src);
         resolve(canvas.toDataURL('image/jpeg', 0.9));
       };
-      img.onerror = reject;
+      img.onerror = (err) => {
+        URL.revokeObjectURL(img.src);
+        reject(err);
+      };
       img.src = URL.createObjectURL(imageBlob);
     });
 

@@ -28,6 +28,7 @@ const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [lastFaceAnalysis, setLastFaceAnalysis] = useState<{ descriptor: Float32Array; qualityScore: number } | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'duplicate';
@@ -124,6 +125,9 @@ const Register = () => {
 
       console.log(`Face quality score: ${faceAnalysis.qualityScore.toFixed(3)}`);
 
+      // Store face analysis for potential re-use (e.g., duplicate-face login flow)
+      setLastFaceAnalysis({ descriptor: faceAnalysis.descriptor, qualityScore: faceAnalysis.qualityScore });
+
       // Server-side registration: handles duplicate face check, email check,
       // profile creation, template storage, and scan record in one call.
       console.log('Registering via server API...');
@@ -142,9 +146,13 @@ const Register = () => {
             canvas.width = img.width;
             canvas.height = img.height;
             ctx?.drawImage(img, 0, 0);
+            URL.revokeObjectURL(img.src);
             resolve(canvas.toDataURL('image/jpeg', 0.9));
           };
-          img.onerror = reject;
+          img.onerror = (err) => {
+            URL.revokeObjectURL(img.src);
+            reject(err);
+          };
           img.src = URL.createObjectURL(imageBlob);
         });
       } catch {
@@ -214,10 +222,27 @@ const Register = () => {
   };
 
   const handleContinueToDashboard = async () => {
-    if (notification?.userEmail) {
-      // Set the user as logged in and redirect to dashboard
-      localStorage.setItem('currentUserName', notification.userEmail);
-      navigate('/dashboard');
+    if (notification?.userEmail && lastFaceAnalysis) {
+      // Authenticate via face login to establish httpOnly session cookie
+      try {
+        const embeddingArray = Array.from(lastFaceAnalysis.descriptor);
+        const res = await api.login({
+          embedding: embeddingArray,
+          qualityScore: lastFaceAnalysis.qualityScore,
+        });
+        if (res.ok && res.data.match) {
+          localStorage.setItem('currentUserName', notification.userEmail);
+          navigate('/dashboard');
+          return;
+        }
+      } catch {
+        // Login failed — fall through to show error
+      }
+      // If login fails, redirect to login page instead
+      navigate('/login');
+    } else if (notification?.userEmail) {
+      // No face analysis available — redirect to login
+      navigate('/login');
     }
   };
 
