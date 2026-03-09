@@ -191,10 +191,10 @@ graph TB
         FAPI --> REACT
     end
 
-    subgraph Backend ["☁️ Backend (PocketBase)"]
-        API["🔌 REST API"]
-        DB["💾 SQLite DB"]
-        AUTH["🔐 Auth Layer"]
+    subgraph Backend ["☁️ Backend (Hono API)"]
+        API["🔌 Hono REST API"]
+        DB["💾 PostgreSQL 16\n+ pgvector"]
+        AUTH["🔐 JWT httpOnly\nCookie Auth"]
         API --> DB
         API --> AUTH
     end
@@ -216,7 +216,9 @@ graph TB
 
 **Key design decisions:**
 - **Client-side ML** — Raw camera frames *never* leave the browser. Face detection and descriptor extraction happen on-device using TensorFlow.js. Only computed 128D vectors are transmitted.
-- **PocketBase backend** — Lightweight, self-contained Go binary with built-in SQLite. No Docker, no Kubernetes, no DevOps drama.
+- **Server-side matching** — Face descriptors are matched server-side using pgvector cosine similarity (`<=>` operator) with HNSW indexes. No biometric data is ever sent to the client.
+- **Hono API + PostgreSQL** — Lightweight Hono.js REST API with Drizzle ORM, PostgreSQL 16, and pgvector 0.6.0 for vector similarity search.
+- **JWT httpOnly cookies** — Session tokens stored in httpOnly cookies on `.facesmash.app` domain. XSS-immune, automatically sent to `api.facesmash.app`.
 - **Caddy reverse proxy** — Automatic HTTPS via Let's Encrypt. Zero-config TLS termination.
 - **Edge-deployed frontend** — Netlify CDN for global sub-50ms TTFB.
 
@@ -268,7 +270,7 @@ graph TB
 - **Vite** for instant HMR and lightning-fast builds
 - **shadcn/ui + Tailwind CSS** — beautiful, accessible components out of the box
 - **Framer Motion** animations — smooth, physics-based UI transitions
-- **PocketBase** backend — single binary, zero-config, batteries included
+- **Hono.js API** with PostgreSQL 16 + pgvector — server-side face matching with cosine similarity
 
 ### 📋 Compliance Ready
 - **BIPA** (Illinois Biometric Privacy Act) compliant — written disclosure, consent, retention schedule
@@ -325,13 +327,9 @@ https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model
 
 ### Environment Setup
 
-The app connects to a PocketBase backend. For local development:
+The app connects to the Hono API backend at `https://api.facesmash.app`. For local development, the app uses the production API by default.
 
-```bash
-# Download PocketBase (https://pocketbase.io/docs/)
-# Run it on port 8096
-./pocketbase serve --http=127.0.0.1:8096
-```
+To run the API locally, see the [`facesmash-api`](https://github.com/ever-just/facesmash-api) repository.
 
 Production API: `https://api.facesmash.app`
 
@@ -349,8 +347,10 @@ Production API: `https://api.facesmash.app`
 | **Bundler** | Vite 5.4 | Sub-second HMR, native ESM, blazing fast builds |
 | **Styling** | Tailwind CSS 3.4 + shadcn/ui | Utility-first CSS with accessible, copy-paste components |
 | **Animation** | Framer Motion 12 | Physics-based animations, layout transitions, gestures |
-| **Face Recognition** | face-api.js (TensorFlow.js) | Browser-native ML — 128D face descriptors, no server needed |
-| **Backend** | PocketBase | Single Go binary: REST API + SQLite + auth + file storage |
+| **Face Recognition** | face-api.js (TensorFlow.js) | Browser-native ML — 128D face descriptors extracted client-side |
+| **Backend** | Hono.js + PostgreSQL 16 + pgvector | REST API with server-side vector similarity matching |
+| **ORM** | Drizzle ORM | Type-safe PostgreSQL access with pgvector support |
+| **Auth** | JWT httpOnly cookies | Secure session management on `.facesmash.app` domain |
 | **Hosting** | Netlify (frontend) + DigitalOcean (API) | Edge CDN + dedicated droplet with Caddy auto-HTTPS |
 | **State** | React Query (TanStack) | Cache-first data fetching with background revalidation |
 | **Routing** | React Router 6 | Declarative routing with lazy loading support |
@@ -385,7 +385,7 @@ facesmash.app/
 │   │   ├── useLoginLogic.ts
 │   │   └── ...
 │   ├── integrations/
-│   │   └── pocketbase/      # PocketBase client & service layer
+│   │   └── api/             # Hono API client & service layer
 │   ├── pages/
 │   │   ├── Index.tsx         # Landing page
 │   │   ├── Register.tsx      # Face registration flow
@@ -492,13 +492,16 @@ npm run preview        # Preview the build locally
 
 Production URL: **[https://facesmash.app](https://facesmash.app)**
 
-### Backend (PocketBase on DigitalOcean)
+### Backend (Hono API on DigitalOcean)
 
-The PocketBase API runs on a DigitalOcean droplet with Caddy reverse proxy:
+The Hono API runs on a DigitalOcean droplet with Caddy reverse proxy:
 
 - **API URL**: `https://api.facesmash.app`
 - **Reverse proxy**: Caddy with automatic Let's Encrypt certificates
-- **Database**: SQLite (embedded in PocketBase)
+- **Database**: PostgreSQL 16 + pgvector 0.6.0 (localhost on droplet)
+- **ORM**: Drizzle ORM with type-safe schema
+- **Process manager**: systemd (`facesmash-api.service`)
+- **Repository**: [`ever-just/facesmash-api`](https://github.com/ever-just/facesmash-api)
 
 <br/>
 
@@ -524,7 +527,19 @@ The PocketBase API runs on a DigitalOcean droplet with Caddy reverse proxy:
 
 ## 📋 Changelog
 
-### v2.0.0 — March 7, 2026
+### v2.0.0 — March 9, 2026
+**PocketBase → Hono API Migration**
+- 🚀 **New backend**: Migrated from PocketBase to Hono.js REST API with PostgreSQL 16 + pgvector 0.6.0
+- 🔐 **Server-side face matching**: All biometric comparisons now happen server-side via pgvector cosine similarity — face embeddings never sent to client
+- 🔐 **JWT httpOnly cookies**: Replaced localStorage auth with secure httpOnly cookies on `.facesmash.app` domain
+- 🧠 **Liveness detection**: Blink detection + head pose tracking gate registration and login flows
+- 🧠 **HNSW indexes**: Fast approximate nearest neighbor search for face matching
+- 🔄 **Data migration**: All user profiles, templates, scans, and sign-in logs migrated from PocketBase SQLite to PostgreSQL
+- 📖 **Updated docs**: docs.facesmash.app fully updated to reflect v2.0.0 architecture
+- 🗄️ **Drizzle ORM**: Type-safe database access with migration support
+- 🌐 **New API repo**: [`facesmash-api`](https://github.com/ever-just/facesmash-api) — standalone Hono API backend
+
+### v1.4.0 — March 7, 2026
 **SDK Release & Documentation**
 - 🚀 Published [`@facesmash/sdk`](https://www.npmjs.com/package/@facesmash/sdk) v0.1.0 to npm
 - 🚀 React components: `<FaceSmashProvider>`, `<FaceLogin>`, `<FaceRegister>`
@@ -563,7 +578,7 @@ The PocketBase API runs on a DigitalOcean droplet with Caddy reverse proxy:
 ### v1.0.0 — January 2026
 **Initial Release**
 - 🚀 Face registration and login flow
-- 🚀 PocketBase backend integration
+- 🚀 PocketBase backend integration (replaced by Hono API in v2.0.0)
 - 🚀 Dashboard with profile, security card, and activity graph
 - 🚀 Face scan gallery with storage management
 - 🚀 Deployed to Netlify (frontend) and DigitalOcean (API)

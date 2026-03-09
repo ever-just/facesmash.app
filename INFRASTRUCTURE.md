@@ -1,6 +1,6 @@
 # FaceSmash Infrastructure & Architecture
 
-> Last updated: March 8, 2026
+> Last updated: March 9, 2026 (v2.0.0 — Hono API + PostgreSQL + pgvector migration)
 
 ---
 
@@ -10,13 +10,13 @@
 2. [Repositories](#2-repositories)
    - [2.1 Main App + Docs Monorepo](#21-main-app--docs-monorepo-ever-justfacesmashapp)
    - [2.2 Developer Portal](#22-developer-portal-ever-justfacesmash-dev-portal)
-   - [2.3 API Gateway (in development)](#23-api-gateway-facesmash-api--in-development)
+   - [2.3 API Gateway (DEPLOYED)](#23-api-gateway-ever-justfacesmash-api)
    - [2.4 Inactive / Legacy Directories](#24-inactive--legacy-directories)
 3. [Services & Subdomains](#3-services--subdomains)
 4. [Main App — facesmash.app](#4-main-app--facesmashapp)
 5. [Documentation Site — docs.facesmash.app](#5-documentation-site--docsfacesmashapp)
 6. [Developer Portal — developers.facesmash.app](#6-developer-portal--developersfacesmashapp)
-7. [PocketBase API — api.facesmash.app](#7-pocketbase-api--apifacesmashapp)
+7. [Hono API — api.facesmash.app](#7-hono-api--apifacesmashapp)
 8. [DNS & Domain Configuration](#8-dns--domain-configuration)
 9. [Hosting & Deployment](#9-hosting--deployment)
 10. [CI/CD Pipeline](#10-cicd-pipeline)
@@ -43,8 +43,10 @@ FaceSmash is a passwordless facial recognition authentication platform. The syst
 │  (Main App)      │(Docs Site)       │facesmash.app  │.app (API)     │
 │                  │                  │(Dev Portal)   │               │
 │  Netlify         │Netlify           │Netlify        │DigitalOcean   │
-│  React + Vite    │Next.js + Fumadocs│Next.js 15     │PocketBase     │
-│  SPA             │Static Export     │SSR + PPR      │+ Caddy        │
+│  React + Vite    │Next.js + Fumadocs│Next.js 15     │Hono API       │
+│  SPA             │Static Export     │SSR + PPR      │+ PostgreSQL   │
+│                  │                  │               │+ pgvector     │
+│                  │                  │               │+ Caddy        │
 └──────────────────┴──────────────────┴───────────────┴───────────────┘
 ```
 
@@ -58,7 +60,7 @@ FaceSmash is a passwordless facial recognition authentication platform. The syst
 |---|---|---|---|---|
 | 1 | **Main App + Docs** (monorepo) | `ever-just/facesmash.app` | `face-login-gateway/` | Active, deployed |
 | 2 | **Developer Portal** | `ever-just/facesmash-dev-portal` (private) | `facesmash-dev-portal/` | Active, deployed |
-| 3 | **API Gateway** | No GitHub repo yet | `facesmash-api/` | In development, not deployed |
+| 3 | **API Gateway** | `ever-just/facesmash-api` | `facesmash-api/` | **Active, deployed** (v2.0.0) |
 | 4 | **Main App (backup)** | — | `face-login-gateway.old/` | Stale copy, not used |
 | 5 | **FaceCard v1 (archived)** | — | `facecard-v1-16-2f3a0ede/` | Empty/abandoned predecessor |
 
@@ -89,7 +91,7 @@ face-login-gateway/
 ├── README.md                  ← Project readme
 ├── index.html                 ← Vite SPA entry point
 ├── netlify.toml               ← Netlify deploy config for main app
-├── package.json               ← npm dependencies (React, face-api, PocketBase, etc.)
+├── package.json               ← npm dependencies (React, face-api, Hono API client, etc.)
 ├── vite.config.ts             ← Vite build config (React SWC, port 8080)
 ├── tailwind.config.ts         ← TailwindCSS configuration
 ├── tsconfig.json              ← TypeScript config
@@ -116,9 +118,9 @@ face-login-gateway/
 │   ├── components/            ← Shared UI components
 │   ├── contexts/              ← React contexts
 │   ├── hooks/                 ← Custom React hooks
-│   ├── services/              ← Business logic (PocketBase CRUD)
+│   ├── services/              ← Business logic (Hono API service layer)
 │   ├── utils/                 ← Face recognition + utility functions
-│   ├── integrations/          ← External service clients
+│   ├── integrations/          ← External service clients (Hono API client)
 │   ├── types/                 ← TypeScript type definitions
 │   └── lib/                   ← Utility (cn helper)
 └── docs/                      ← Documentation site (separate Next.js app)
@@ -156,15 +158,15 @@ face-login-gateway/
 | `dashboard/` | Dashboard sub-components (settings, security, feedback) |
 | `ui/` | shadcn/ui primitives (40+ components: button, dialog, toast, etc.) |
 
-#### `src/services/` — PocketBase Data Layer
+#### `src/services/` — Hono API Data Layer
 
 | File | Purpose |
 |---|---|
-| `userProfileService.ts` | CRUD for `user_profiles` collection |
-| `faceTemplateService.ts` | CRUD for `face_templates` collection |
-| `faceScanService.ts` | Create `face_scans` audit entries |
-| `signInLogService.ts` | Create `sign_in_logs` entries |
-| `learningService.ts` | Adaptive template learning (updates embeddings on successful logins) |
+| `userProfileService.ts` | CRUD for user profiles via Hono API |
+| `faceTemplateService.ts` | CRUD for face templates via Hono API |
+| `faceScanService.ts` | Create face scan audit entries via Hono API |
+| `signInLogService.ts` | Create sign-in log entries via Hono API |
+| `learningService.ts` | Adaptive template learning (server-side via Hono API) |
 
 #### `src/utils/` — Face Recognition Core
 
@@ -332,92 +334,85 @@ facesmash-dev-portal/
 
 ---
 
-### 2.3 API Gateway (`facesmash-api`) — IN DEVELOPMENT
+### 2.3 API Gateway (`ever-just/facesmash-api`) — DEPLOYED
 
-**Purpose**: Public REST API gateway that sits in front of PocketBase. Provides authenticated API access for third-party developers with rate limiting, usage metering, and structured responses. This is what developers hit when they use the `@facesmash/sdk`.
+**Purpose**: Core REST API for FaceSmash — handles face registration, login (server-side pgvector matching), user profiles, templates, scans, sign-in logs, and developer portal integration. Replaces the previous PocketBase backend.
 
-**GitHub**: Not yet pushed (no `.git` directory)  
+**GitHub**: https://github.com/ever-just/facesmash-api  
+**Branch**: `init`  
 **Local**: `/Users/cloudaistudio/Documents/EVERJUST PROJECTS/facesmash-api/`  
-**Status**: Code written, not deployed
+**Status**: **Deployed** (v2.0.0) at https://api.facesmash.app
 
 #### Stack
 
 - **Framework**: Hono ^4.7.0 (lightweight, edge-compatible web framework)
 - **Server**: @hono/node-server (Node.js adapter)
-- **OpenAPI**: @hono/zod-openapi (auto-generated API docs from Zod schemas)
-- **Database**: PocketBase JS SDK ^0.26.8 (proxies to the existing PocketBase instance)
-- **Build**: tsup (ESM output with DTS)
+- **Database**: PostgreSQL 16 + pgvector 0.6.0 (server-side cosine similarity matching)
+- **ORM**: Drizzle ORM with type-safe schema and migrations
+- **Auth**: JWT httpOnly cookies on `.facesmash.app` domain (jose, bcryptjs)
 - **Runtime**: tsx (dev), Node.js 20+ (production)
-- **Container**: Dockerfile (node:22-alpine, multi-stage build, port 3100)
+- **Process manager**: systemd (`facesmash-api.service`)
+- **Reverse proxy**: Caddy (auto HTTPS via Let's Encrypt)
 
 #### Structure
 
 ```
 facesmash-api/
-├── .env.example                ← Env template (PocketBase URL, Stripe keys, rate limits)
-├── Dockerfile                  ← Multi-stage Docker build (node:22-alpine → port 3100)
-├── package.json                ← Dependencies (hono, pocketbase, zod, nanoid)
+├── .env                        ← Environment variables (GITIGNORED)
+├── package.json                ← Dependencies (hono, drizzle-orm, pg, pgvector)
 ├── tsconfig.json
+├── drizzle.config.ts           ← Drizzle ORM config
 └── src/
-    ├── index.ts                ← Hono app setup, route mounting, server start
-    ├── config.ts               ← Environment config loader
-    ├── types.ts                ← TypeScript types (API responses, requests)
+    ├── index.ts                ← Hono app setup, route mounting, server start (port 3100)
+    ├── db/
+    │   ├── index.ts            ← PostgreSQL connection pool
+    │   └── schema.ts           ← Drizzle schema (user_profiles, face_templates, face_scans, sign_in_logs)
     ├── middleware/
-    │   ├── auth.ts             ← API key authentication middleware
-    │   ├── rate-limit.ts       ← Per-plan rate limiting
-    │   └── request-context.ts  ← Request ID, timing, context injection
+    │   ├── auth.ts             ← JWT cookie authentication middleware
+    │   └── cors.ts             ← CORS configuration
     ├── routes/
-    │   ├── health.ts           ← GET /health
-    │   ├── face.ts             ← POST /v1/face/detect, /match, /register, /login, /analyze
-    │   ├── keys.ts             ← POST/GET/DELETE /v1/keys
-    │   ├── apps.ts             ← CRUD /v1/apps
-    │   └── usage.ts            ← GET /v1/usage, /v1/usage/breakdown
-    ├── lib/
-    │   ├── pocketbase.ts       ← PocketBase client wrapper
-    │   ├── api-keys.ts         ← API key creation, validation, hashing
-    │   ├── usage.ts            ← Usage metering and tracking
-    │   └── errors.ts           ← Structured error responses
-    └── scripts/
-        └── setup-collections.ts ← PocketBase collection setup script
+    │   ├── health.ts           ← GET /api/health (DB connectivity check)
+    │   ├── auth.ts             ← POST /api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/me
+    │   ├── profiles.ts         ← GET/POST/PATCH /api/profiles
+    │   ├── templates.ts        ← GET/POST /api/templates
+    │   ├── scans.ts            ← GET/POST /api/scans
+    │   ├── logs.ts             ← GET/POST /api/logs
+    │   ├── devportal.ts        ← POST /api/devportal/match, /register (internal API key auth)
+    │   └── feedback.ts         ← POST /api/feedback
+    └── services/
+        ├── matching.ts         ← pgvector cosine similarity matching (<=> operator)
+        └── learning.ts         ← Adaptive template learning (server-side)
 ```
 
 #### API Endpoints
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/` | Public | API info |
-| GET | `/health` | Public | Health check |
-| POST | `/v1/face/detect` | API Key | Detect faces in an image |
-| POST | `/v1/face/match` | API Key | Compare two face descriptors |
-| POST | `/v1/face/register` | API Key | Register face templates for a user |
-| POST | `/v1/face/login` | API Key | Authenticate via face matching |
-| POST | `/v1/face/analyze` | API Key | Analyze face (age, gender, quality) |
-| POST | `/v1/keys` | API Key | Create a new API key |
-| GET | `/v1/keys` | API Key | List your API keys |
-| DELETE | `/v1/keys/:id` | API Key | Revoke an API key |
-| POST | `/v1/apps` | API Key | Create an application |
-| GET | `/v1/apps` | API Key | List your applications |
-| GET | `/v1/apps/:id` | API Key | Get application details |
-| PATCH | `/v1/apps/:id` | API Key | Update an application |
-| DELETE | `/v1/apps/:id` | API Key | Delete an application |
-| GET | `/v1/usage` | API Key | Get usage summary |
-| GET | `/v1/usage/breakdown` | API Key | Get per-endpoint breakdown |
+| GET | `/api/health` | Public | Health check + DB status + version |
+| POST | `/api/auth/register` | Public | Register face (server-side pgvector duplicate check) |
+| POST | `/api/auth/login` | Public | Login via face matching (pgvector cosine similarity) |
+| POST | `/api/auth/logout` | Cookie | Clear session cookie |
+| GET | `/api/auth/me` | Cookie | Get current authenticated user |
+| GET | `/api/profiles` | Cookie | List user profiles |
+| POST | `/api/profiles` | Cookie | Create user profile |
+| PATCH | `/api/profiles/:id` | Cookie | Update user profile |
+| GET | `/api/templates` | Cookie | Get face templates for user |
+| POST | `/api/templates` | Cookie | Store new face template |
+| GET | `/api/scans` | Cookie | Get face scan history |
+| POST | `/api/scans` | Cookie | Create face scan audit entry |
+| GET | `/api/logs` | Cookie | Get sign-in logs |
+| POST | `/api/logs` | Cookie | Create sign-in log entry |
+| POST | `/api/devportal/match` | API Key | Face matching for third-party apps |
+| POST | `/api/devportal/register` | API Key | Face registration for third-party apps |
+| POST | `/api/feedback` | Cookie | Submit user feedback |
 
-#### Rate Limits
+#### Deployment
 
-| Plan | Calls/Month | Apps |
-|---|---|---|
-| Free | 1,000 | 2 |
-| Pro ($29/mo) | 50,000 | 10 |
-| Enterprise | Unlimited | 100 |
-
-#### TODO for this repo
-
-- [ ] Create GitHub repo (`ever-just/facesmash-api`)
-- [ ] Deploy to DigitalOcean droplet (Docker or systemd service)
-- [ ] Wire up to Caddy reverse proxy on a new subdomain or path
-- [ ] Connect to Unkey for API key validation
-- [ ] Connect to the dev portal for usage reporting
+- **Droplet IP**: `167.172.244.201`
+- **systemd service**: `facesmash-api.service` (auto-restart on failure)
+- **Caddy**: Reverse proxies `api.facesmash.app` → `127.0.0.1:3100`
+- **Database**: PostgreSQL 16 on localhost with pgvector 0.6.0 extension
+- **Database name**: `facesmash_auth`
 
 ---
 
@@ -437,7 +432,7 @@ facesmash-api/
 | `facesmash.app` | End-user face login/register app | Netlify | React 18, Vite 5, TailwindCSS, framer-motion |
 | `docs.facesmash.app` | Developer documentation | Netlify | Next.js 16, Fumadocs, MDX, static export |
 | `developers.facesmash.app` | Developer portal (API keys, billing) | Netlify | Next.js 15.6 (canary), Turbopack, PPR, SSR |
-| `api.facesmash.app` | REST API (face data, auth, user profiles) | DigitalOcean Droplet | PocketBase (Go binary), Caddy reverse proxy |
+| `api.facesmash.app` | REST API (face data, auth, user profiles) | DigitalOcean Droplet | Hono.js + PostgreSQL 16 + pgvector 0.6.0, Caddy reverse proxy |
 
 ---
 
@@ -451,7 +446,7 @@ facesmash-api/
 - **UI Components**: Radix UI primitives (accordion, dialog, dropdown, tooltip, etc.), shadcn/ui patterns
 - **Animations**: framer-motion 12
 - **Face Recognition**: `@vladmandic/face-api` ^1.7.15 (TensorFlow.js WebGL backend)
-- **API Client**: PocketBase JS SDK ^0.26.8
+- **API Client**: Hono API client (custom fetch-based, httpOnly cookie auth)
 - **Icons**: lucide-react ^0.462
 - **Charts**: recharts ^2.12
 - **Forms**: react-hook-form + zod + @hookform/resolvers
@@ -488,8 +483,8 @@ src/
 ├── components/      # UI components (StatusIndicator, GlobalLoadingScreen, AnnouncementBanner, etc.)
 ├── contexts/        # FaceAPIContext (manages face-api.js model loading state)
 ├── integrations/
-│   └── pocketbase/
-│       └── client.ts    # PocketBase client configured to https://api.facesmash.app
+│   └── api/
+│       └── client.ts    # Hono API client configured to https://api.facesmash.app
 ├── services/        # Business logic (faceTemplateService, faceScanService, signInLogService, etc.)
 ├── utils/           # faceRecognition.ts, enhancedFaceRecognition.ts, livenessDetection.ts
 └── hooks/           # useFaceTracking, custom hooks
@@ -631,20 +626,21 @@ developer_apps   — id, team_id → teams, name, description, allowed_origins, 
 
 ---
 
-## 7. PocketBase API — api.facesmash.app
+## 7. Hono API — api.facesmash.app
 
 ### Server
 
 - **Provider**: DigitalOcean Droplet
-- **IP**: `142.93.78.220`
-- **OS**: Ubuntu (standard DO droplet)
-- **Runtime**: PocketBase (single Go binary)
-- **Internal port**: `8096` (PocketBase listens here)
-- **Fallback port**: `8097` (HTTP only, legacy)
+- **IP**: `167.172.244.201`
+- **OS**: Ubuntu 22.04 LTS
+- **Runtime**: Node.js 20+ (Hono.js framework)
+- **Internal port**: `3100` (Hono API listens here)
+- **Database**: PostgreSQL 16 + pgvector 0.6.0 (localhost)
+- **Process manager**: systemd (`facesmash-api.service`)
 
 ### Caddy Reverse Proxy
 
-Caddy handles HTTPS termination and reverse proxies to PocketBase:
+Caddy handles HTTPS termination and reverse proxies to the Hono API:
 
 ```
 api.facesmash.app {
@@ -661,37 +657,32 @@ api.facesmash.app {
         respond 204
     }
 
-    # Proxy to PocketBase — strip PB's own CORS headers to avoid duplicates
-    reverse_proxy 127.0.0.1:8096 {
-        header_down -Access-Control-Allow-Origin
-        header_down -Access-Control-Allow-Methods
-        header_down -Access-Control-Allow-Headers
-        header_down -Access-Control-Allow-Credentials
-    }
+    # Proxy to Hono API
+    reverse_proxy 127.0.0.1:3100
 }
 ```
 
 - **TLS**: Auto HTTPS via Let's Encrypt (Caddy manages cert provisioning and renewal)
 - **CORS**: Dynamic origin echo — supports both `https://facesmash.app` (production) and `http://localhost:*` (dev)
 
-### PocketBase Collections
+### PostgreSQL Database
 
-PocketBase stores face authentication data:
+PostgreSQL 16 with pgvector extension stores all face authentication data:
 
-- `user_profiles` — name, email, face_embedding (128-D float array)
-- `face_templates` — descriptor vectors, quality scores, linked to user_profiles
-- `face_scans` — audit log of face detection events
-- `sign_in_logs` — login history with match scores and timestamps
+- `user_profiles` — name, email, face_embedding (`vector(128)` type), app_id
+- `face_templates` — descriptor (`vector(128)`), quality, lighting_condition, user_profile_id
+- `face_scans` — type, result, quality_score, user_profile_id
+- `sign_in_logs` — match_score, threshold_used, match_type, user_profile_id
 
-### Admin Access
-
-- **Admin panel**: `https://api.facesmash.app/_/`
-- **Auth endpoint**: `POST /api/collections/_superusers/auth-with-password`
-- Credentials stored separately (not in this doc — see secure credential store)
+**Key features:**
+- HNSW indexes on `vector(128)` columns for fast approximate nearest neighbor search
+- Cosine similarity operator (`<=>`) for face matching
+- All matching happens server-side — face embeddings are never sent to the client
 
 ### Health Endpoint
 
-- `GET https://api.facesmash.app/api/health` — used by StatusIndicator component and /status page
+- `GET https://api.facesmash.app/api/health` — returns API version, database status, uptime
+- Used by StatusIndicator component and /status page
 
 ---
 
@@ -707,7 +698,7 @@ PocketBase stores face authentication data:
 
 | Type | Name | Value | Purpose |
 |---|---|---|---|
-| A | `api` | `142.93.78.220` | PocketBase API on DigitalOcean |
+| A | `api` | `167.172.244.201` | Hono API on DigitalOcean |
 | CNAME | `@` | Netlify-managed (`facesmash1.netlify.app`) | Main app |
 | CNAME | `docs` | `facesmash-docs.netlify.app` | Docs site |
 | CNAME | `developers` | Netlify-managed (`facesmash-developers.netlify.app`) | Dev portal |
@@ -730,11 +721,11 @@ PocketBase stores face authentication data:
 
 | Resource | Details |
 |---|---|
-| Droplet IP | `142.93.78.220` |
-| Services | PocketBase (port 8096), Caddy (ports 80/443), PostgreSQL (port 5432) |
-| Purpose | API server + dev portal database |
+| Droplet IP | `167.172.244.201` |
+| Services | Hono API (port 3100), Caddy (ports 80/443), PostgreSQL 16 + pgvector (port 5432) |
+| Purpose | Face auth API server + dev portal database |
 
-> Note: The dev portal's PostgreSQL database also runs on this same droplet (connection string points to `142.93.78.220:5432`).
+> Note: Two PostgreSQL databases run on this droplet: `facesmash_auth` (face auth data) and `facesmash_devportal` (dev portal data). The dev portal connects via `167.172.244.201:5432`.
 
 ---
 
@@ -774,17 +765,34 @@ pnpm build
 netlify deploy --prod
 ```
 
-#### PocketBase API
+#### Hono API
 
-- PocketBase binary runs directly on the droplet
-- Updates require SSH into `142.93.78.220`, downloading the new binary, and restarting the service
-- Caddy config changes: edit `/etc/caddy/Caddyfile`, then `systemctl reload caddy`
+```bash
+# SSH into the droplet
+ssh root@167.172.244.201
+
+# Pull latest code
+cd /root/facesmash-api
+git pull origin init
+
+# Install dependencies and restart
+npm install
+systemctl restart facesmash-api
+
+# Check status
+systemctl status facesmash-api
+journalctl -u facesmash-api -f  # View logs
+
+# Caddy config changes
+vim /etc/caddy/Caddyfile
+systemctl reload caddy
+```
 
 ### Recommended CI/CD (not yet implemented)
 
 - Connect GitHub repos to Netlify for auto-deploy on push to `main`
 - Add GitHub Actions for lint + type-check on PRs
-- Consider systemd service + watchtower or similar for PocketBase auto-updates
+- Consider GitHub Actions for auto-deploying API changes to droplet via SSH
 
 ---
 
@@ -813,19 +821,29 @@ netlify deploy --prod
   - Promotion codes
 - **Used in**: `lib/payments/stripe.ts`, `app/api/stripe/checkout/`, `app/api/stripe/webhook/`
 
-### PocketBase — Backend-as-a-Service
+### Hono.js — API Framework
 
-- **Website**: https://pocketbase.io
-- **Purpose**: REST API for the main app — stores user profiles, face templates, scan logs, sign-in logs
-- **Integration**: `pocketbase` ^0.26.8 (JS SDK)
-- **Client config**: `src/integrations/pocketbase/client.ts` → `https://api.facesmash.app`
-- **Auto-cancellation**: Disabled to allow parallel requests
+- **Website**: https://hono.dev
+- **Purpose**: Lightweight REST API framework for the face auth backend
+- **Version**: ^4.7.0
+- **Server adapter**: @hono/node-server (Node.js runtime)
+- **Features used**: Middleware, cookie handling, CORS, JWT auth, route groups
+- **Deployment**: systemd service on DigitalOcean droplet
+
+### PostgreSQL + pgvector — Database
+
+- **PostgreSQL version**: 16
+- **pgvector version**: 0.6.0
+- **Purpose**: Stores user profiles, face templates (as `vector(128)` columns), scan logs, sign-in logs
+- **Matching**: Server-side cosine similarity via `<=>` operator with HNSW indexes
+- **ORM**: Drizzle ORM with type-safe schema
+- **Databases**: `facesmash_auth` (face auth), `facesmash_devportal` (dev portal)
 
 ### Caddy — Reverse Proxy & TLS
 
 - **Website**: https://caddyserver.com
-- **Purpose**: HTTPS termination, reverse proxy to PocketBase, CORS handling
-- **Config file**: `/etc/caddy/Caddyfile` on droplet `142.93.78.220`
+- **Purpose**: HTTPS termination, reverse proxy to Hono API, CORS handling
+- **Config file**: `/etc/caddy/Caddyfile` on droplet `167.172.244.201`
 - **TLS**: Automatic via Let's Encrypt (ACME)
 - **CORS**: Dynamic origin echo (supports production + localhost dev)
 
@@ -897,36 +915,41 @@ netlify deploy --prod
 
 ## 12. Face Recognition Pipeline
 
-All face processing happens **client-side in the browser**. No raw face images are ever sent to the server.
+Face detection and descriptor extraction happen **client-side in the browser**. No raw face images are ever sent to the server. Face **matching** happens **server-side** via pgvector cosine similarity.
 
 ### Registration Flow
 
 ```
 User opens webcam
+  → Liveness detection gate (blink detection + head pose tracking)
   → SDK captures 3+ frames
   → Each frame analyzed for quality (lighting, sharpness, face size)
   → Best frame selected
   → 128-D face descriptor extracted via FaceRecognitionNet
-  → Duplicate check against all existing users (similarity ≥ 0.75 = duplicate)
-  → New user_profiles record created in PocketBase
-  → Initial face_templates record stored
+  → Descriptor sent to Hono API (POST /api/auth/register)
+  → Server-side duplicate check via pgvector cosine similarity (≥ 0.75 = duplicate)
+  → New user_profiles record created in PostgreSQL
+  → Initial face_templates record stored with vector(128) type
   → face_scans audit log entry created
+  → JWT httpOnly cookie set on .facesmash.app domain
 ```
 
 ### Login Flow
 
 ```
 User opens webcam
+  → Liveness detection gate (blink detection + head pose tracking)
   → SDK captures 3+ frames
   → Best quality frame selected
   → Face descriptor extracted
-  → All user_profiles fetched from PocketBase
-  → For each user: enhancedMatch() with adaptive threshold
-  → If user has templates: multiTemplateMatch() also evaluated
-  → Best match above threshold wins
-  → sign_in_logs entry created
-  → If quality > 0.5: stored embedding updated (adaptive learning)
+  → Descriptor sent to Hono API (POST /api/auth/login)
+  → Server-side pgvector cosine similarity search across all profiles
+  → HNSW index used for fast approximate nearest neighbor lookup
+  → Best match above adaptive threshold returned
+  → sign_in_logs entry created with match_score and threshold_used
+  → If quality > 0.5: stored embedding updated server-side (adaptive learning)
   → If quality > 0.6: new face_template stored (template learning)
+  → JWT httpOnly cookie set on .facesmash.app domain
 ```
 
 ### Detection Strategy
@@ -945,8 +968,11 @@ User opens webcam
 1. User navigates to `/register` or `/login`
 2. `GlobalLoadingScreen` appears while face-api models load (~12.5 MB, cached after first load)
 3. Camera activated, face detected and tracked in real-time
-4. On registration: 3+ frames captured, best quality selected, descriptor stored in PocketBase
-5. On login: descriptor compared against all stored profiles, best match returned
+4. Liveness detection gate: blink detection (EAR < 0.21) + head pose tracking (yaw > 15°)
+5. On registration: 3+ frames captured, best quality selected, descriptor sent to Hono API, server-side pgvector duplicate check, profile created in PostgreSQL
+6. On login: descriptor sent to Hono API, server-side pgvector cosine similarity search, best match returned
+7. JWT httpOnly cookie set on `.facesmash.app` domain (24h expiry, SameSite=Lax, Secure)
+8. Browser auto-sends cookie to `api.facesmash.app` on subsequent requests
 
 ### Dev Portal (Email/Password Auth)
 
@@ -961,16 +987,25 @@ User opens webcam
 
 ## 14. Database Schemas
 
-### PocketBase (Main App — api.facesmash.app)
+### PostgreSQL — `facesmash_auth` (Face Auth API — api.facesmash.app)
 
-| Collection | Key Fields | Purpose |
-|---|---|---|
-| `user_profiles` | name, email, face_embedding (128-D float[]) | Registered users |
-| `face_templates` | descriptor, quality, user_profile_id | Multi-template learning |
-| `face_scans` | type, result, quality, user_profile_id | Audit log |
-| `sign_in_logs` | match_score, threshold, user_profile_id | Login history |
+| Table | Key Fields | Type | Purpose |
+|---|---|---|---|
+| `user_profiles` | id, name, email, face_embedding, app_id, created, updated | `vector(128)` for embedding | Registered users with face data |
+| `face_templates` | id, descriptor, quality, lighting_condition, user_profile_id | `vector(128)` for descriptor | Multi-template learning |
+| `face_scans` | id, type, result, quality_score, user_profile_id | — | Face detection audit log |
+| `sign_in_logs` | id, match_score, threshold_used, match_type, user_profile_id | — | Login history with similarity scores |
 
-### PostgreSQL (Dev Portal — 142.93.78.220:5432)
+**Indexes:**
+- HNSW index on `user_profiles.face_embedding` (cosine distance, m=16, ef_construction=64)
+- HNSW index on `face_templates.descriptor` (cosine distance)
+- B-tree indexes on foreign keys and email fields
+
+**pgvector operations:**
+- Registration: `SELECT 1 - (face_embedding <=> $1) AS similarity FROM user_profiles WHERE similarity >= 0.75` (duplicate check)
+- Login: `SELECT *, 1 - (face_embedding <=> $1) AS similarity FROM user_profiles ORDER BY face_embedding <=> $1 LIMIT 1` (best match)
+
+### PostgreSQL — `facesmash_devportal` (Dev Portal — 167.172.244.201:5432)
 
 | Table | Key Fields | Purpose |
 |---|---|---|
@@ -991,7 +1026,7 @@ No `.env` file required. All config is hardcoded:
 
 | Config | Value | Location |
 |---|---|---|
-| PocketBase URL | `https://api.facesmash.app` | `src/integrations/pocketbase/client.ts` |
+| API URL | `https://api.facesmash.app` | `src/integrations/api/client.ts` |
 | Face-API Model URL | `https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model` | `src/utils/faceRecognition.ts` |
 | Dev server port | `8080` | `vite.config.ts` |
 
@@ -1011,15 +1046,17 @@ No `.env` file required. All config is hardcoded:
 
 ## 16. Security Notes
 
-- **Face data**: Raw images never leave the browser. Only 128-D numeric vectors (floats) are transmitted and stored.
-- **PocketBase admin password**: Was rotated after a GitGuardian leak. Old credentials were scrubbed from git history using `git-filter-repo`.
+- **Face data**: Raw images never leave the browser. Only 128-D numeric vectors (floats) are transmitted to the server. Matching happens server-side via pgvector.
+- **Server-side matching**: Face embeddings are compared using pgvector cosine similarity on the server — no biometric data is ever sent to the client during login.
+- **JWT httpOnly cookies**: Main app sessions use httpOnly + secure + sameSite=lax cookies on `.facesmash.app` domain. XSS cannot steal session tokens.
+- **Liveness detection**: Blink detection (EAR < 0.21) and head pose tracking (yaw > 15°) gate registration and login flows to prevent spoofing.
 - **Git history cleanup**: `setup-pocketbase.cjs`, `supabase-check.cjs`, and `src/integrations/supabase/client.ts` were permanently removed from all git history.
 - **CORS**: Dynamic origin echo in Caddy — only the requesting origin is reflected back (no wildcard in production).
 - **Dev portal passwords**: bcryptjs with 10 salt rounds.
 - **Dev portal sessions**: JWT (HS256), httpOnly + secure + sameSite=lax cookies, 24h expiry with auto-refresh.
 - **API keys**: Managed through Unkey — one-way hashed, rate-limited, revocable.
 - **Camera permissions**: Locked to `self` via `Permissions-Policy: camera=(self)` header.
-- **Sensitive files**: `.env` files must **never** be committed. The dev portal `.env` contains Stripe keys, Unkey keys, Postgres credentials, and the auth secret.
+- **Sensitive files**: `.env` files must **never** be committed. The dev portal `.env` contains Stripe keys, Unkey keys, Postgres credentials, and the auth secret. The API `.env` contains the PostgreSQL connection string and JWT secret.
 
 ---
 
@@ -1058,21 +1095,16 @@ pnpm dev              # → http://localhost:3000 (Turbopack)
 ```bash
 cd "/Users/cloudaistudio/Documents/EVERJUST PROJECTS/facesmash-api"
 npm install
-cp .env.example .env  # Fill in PocketBase URL, Stripe keys, rate limits
+cp .env.example .env  # Fill in PostgreSQL connection string, JWT secret
 npm run dev            # → http://localhost:3100 (tsx watch)
 ```
 
-### PocketBase API
-
-The API runs on the DigitalOcean droplet. For local testing, you can run PocketBase locally:
-
-```bash
-# Download PocketBase binary from https://pocketbase.io/docs
-./pocketbase serve --http=0.0.0.0:8096
-```
-
-Then update `src/integrations/pocketbase/client.ts` to point to `http://localhost:8096`.
+> **Note**: Requires a local PostgreSQL 16 instance with pgvector 0.6.0 extension enabled. Create the `facesmash_auth` database and run Drizzle migrations before starting the server.
 
 ---
 
 *This document is the single source of truth for FaceSmash infrastructure. Update it whenever infrastructure changes are made.*
+
+**Version history:**
+- v2.0.0 (March 9, 2026): Migrated from PocketBase to Hono API + PostgreSQL 16 + pgvector 0.6.0. Server-side face matching, JWT httpOnly cookies, liveness detection.
+- v1.0.0 (January 2026): Initial infrastructure documentation with PocketBase backend.

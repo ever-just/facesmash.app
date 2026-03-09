@@ -1,6 +1,6 @@
 {
   "name": "@facesmash/sdk",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "Passwordless facial recognition authentication SDK. Drop-in face login for any website.",
   "author": "EVERJUST COMPANY",
   "license": "MIT",
