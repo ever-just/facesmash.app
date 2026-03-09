@@ -80,7 +80,8 @@ export const getFaceScansByUser = async (_userEmail: string): Promise<FaceScan[]
   try {
     const res = await api.getScans(1, 50);
     if (!res.ok) return [];
-    return res.data.scans as unknown as FaceScan[];
+    const items = res.data.items || [];
+    return items as unknown as FaceScan[];
   } catch (error) {
     console.error('Unexpected error fetching face scans:', error);
     return [];
@@ -109,7 +110,8 @@ export const getHighQualityScans = async (
   try {
     const res = await api.getScans(1, _limit);
     if (!res.ok) return [];
-    return res.data.scans.filter(
+    const items = res.data.items || [];
+    return items.filter(
       (s) => s.qualityScore >= _minQuality
     ) as unknown as FaceScan[];
   } catch (error) {

@@ -44,12 +44,12 @@ const EnhancedSecurityCard = ({ userName }: EnhancedSecurityCardProps) => {
           ? (successfulLogins / totalLogins) * 100
           : 0;
 
-        const templatesCount = statsData?.templatesCount || 0;
-        const scansCount = statsData?.scansCount || 0;
+        const templatesCount = statsData?.templateCount || 0;
+        const scansCount = statsData?.scanCount || 0;
         const avgConfidence = profile?.avgQualityScore || 0;
 
         // Get last login from recent logs
-        const lastLoginLog = statsData?.recentLogs?.find((l) => l.success);
+        const lastLoginLog = statsData?.recentLogins?.find((l) => l.success);
 
         // Calculate security score (0-100)
         const securityScore = Math.min(100, Math.round(

@@ -30,7 +30,8 @@ export const getSignInLogsByUser = async (_userEmail: string): Promise<SignInLog
     const res = await api.getLogs(1, 500);
     if (!res.ok) return [];
 
-    return res.data.logs
+    const items = res.data.items || [];
+    return items
       .filter((l) => l.success)
       .map((l) => ({
         id: String(l.id),

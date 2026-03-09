@@ -123,10 +123,18 @@ class FaceSmashAPI {
 
   async getProfileStats() {
     return this.request<{
-      templatesCount: number;
-      scansCount: number;
-      recentLogs: Array<{
-        id: number;
+      profile: {
+        loginCount: number;
+        successfulLogins: number;
+        failedLogins: number;
+        avgQualityScore: number;
+        confidenceThreshold: number;
+        lastLogin: string | null;
+        createdAt: string;
+      };
+      templateCount: number;
+      scanCount: number;
+      recentLogins: Array<{
         success: boolean;
         similarity: number | null;
         createdAt: string;
@@ -167,9 +175,9 @@ class FaceSmashAPI {
 
   // ─── Scans ───
 
-  async getScans(page: number = 1, limit: number = 50) {
+  async getScans(page: number = 1, perPage: number = 50) {
     return this.request<{
-      scans: Array<{
+      items: Array<{
         id: number;
         imageUrl: string | null;
         scanType: string;
@@ -177,8 +185,9 @@ class FaceSmashAPI {
         confidence: number;
         createdAt: string;
       }>;
-      total: number;
-    }>(`/api/scans?page=${page}&limit=${limit}`);
+      page: number;
+      perPage: number;
+    }>(`/api/scans?page=${page}&perPage=${perPage}`);
   }
 
   async createScan(params: {
@@ -193,9 +202,9 @@ class FaceSmashAPI {
 
   // ─── Logs ───
 
-  async getLogs(page: number = 1, limit: number = 50) {
+  async getLogs(page: number = 1, perPage: number = 50) {
     return this.request<{
-      logs: Array<{
+      items: Array<{
         id: number;
         success: boolean;
         similarity: number | null;
@@ -203,8 +212,9 @@ class FaceSmashAPI {
         ipAddress: string | null;
         createdAt: string;
       }>;
-      total: number;
-    }>(`/api/logs?page=${page}&limit=${limit}`);
+      page: number;
+      perPage: number;
+    }>(`/api/logs?page=${page}&perPage=${perPage}`);
   }
 
   // ─── Feedback ───
