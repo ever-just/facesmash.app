@@ -72,7 +72,7 @@ Creates a new FaceSmash client instance.
 
 ```ts
 const client = createFaceSmash({
-  apiUrl: 'https://api.facesmash.app',  // PocketBase API URL
+  apiUrl: 'https://api.facesmash.app',  // FaceSmash API URL
   modelUrl: '...',                       // Custom model URL (default: jsdelivr CDN)
   matchThreshold: 0.45,                  // Similarity threshold (0-1)
   minQualityScore: 0.2,                  // Minimum face quality to accept
@@ -216,12 +216,18 @@ const { analyze, analysis, isAnalyzing } = useFaceAnalysis();
 
 ## Backend
 
-FaceSmash uses [PocketBase](https://pocketbase.io) as its backend. The SDK connects to any PocketBase instance with the following collections:
+FaceSmash v2.0.0 uses a **Hono.js API + PostgreSQL 16 + pgvector 0.6.0** backend for server-side face matching. The SDK connects to the API at `api.facesmash.app`.
 
-- `user_profiles` — name, email, face_embedding
-- `face_templates` — per-user face descriptor templates
+The backend stores:
+
+- `user_profiles` — name, email, face_embedding (`vector(128)` pgvector type)
+- `face_templates` — per-user face descriptor templates with quality scores
 - `face_scans` — scan history with quality scores
-- `sign_in_logs` — authentication logs
+- `sign_in_logs` — authentication logs with match scores
+
+Face matching is performed server-side using pgvector cosine similarity (`<=>` operator) with HNSW indexes for fast approximate nearest neighbor search.
+
+> **Note**: The SDK's `FaceSmashClient` class currently uses PocketBase internally for self-hosted/legacy setups. The hosted FaceSmash platform at `api.facesmash.app` runs the Hono API backend.
 
 See the [full documentation](https://docs.facesmash.app) for setup instructions.
 

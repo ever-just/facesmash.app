@@ -21,12 +21,12 @@ export default function Layout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
-        <Banner id="sdk-v0.1.0" variant="rainbow">
-          <span className="font-medium">
-            🎉 <code className="mx-1 text-sm font-mono">@facesmash/sdk v0.1.0</code> is now available on npm — {' '}
-            <a href="/docs/sdk" className="underline underline-offset-4 hover:opacity-80">Read the docs →</a>
-          </span>
-        </Banner>
+                <Banner id="sdk-v2.0.0" variant="rainbow">
+                  <span className="font-medium">
+                    🎉 <code className="mx-1 text-sm font-mono">@facesmash/sdk v2.0.0</code> is now available on npm — {' '}
+                    <a href="/docs/sdk" className="underline underline-offset-4 hover:opacity-80">Read the docs →</a>
+                  </span>
+                </Banner>
         <RootProvider>{children}</RootProvider>
       </body>
     </html>

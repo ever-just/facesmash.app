@@ -10,7 +10,7 @@ npm install @facesmash/sdk
 ```
 
 <Callout type="info">
-  **v0.1.0** — The SDK is published on npm and ready for integration.
+  **v2.0.0** — The SDK is published on npm and ready for integration. Now backed by Hono API + PostgreSQL + pgvector for server-side face matching.
   [View on npm →](https://www.npmjs.com/package/@facesmash/sdk)
   [View source on GitHub →](https://github.com/ever-just/facesmash.app/tree/main/packages/sdk)
 </Callout>
@@ -36,7 +36,7 @@ FaceSmash handles the complete biometric authentication pipeline:
 
 5. **Matching** — Compares the extracted descriptor against all registered user profiles and their stored templates using enhanced Euclidean distance matching with adaptive thresholds that adjust based on lighting conditions.
 
-6. **Registration** — Creates a new user profile in PocketBase, stores the face embedding, creates an initial face template, and records a face scan entry.
+6. **Registration** — Creates a new user profile via the Hono API, stores the face embedding in PostgreSQL with pgvector, creates an initial face template, and records a face scan entry.
 
 7. **Adaptive Learning** — On each successful login, the SDK updates the user's stored face embedding using a weighted average (learning rate based on quality, lighting, and confidence). High-quality scans are also saved as additional face templates, improving future matching accuracy.
 
@@ -160,10 +160,10 @@ import { createFaceSmash, FaceSmashClient } from '@facesmash/sdk/react';
 │               │                              │                     │
 │               ▼                              ▼                     │
 │  ┌─────────────────────┐      ┌─────────────────────────────┐     │
-│  │  @vladmandic/face-api│      │  PocketBase REST API        │     │
+│  │  @vladmandic/face-api│      │  Hono REST API + pgvector    │     │
 │  │  TF.js + WebGL      │      │  api.facesmash.app           │     │
 │  │  5 Neural Networks  │      │                             │     │
-│  │  jsdelivr CDN       │      │  Collections:               │     │
+│  │  jsdelivr CDN       │      │  PostgreSQL Tables:          │     │
 │  └─────────────────────┘      │  ├── user_profiles          │     │
 │                               │  ├── face_templates         │     │
 │                               │  ├── face_scans             │     │
@@ -178,22 +178,24 @@ import { createFaceSmash, FaceSmashClient } from '@facesmash/sdk/react';
 2. SDK captures 3 webcam frames (configurable) at 500ms intervals
 3. Each frame is analyzed: face detection → quality scoring → descriptor extraction
 4. The highest-quality frame's descriptor is selected
-5. SDK fetches all `user_profiles` from PocketBase
-6. For each profile, it runs `enhancedMatch()` against the stored `face_embedding`
-7. If the profile has `face_templates`, it also runs `multiTemplateMatch()` and uses the better result
+5. Descriptor is sent to the Hono API at `api.facesmash.app`
+6. Server performs pgvector cosine similarity search across all `user_profiles`
+7. Adaptive thresholds adjust based on lighting and confidence
 8. If a match is found (similarity ≥ adaptive threshold), the user is authenticated
 9. A `sign_in_logs` entry and `face_scans` entry are created
 10. If quality is high enough (>0.5), the stored embedding is updated via weighted averaging
 11. If quality is very high (>0.6), a new template is stored (oldest template is evicted if at max)
+12. JWT httpOnly cookie is set on `.facesmash.app` domain
 
 ### Data Flow: Registration
 
 1. User faces the camera and provides their name
 2. SDK captures 3 webcam frames and selects the best
-3. SDK checks all existing `user_profiles` for duplicate faces (similarity ≥ 0.75)
-4. If no duplicate, creates a `user_profiles` record with the face embedding
-5. Creates an initial `face_templates` record labeled `registration`
-6. Creates a `face_scans` record of type `registration`
+3. Descriptor is sent to the Hono API for server-side pgvector duplicate check (similarity ≥ 0.75)
+4. If no duplicate, creates a `user_profiles` row in PostgreSQL with the face embedding
+5. Creates an initial `face_templates` row labeled `registration`
+6. Creates a `face_scans` row of type `registration`
+7. JWT httpOnly cookie is returned for session management
 
 ---
 
@@ -224,7 +226,7 @@ All models are loaded in parallel from the jsdelivr CDN by default. You can host
 | **WebGL** | TF.js GPU acceleration for neural network inference | None — required |
 | **getUserMedia** | Camera access for capturing face images | None — required |
 | **Canvas 2D** | Frame capture and lighting analysis | None — required |
-| **localStorage** | Used by PocketBase client for auth tokens | None — required |
+| **Cookies** | JWT httpOnly cookies for session management | None — required |
 
 ### Supported Browsers
 
@@ -256,7 +258,7 @@ All models are loaded in parallel from the jsdelivr CDN by default. You can host
 | Package | Version | Purpose |
 |---|---|---|
 | `@vladmandic/face-api` | ^1.7.15 | Face detection, landmarks, recognition (wraps TF.js) |
-| `pocketbase` | ^0.26.8 | Client for PocketBase REST API |
+| — | — | API communication via standard `fetch` with httpOnly cookies |
 
 ### Peer Dependencies (optional)
 
@@ -339,5 +341,5 @@ unsubscribe();
 
 - [**React Components**](/docs/sdk/react-components) — `<FaceLogin>`, `<FaceRegister>`, provider, and all 4 hooks with full prop tables
 - [**Vanilla JS**](/docs/sdk/vanilla-js) — `createFaceSmash()`, `client.login()`, `client.register()`, low-level utilities, and complete webcam capture examples
-- [**Configuration**](/docs/sdk/configuration) — Every config option explained, threshold tuning guide, event system, PocketBase collections, and self-hosting
+- [**Configuration**](/docs/sdk/configuration) — Every config option explained, threshold tuning guide, event system, database schema, and self-hosting
 - [**Quickstart**](/docs/quickstart) — Get a working face login in 5 minutes
