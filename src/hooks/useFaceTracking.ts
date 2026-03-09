@@ -3,6 +3,13 @@ import { useRef, useCallback, useState, useEffect } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import Webcam from 'react-webcam';
 import { getSsdOptions } from '@/utils/faceRecognition';
+import {
+  getEyeAspectRatios,
+  estimateHeadPose,
+  createLivenessState,
+  updateLivenessState,
+  type LivenessState,
+} from '@/utils/livenessDetection';
 
 interface FacePosition {
   x: number;
@@ -27,6 +34,8 @@ export const useFaceTracking = ({
 }: UseFaceTrackingProps) => {
   const [facePosition, setFacePosition] = useState<FacePosition | null>(null);
   const [isTracking, setIsTracking] = useState(false);
+  const [livenessState, setLivenessState] = useState<LivenessState>(createLivenessState());
+  const livenessRef = useRef<LivenessState>(createLivenessState());
   const trackingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastDetectionTimeRef = useRef<number>(0);
 
@@ -55,7 +64,15 @@ export const useFaceTracking = ({
 
       if (detection) {
         const box = detection.detection.box;
-        
+
+        // ── Liveness: compute EAR + head pose from existing landmarks ──
+        // This is pure arithmetic on data we already have — adds <0.5ms per frame
+        const landmarks = detection.landmarks;
+        const { avgEAR } = getEyeAspectRatios(landmarks);
+        const headPose = estimateHeadPose(landmarks, box);
+        livenessRef.current = updateLivenessState(livenessRef.current, avgEAR, headPose);
+        setLivenessState({ ...livenessRef.current });
+
         // Get the displayed container dimensions
         const rect = video.getBoundingClientRect();
         const containerW = rect.width;
@@ -120,6 +137,9 @@ export const useFaceTracking = ({
     console.log('Stopping face tracking...');
     setIsTracking(false);
     setFacePosition(null);
+    // Reset liveness state when tracking stops
+    livenessRef.current = createLivenessState();
+    setLivenessState(createLivenessState());
   }, []);
 
   useEffect(() => {
@@ -135,6 +155,7 @@ export const useFaceTracking = ({
   return {
     facePosition,
     isTracking,
+    livenessState,
     startTracking,
     stopTracking
   };
