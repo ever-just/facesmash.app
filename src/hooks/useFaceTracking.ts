@@ -127,7 +127,7 @@ export const useFaceTracking = ({
     
     console.log('Starting face tracking...');
     setIsTracking(true);
-    trackingIntervalRef.current = setInterval(detectFace, 300); // ~3 FPS with SSD (heavier but more reliable)
+    trackingIntervalRef.current = setInterval(detectFace, 200); // ~5 FPS — faster liveness signal collection
   }, [detectFace]);
 
   const stopTracking = useCallback(() => {
