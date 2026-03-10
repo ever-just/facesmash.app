@@ -98,7 +98,9 @@ const SecurityGauge = ({ userName }: SecurityGaugeProps) => {
   const scoreColor = getScoreColor(data.securityScore);
 
   // SVG arc for gauge
-  const radius = 60;
+  // Note: the arc path "M 10 80 A 60 60 0 0 1 150 80" has a 140px chord,
+  // so SVG auto-scales the radii to 70 to connect the endpoints.
+  const radius = 70;
   const circumference = Math.PI * radius; // half circle
   const progress = (data.securityScore / 100) * circumference;
 
