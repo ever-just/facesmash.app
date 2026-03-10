@@ -31,7 +31,7 @@ import {
   LayoutDashboard,
   CreditCard,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StatusIndicator from "@/components/StatusIndicator";
 
 /* ─── Brand SVG logos ─── */
@@ -86,6 +86,16 @@ const Index = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [devDropdown, setDevDropdown] = useState(false);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
   /* face-mesh landmark coordinates (normalised 0-100) */
   const landmarks = [
     [50,8],[30,20],[70,20],[18,35],[82,35],[50,38],[35,45],[65,45],
@@ -94,7 +104,7 @@ const Index = () => {
   ];
 
   return (
-    <div className="bg-[#07080A] text-white selection:bg-emerald-500/30 selection:text-white">
+    <div className="bg-[#07080A] text-white selection:bg-emerald-500/30 selection:text-white overflow-x-hidden">
       <SEOHead path="/" />
 
       {/* film-grain overlay */}
@@ -197,9 +207,9 @@ const Index = () => {
           </button>
         </div>
 
-        {/* Mobile menu overlay */}
+        {/* Mobile menu overlay — locks body scroll when open */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-white/[0.04] bg-[#07080A]/95 backdrop-blur-xl">
+          <div className="lg:hidden border-t border-white/[0.04] bg-[#07080A]/95 backdrop-blur-xl max-h-[calc(100vh-3.5rem)] overflow-y-auto">
             <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
               <p className="text-[10px] uppercase tracking-wider text-white/20 px-3 pt-2 pb-1">Product</p>
               <Link to="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
@@ -414,12 +424,12 @@ const Index = () => {
       <section className="relative py-16 sm:py-24 px-4 sm:px-6 overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="relative">
-            {/* three "screens" side by side, slightly overlapping */}
-            <div className="flex items-end justify-center gap-6 md:gap-10">
+            {/* three "screens" side by side — responsive: stack on small mobile, flex on md+ */}
+            <div className="flex items-end justify-center gap-4 sm:gap-6 md:gap-10 flex-wrap md:flex-nowrap">
               {/* Phone */}
               <motion.div
                 initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0 }}
-                className="relative w-[140px] md:w-[180px] shrink-0"
+                className="relative w-[100px] sm:w-[140px] md:w-[180px] shrink-0"
               >
                 <div className="aspect-[9/16] rounded-[20px] border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-[#07080A] p-3 flex flex-col">
                   <div className="w-12 h-1 rounded-full bg-white/10 mx-auto mb-4" />
@@ -436,7 +446,7 @@ const Index = () => {
               {/* Laptop — bigger, center */}
               <motion.div
                 initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.15 }}
-                className="relative w-[260px] md:w-[400px] shrink-0"
+                className="relative w-[180px] sm:w-[260px] md:w-[400px] shrink-0"
               >
                 <div className="aspect-[16/10] rounded-xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-[#07080A] p-4 flex flex-col">
                   <div className="flex items-center gap-1.5 mb-3">
@@ -465,7 +475,7 @@ const Index = () => {
               {/* Tablet */}
               <motion.div
                 initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}
-                className="relative w-[160px] md:w-[220px] shrink-0"
+                className="relative w-[110px] sm:w-[160px] md:w-[220px] shrink-0"
               >
                 <div className="aspect-[3/4] rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-[#07080A] p-3 flex flex-col">
                   <div className="w-8 h-1 rounded-full bg-white/10 mx-auto mb-3" />
@@ -726,11 +736,11 @@ const Index = () => {
             <h3 className="text-xl md:text-2xl font-bold mb-8 text-center">
               How FaceCard compares to other auth methods
             </h3>
-            <div className="overflow-x-auto -mx-4 px-4">
-              <table className="w-full min-w-[800px] text-sm">
+            <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    <th className="text-left py-4 pr-4 text-white/30 font-medium w-[180px]">Feature</th>
+                    <th className="text-left py-4 pr-4 text-white/30 font-medium w-[120px] sm:w-[180px]">Feature</th>
                     <th className="py-4 px-3 text-center">
                       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                         <ScanFace className="size-3.5 text-emerald-400" />
@@ -880,7 +890,7 @@ const Index = () => {
                 <div className="size-3 rounded-full bg-[#27c93f]" />
                 <span className="ml-3 text-xs text-white/25 font-mono">App.tsx</span>
               </div>
-              <pre className="p-5 text-sm font-mono overflow-x-auto leading-[1.8]">
+              <pre className="p-4 sm:p-5 text-xs sm:text-sm font-mono overflow-x-auto leading-[1.8]">
                 <code>
                   <span className="text-purple-400">import</span>
                   <span className="text-white/50">{" { "}</span>
@@ -1003,8 +1013,8 @@ const Index = () => {
                   <Lock className="size-5 text-teal-400" />
                 </div>
                 <div>
-                  <p className="font-semibold">Server (PocketBase API)</p>
-                  <p className="text-xs text-white/30">Self-hostable Go binary</p>
+                  <p className="font-semibold">Server (Hono API)</p>
+                  <p className="text-xs text-white/30">PostgreSQL + pgvector</p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -1015,7 +1025,7 @@ const Index = () => {
                   "sign_in_logs — login history with similarity scores",
                   "AES-256 encryption for stored embeddings",
                   "No raw images ever stored or transmitted",
-                  "REST API with real-time subscriptions",
+                  "REST API with JWT cookie auth",
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm text-white/40">
                     <div className="size-1.5 rounded-full bg-teal-400/60 shrink-0" />
@@ -1112,7 +1122,7 @@ const Index = () => {
             className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6 text-white/20"
           >
             {[
-              "TensorFlow.js", "WebGL", "PocketBase", "React", "TypeScript", "Vite", "AES-256", "TailwindCSS",
+              "TensorFlow.js", "WebGL", "Hono", "React", "TypeScript", "Vite", "AES-256", "TailwindCSS",
             ].map((tech, i) => (
               <span key={i} className="text-sm font-medium tracking-wider">{tech}</span>
             ))}

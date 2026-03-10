@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '@/integrations/api/client';
 
 interface SimpleUser {
@@ -28,30 +28,65 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Cache key for last verified session
+const SESSION_CACHE_KEY = 'facesmash_session_cache';
+const SESSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — skip verify if recently verified
+
+interface SessionCache {
+  email: string;
+  verifiedAt: number;
+}
+
+function getCachedSession(): SessionCache | null {
+  try {
+    const raw = localStorage.getItem(SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const cached: SessionCache = JSON.parse(raw);
+    if (Date.now() - cached.verifiedAt < SESSION_CACHE_TTL) return cached;
+    return null; // expired
+  } catch {
+    return null;
+  }
+}
+
+function setCachedSession(email: string) {
+  try {
+    localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ email, verifiedAt: Date.now() }));
+  } catch { /* localStorage full — non-critical */ }
+}
+
+function clearCachedSession() {
+  localStorage.removeItem(SESSION_CACHE_KEY);
+}
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<SimpleUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Instantly hydrate from localStorage cache for faster first paint
+  const cachedSession = getCachedSession();
+  const savedUser = cachedSession?.email || localStorage.getItem('currentUserName');
+  const [user, setUser] = useState<SimpleUser | null>(savedUser ? { email: savedUser } : null);
+  const [isLoading, setIsLoading] = useState(!cachedSession); // skip loading if cache hit
 
   useEffect(() => {
-    // Verify session via httpOnly cookie (server checks the JWT)
+    // If we have a valid session cache, skip the network verify on first load
+    // (background verify will still happen for security)
     const verifySession = async () => {
       try {
         const res = await api.verify();
         if (res.ok && res.data.user) {
           setUser({ email: res.data.user.email });
-          // Keep localStorage in sync for display purposes
           localStorage.setItem('currentUserName', res.data.user.email);
+          setCachedSession(res.data.user.email);
         } else {
-          // Cookie expired or invalid — fall back to localStorage for display
+          // Cookie expired or invalid
           const currentUser = localStorage.getItem('currentUserName');
           if (currentUser) {
-            // localStorage has a name but cookie is gone — clear stale state
             localStorage.removeItem('currentUserName');
           }
+          clearCachedSession();
           setUser(null);
         }
       } catch {
-        // Network error — check localStorage as fallback
+        // Network error — keep cached user if available
         const currentUser = localStorage.getItem('currentUserName');
         if (currentUser) {
           setUser({ email: currentUser });
@@ -68,11 +103,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       await api.logout(); // Clears the httpOnly cookie server-side
       localStorage.removeItem('currentUserName');
+      clearCachedSession();
       setUser(null);
     } catch (error) {
       console.error('Error signing out:', error);
       // Still clear local state even if server call fails
       localStorage.removeItem('currentUserName');
+      clearCachedSession();
       setUser(null);
     }
   };

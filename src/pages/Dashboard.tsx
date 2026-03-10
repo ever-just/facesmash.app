@@ -27,9 +27,23 @@ const Dashboard = () => {
     }
     setUserName(name);
     
+    // Hydrate from localStorage cache instantly for faster paint
+    const cachedProfile = localStorage.getItem(`facesmash_profile_${name}`);
+    if (cachedProfile) {
+      try {
+        setUserProfile(JSON.parse(cachedProfile));
+      } catch { /* ignore corrupt cache */ }
+    }
+    
     const fetchUserProfile = async () => {
       const profile = await getUserProfileByName(name);
       setUserProfile(profile);
+      // Cache profile for instant next load
+      if (profile) {
+        try {
+          localStorage.setItem(`facesmash_profile_${name}`, JSON.stringify(profile));
+        } catch { /* localStorage full — non-critical */ }
+      }
     };
     fetchUserProfile();
     
