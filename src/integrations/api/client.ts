@@ -65,8 +65,8 @@ class FaceSmashAPI {
     imageData?: string;
   }) {
     return this.request<{
+      success: boolean;
       user: { id: number; email: string; fullName: string | null };
-      message: string;
     }>('/api/auth/register', {
       method: 'POST',
       body: params,
@@ -76,9 +76,8 @@ class FaceSmashAPI {
   async login(params: { embedding: number[]; qualityScore?: number; livenessConfidence?: number }) {
     return this.request<{
       match: boolean;
-      user?: { id: number; email: string; fullName: string | null };
+      user?: { id: number; email: string; name: string | null };
       bestSimilarity?: number;
-      message: string;
     }>('/api/auth/login', {
       method: 'POST',
       body: params,
@@ -87,8 +86,7 @@ class FaceSmashAPI {
 
   async verify() {
     return this.request<{
-      valid: boolean;
-      user: { id: number; email: string };
+      user: { id: number; email: string; name: string | null };
     }>('/api/auth/verify');
   }
 
@@ -109,7 +107,9 @@ class FaceSmashAPI {
       avgQualityScore: number;
       confidenceThreshold: number;
       lastLogin: string | null;
+      emailVerified: boolean;
       createdAt: string;
+      updatedAt: string;
     }>('/api/profile');
   }
 
@@ -169,7 +169,7 @@ class FaceSmashAPI {
     >('/api/templates');
   }
 
-  async addTemplate(params: { embedding: number[]; qualityScore: number }) {
+  async addTemplate(params: { descriptor: number[]; qualityScore: number }) {
     return this.request('/api/templates', { method: 'POST', body: params });
   }
 

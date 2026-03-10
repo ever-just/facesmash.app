@@ -4,7 +4,6 @@ import { getFaceScansByUser } from "@/services/faceScanService";
 
 interface FaceScan {
   id: string;
-  user_email: string;
   image_url: string;
   scan_type: string;
   quality_score: number;
@@ -62,7 +61,7 @@ const FaceScanGallery = ({ userEmail }: FaceScanGalleryProps) => {
             <div key={scan.id} className="group">
               <div className="relative aspect-square rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02]">
                 <img
-                  src={scan.image_url}
+                  src={scan.image_url || undefined}
                   alt={`Face scan from ${formatDate(scan.created_at)}`}
                   className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                 />

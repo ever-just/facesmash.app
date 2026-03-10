@@ -63,7 +63,7 @@ const SignInHistory = ({ userEmail }: SignInHistoryProps) => {
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span className="text-white text-sm">Successful login</span>
                 </div>
-                <span className="text-gray-400 text-sm">{formatDate(log.sign_in_time)}</span>
+                <span className="text-gray-400 text-sm">{formatDate(log.created)}</span>
               </div>
             ))}
           </div>

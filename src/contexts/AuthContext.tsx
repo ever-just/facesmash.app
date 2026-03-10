@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const verifySession = async () => {
       try {
         const res = await api.verify();
-        if (res.ok && res.data.valid) {
+        if (res.ok && res.data.user) {
           setUser({ email: res.data.user.email });
           // Keep localStorage in sync for display purposes
           localStorage.setItem('currentUserName', res.data.user.email);
