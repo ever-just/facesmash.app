@@ -1,6 +1,14 @@
 
 import * as faceapi from '@vladmandic/face-api';
-import { setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
+
+// @vladmandic/face-api bundles TF.js and re-exports setWasmPaths at runtime,
+// but the shipped .d.ts omits the declaration.  We narrow-cast to access it
+// so that WASM paths are configured on the SAME TF.js instance face-api uses
+// (importing from the standalone @tensorflow/tfjs-backend-wasm would configure
+//  a separate, unused TF.js instance — the root cause of the prior WASM bug).
+type FaceApiWithWasm = typeof faceapi & {
+  setWasmPaths?: (prefixOrFileMap: string | Record<string, string>) => void;
+};
 
 // Shared SSD detection options — used across the app for reliable detection
 const SSD_MIN_CONFIDENCE = 0.3;
@@ -19,10 +27,15 @@ export const initializeFaceAPI = async () => {
         // Without this, TF.js tries to load .wasm files from the same origin,
         // which fails on Netlify SPA because the fallback serves index.html.
         const wasmVersion = faceapi.tf.version_core || '4.22.0';
-        setWasmPaths(
-          `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${wasmVersion}/dist/`
-        );
-        console.log(`WASM paths configured to CDN (tfjs-backend-wasm@${wasmVersion})`);
+        const fa = faceapi as FaceApiWithWasm;
+        if (fa.setWasmPaths) {
+          fa.setWasmPaths(
+            `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${wasmVersion}/dist/`
+          );
+          console.log(`WASM paths configured to CDN via bundled TF.js (v${wasmVersion})`);
+        } else {
+          console.warn('setWasmPaths not available on bundled face-api — WASM fallback may fail');
+        }
 
         await faceapi.tf.setBackend('webgl');
         await faceapi.tf.ready();
