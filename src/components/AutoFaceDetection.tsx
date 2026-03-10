@@ -4,7 +4,7 @@ import Webcam from 'react-webcam';
 import { Camera, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useFaceTracking, type ReadyDescriptor } from '@/hooks/useFaceTracking';
+import { useFaceTracking, type ReadyDescriptor, type LightingCondition } from '@/hooks/useFaceTracking';
 
 interface AutoFaceDetectionProps {
   onImagesCapture: (images: string[]) => void;
@@ -34,8 +34,11 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   onReadyDescriptorCaptureRef.current = onReadyDescriptorCapture;
   const hasCapturedRef = useRef(false);
   const smoothPositionRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const targetPositionRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const [smoothPosition, setSmoothPosition] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const rafRef = useRef<number | null>(null);
+  const [lightingHint, setLightingHint] = useState<string | null>(null);
+  const lightingHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const videoConstraints = {
     width: 640,
@@ -44,7 +47,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   };
 
   // Initialize face tracking (includes liveness detection + ready descriptor pre-computation)
-  const { facePosition, isTracking, livenessState, readyDescriptor } = useFaceTracking({
+  const { facePosition, isTracking, livenessState, readyDescriptor, lightingCondition } = useFaceTracking({
     webcamRef,
     isActive: hasPermission && !isLoading && !isScanning && !disabled,
     onFaceDetected: () => {
@@ -58,7 +61,49 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     }
   });
 
-  // Smooth the oval position with lerp so it doesn't jump between frames
+  // ── Lighting guidance (Phase 3): show hint after 3s of sustained poor lighting ──
+  // Uses a delayed timer so the hint fires even when lightingCondition stays the
+  // same value (React deduplicates identical setState calls, so the effect would
+  // only fire once without the timer approach).
+  useEffect(() => {
+    const hints: Record<string, string> = {
+      tooDark: 'Move to a brighter area',
+      tooBright: 'Reduce glare — move away from direct light',
+      uneven: 'Even out your lighting',
+    };
+
+    if (!lightingCondition || lightingCondition === 'ok') {
+      // Lighting is fine — clear any pending show-hint timer
+      if (lightingHintTimerRef.current) {
+        clearTimeout(lightingHintTimerRef.current);
+        lightingHintTimerRef.current = null;
+      }
+      // Clear the displayed hint after a short delay so it doesn't flash off
+      const clearTimer = setTimeout(() => setLightingHint(null), 1000);
+      return () => { clearTimeout(clearTimer); };
+    }
+
+    // Poor lighting detected — schedule the hint to appear after 3 seconds.
+    // If the condition changes before 3s (to ok or a different poor type),
+    // the cleanup cancels this timer automatically.
+    const condition = lightingCondition; // capture for closure
+    lightingHintTimerRef.current = setTimeout(() => {
+      setLightingHint(hints[condition] ?? null);
+      lightingHintTimerRef.current = null;
+    }, 3000);
+
+    return () => {
+      if (lightingHintTimerRef.current) {
+        clearTimeout(lightingHintTimerRef.current);
+        lightingHintTimerRef.current = null;
+      }
+    };
+  }, [lightingCondition]);
+
+  // ── Continuous rAF smoothing loop (Phase 3) ──
+  // Runs at 60fps independent of detection frequency.
+  // When a new detection arrives, targetPositionRef updates and the loop
+  // smoothly interpolates toward it over multiple frames.
   useEffect(() => {
     if (!facePosition) {
       return;
@@ -73,28 +118,39 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       // First detection — snap immediately
       smoothPositionRef.current = target;
       setSmoothPosition(target);
-      return;
     }
-    const animate = () => {
-      const cur = smoothPositionRef.current!;
-      const t = 0.35; // smoothing factor (0 = no movement, 1 = snap)
-      const next = {
-        x: lerp(cur.x, target.x, t),
-        y: lerp(cur.y, target.y, t),
-        w: lerp(cur.w, target.w, t),
-        h: lerp(cur.h, target.h, t),
-      };
-      smoothPositionRef.current = next;
-      setSmoothPosition({ ...next });
-    };
-    // Run a few interpolation frames
-    const id1 = requestAnimationFrame(animate);
-    const id2 = requestAnimationFrame(() => requestAnimationFrame(animate));
-    return () => {
-      cancelAnimationFrame(id1);
-      cancelAnimationFrame(id2);
-    };
+    targetPositionRef.current = target;
   }, [facePosition]);
+
+  useEffect(() => {
+    const smoothLoop = () => {
+      const cur = smoothPositionRef.current;
+      const tgt = targetPositionRef.current;
+      if (cur && tgt) {
+        const t = 0.15; // lower = smoother, higher = more responsive
+        const next = {
+          x: lerp(cur.x, tgt.x, t),
+          y: lerp(cur.y, tgt.y, t),
+          w: lerp(cur.w, tgt.w, t),
+          h: lerp(cur.h, tgt.h, t),
+        };
+        smoothPositionRef.current = next;
+        // Skip re-render when position has converged (delta < 0.5px)
+        const dx = Math.abs(next.x - cur.x);
+        const dy = Math.abs(next.y - cur.y);
+        const dw = Math.abs(next.w - cur.w);
+        const dh = Math.abs(next.h - cur.h);
+        if (dx > 0.5 || dy > 0.5 || dw > 0.5 || dh > 0.5) {
+          setSmoothPosition({ ...next });
+        }
+      }
+      rafRef.current = requestAnimationFrame(smoothLoop);
+    };
+    rafRef.current = requestAnimationFrame(smoothLoop);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const initializeCamera = async () => {
@@ -244,8 +300,8 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
             </div>
           )}
 
-          {/* Dynamic Face Guide Overlay */}
-          {!isLoading && !error && (
+          {/* Dynamic Face Guide Overlay (Phase 3: unified progress + color gradient) */}
+          {!isLoading && !error && !isScanning && (
             <div className="absolute inset-0 pointer-events-none">
               {smoothPosition ? (
                 // Dynamic face tracking overlay - positioned at face center
@@ -257,20 +313,51 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
                     width: `${Math.max(smoothPosition.w, 100)}px`,
                     height: `${Math.max(smoothPosition.h, 130)}px`,
                     transform: 'translate(-50%, -50%)',
-                    willChange: 'left, top, width, height'
+                    willChange: 'transform, left, top, width, height'
                   }}
                 >
-                  <div className="w-full h-full border-4 border-green-500 border-opacity-80 rounded-full bg-transparent relative">
-                    <div className="absolute inset-2 border-2 border-green-300 border-opacity-60 rounded-full animate-pulse"></div>
+                  {/* Oval border color transitions: blue→yellow→green based on liveness confidence */}
+                  <div
+                    className="w-full h-full rounded-full bg-transparent relative transition-colors duration-300"
+                    style={{
+                      borderWidth: '3px',
+                      borderStyle: 'solid',
+                      borderColor: livenessState.isLive
+                        ? 'rgb(34, 197, 94)' // green-500
+                        : livenessState.confidence > 0.3
+                          ? 'rgb(234, 179, 8)' // yellow-500
+                          : 'rgb(59, 130, 246)', // blue-500
+                      boxShadow: livenessState.isLive
+                        ? '0 0 20px rgba(34,197,94,0.4), inset 0 0 20px rgba(34,197,94,0.1)'
+                        : livenessState.confidence > 0.3
+                          ? '0 0 15px rgba(234,179,8,0.3)'
+                          : '0 0 10px rgba(59,130,246,0.2)',
+                    }}
+                  >
+                    <div
+                      className="absolute inset-2 rounded-full"
+                      style={{
+                        borderWidth: '2px',
+                        borderStyle: 'solid',
+                        borderColor: livenessState.isLive
+                          ? 'rgba(134, 239, 172, 0.5)' // green-300/50
+                          : livenessState.confidence > 0.3
+                            ? 'rgba(253, 224, 71, 0.4)' // yellow-300/40
+                            : 'rgba(147, 197, 253, 0.4)', // blue-300/40
+                        animation: livenessState.isLive ? 'none' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                      }}
+                    />
                   </div>
-                  {/* Dynamic instruction text */}
+                  {/* Single instruction line below the oval */}
                   <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
-                    <p className="text-white text-xs font-medium bg-black bg-opacity-60 px-2 py-1 rounded">
+                    <p className="text-white text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full">
                       {livenessState.isLive
-                        ? 'Face detected — hold steady'
-                        : livenessState.frameCount > 10
-                          ? 'Almost there — blink naturally'
-                          : 'Verifying liveness...'}
+                        ? 'Verified — processing...'
+                        : lightingHint
+                          ? lightingHint
+                          : livenessState.confidence > 0.3
+                            ? 'Almost there — blink naturally'
+                            : 'Hold still — verifying liveness...'}
                     </p>
                   </div>
                 </div>
@@ -278,12 +365,12 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
                 // Default centered guide when no face detected
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="relative">
-                    <div className="w-48 h-60 border-4 border-blue-500 border-opacity-70 rounded-full bg-transparent">
-                      <div className="absolute inset-2 border-2 border-blue-300 border-opacity-50 rounded-full"></div>
+                    <div className="w-48 h-60 border-[3px] border-blue-500/70 rounded-full bg-transparent">
+                      <div className="absolute inset-2 border-2 border-blue-300/40 rounded-full" />
                     </div>
-                    <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-center">
-                      <p className="text-white text-sm font-medium bg-black bg-opacity-50 px-3 py-1 rounded">
-                        {isTracking ? 'Looking for your face...' : 'Position your face within the oval'}
+                    <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 text-center">
+                      <p className="text-white text-sm font-medium bg-black/50 backdrop-blur-sm px-4 py-1.5 rounded-full">
+                        {isTracking ? 'Looking for your face...' : 'Position your face in the oval'}
                       </p>
                     </div>
                   </div>
@@ -292,51 +379,34 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
             </div>
           )}
           
-          {/* Face detection progress overlay */}
-          {!isScanning && faceDetected && detectionProgress > 0 && (
-            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-20 h-20 border-4 border-green-500 rounded-full mx-auto mb-4 relative">
-                  <div className="absolute inset-2 border-2 border-green-300 rounded-full animate-pulse"></div>
-                </div>
-                <p className="text-white mb-2">Scanning automatically...</p>
-                <div className="w-48 bg-gray-700 rounded-full h-2 mt-3 mx-auto">
-                  <div 
-                    className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${detectionProgress}%` }}
-                  ></div>
-                </div>
+          {/* Phase 3: No black overlay flash — camera stays visible during scanning.
+              Progress and scanning states are shown via the oval color + instruction text. */}
+          {isScanning && smoothPosition && (
+            <div className="absolute pointer-events-none" style={{
+              left: `${smoothPosition.x}px`,
+              top: `${smoothPosition.y}px`,
+              width: `${Math.max(smoothPosition.w, 100)}px`,
+              height: `${Math.max(smoothPosition.h, 130)}px`,
+              transform: 'translate(-50%, -50%)',
+            }}>
+              {/* Animated green ring fill during analysis */}
+              <div className="w-full h-full rounded-full border-[3px] border-emerald-400 relative" style={{
+                boxShadow: '0 0 25px rgba(52,211,153,0.5), inset 0 0 25px rgba(52,211,153,0.15)',
+                animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              }}>
+                <div className="absolute inset-1 rounded-full border-2 border-emerald-300/40 animate-ping" style={{ animationDuration: '2s' }} />
               </div>
-            </div>
-          )}
-
-          {/* Scanning state overlay */}
-          {isScanning && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-white mb-2">Analyzing with AI...</p>
-                <p className="text-gray-300 text-sm">Please wait...</p>
+              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
+                <p className="text-emerald-300 text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full">
+                  Verifying identity...
+                </p>
               </div>
             </div>
           )}
         </div>
         
-        <div className="p-4 text-center">
-          <p className="text-gray-400 text-sm">
-            {isScanning
-              ? 'Processing...'
-              : isLoading
-                ? 'Getting ready...'
-                : smoothPosition
-                  ? livenessState.isLive
-                    ? 'Face detected — hold steady'
-                    : livenessState.frameCount > 10
-                      ? 'Almost there — blink naturally'
-                      : 'Verifying liveness...'
-                  : 'Look directly at the camera'}
-          </p>
-        </div>
+        {/* Phase 3: Removed duplicate bottom text — the oval overlay
+            instruction is the single source of truth for user guidance. */}
       </CardContent>
     </Card>
   );
