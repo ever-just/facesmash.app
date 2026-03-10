@@ -1,14 +1,29 @@
 /**
  * Consent Manager — bridges react-cookie-manager consent state with services like Sentry.
  *
- * react-cookie-manager stores consent in localStorage under "cookie-manager-consent".
- * This module reads that state and exposes helpers so other parts of the app
+ * react-cookie-manager stores consent in a browser cookie named "cookie-consent".
+ * This module reads that cookie and exposes helpers so other parts of the app
  * (especially the Sentry initializer in main.tsx) can gate behaviour on consent.
  */
 
 import * as Sentry from '@sentry/react';
 
 // ── Types ──
+
+interface ConsentPreferences {
+  analytics: boolean;
+  social: boolean;
+  advertising: boolean;
+}
+
+// ── Cookie helper ──
+
+function getCookieValue(name: string): string | null {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
 
 // ── Module-level consent state (used by Sentry beforeSend) ──
 
@@ -33,15 +48,17 @@ export function applyConsentToSentry(analytics: boolean): void {
 }
 
 /**
- * Read the persisted consent from localStorage (set by react-cookie-manager).
+ * Read the persisted consent from the cookie (set by react-cookie-manager).
  * Returns the analytics consent boolean, defaulting to false if nothing stored.
  */
 export function readPersistedConsent(): ConsentPreferences {
   try {
-    const raw = localStorage.getItem('cookie-manager-consent');
+    const raw = getCookieValue('cookie-consent');
     if (!raw) return { analytics: false, social: false, advertising: false };
 
-    const parsed = JSON.parse(raw);
+    const decoded = decodeURIComponent(raw);
+
+    const parsed = JSON.parse(decoded);
 
     // react-cookie-manager stores either a simple boolean (accepted all)
     // or an object with { Analytics, Social, Advertising } keys.
@@ -66,7 +83,7 @@ export function readPersistedConsent(): ConsentPreferences {
       };
     }
   } catch {
-    // Corrupted localStorage — treat as no consent
+    // Corrupted cookie — treat as no consent
   }
 
   return { analytics: false, social: false, advertising: false };
@@ -88,9 +105,9 @@ export function bootstrapConsent(): void {
  */
 export function clearNonEssentialData(): void {
   const essentialPrefixes = [
-    'cookie-manager-consent',   // consent state
     'currentUserName',          // auth
     'facesmash_session_cache',  // auth session cache
+    'facesmash_user_settings',  // user preferences
   ];
 
   const keysToRemove: string[] = [];
