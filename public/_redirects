@@ -1,2 +1,4 @@
 # SPA fallback — serve index.html for all client-side routes
+# Netlify serves existing files first, then falls back to this rule.
+# This only applies to paths that don't match a real file in the publish dir.
 /*    /index.html   200

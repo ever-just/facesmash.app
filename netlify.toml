@@ -67,6 +67,12 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
 # SPA fallback — must come AFTER specific asset routes
 [[redirects]]
   from = "/*"
