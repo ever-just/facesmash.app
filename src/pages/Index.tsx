@@ -121,13 +121,6 @@ const Index = () => {
 
           {/* Desktop menu */}
           <div className="hidden lg:flex items-center gap-1">
-            <Link to="/login" className="text-white/40 hover:text-white/70 text-sm px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">
-              Sign in
-            </Link>
-            <Link to="/register" className="text-white/40 hover:text-white/70 text-sm px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">
-              Register
-            </Link>
-
             <Link to="/pricing" className="text-white/40 hover:text-white/70 text-sm px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">
               Pricing
             </Link>
@@ -189,14 +182,14 @@ const Index = () => {
             <a href="https://github.com/ever-just/facesmash.app" target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-white/70 transition-colors p-2">
               <Github className="size-5" />
             </a>
-            <a href="https://developers.facesmash.app" target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" className="h-9 px-4 text-sm font-medium text-white/50 hover:text-white hover:bg-white/5 rounded-full">
-                Dev Portal
+            <Link to="/login">
+              <Button variant="ghost" className="h-9 px-4 text-sm font-medium text-white/70 hover:text-white hover:bg-white/[0.06] rounded-full">
+                Sign In
               </Button>
-            </a>
+            </Link>
             <Link to="/register">
-              <Button className="h-9 px-5 text-sm font-medium bg-white text-black hover:bg-white/90 rounded-full">
-                Demo
+              <Button className="h-9 px-5 text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-400 rounded-full">
+                Sign Up
               </Button>
             </Link>
           </div>
@@ -1370,7 +1363,7 @@ const Index = () => {
           {/* bottom bar */}
           <div className="border-t border-white/[0.04] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-white/20">© 2026 EVERJUST COMPANY. All rights reserved.</p>
-            <span className="text-[10px] text-white/10 font-mono">v2.0.0</span>
+            <span className="text-[10px] text-white/10 font-mono">v{__APP_VERSION__}</span>
             <div className="flex items-center gap-4 text-xs text-white/20">
               <Link to="/pricing" className="hover:text-white/50 transition-colors">Pricing</Link>
               <Link to="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>

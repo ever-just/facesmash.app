@@ -10,7 +10,7 @@ import './index.css'
 Sentry.init({
   dsn: "https://e7918bb4314a8ab5673f3a9b4a120260@o4511019724439552.ingest.us.sentry.io/4511019737088000",
   environment: import.meta.env.MODE, // 'production' | 'development'
-  release: `facesmash@${import.meta.env.VITE_APP_VERSION ?? '2.0.0'}`,
+  release: `facesmash@${__APP_VERSION__}`,
   // Only send events in production to avoid noisy dev errors
   enabled: import.meta.env.PROD,
   // Capture 20% of transactions for performance monitoring
