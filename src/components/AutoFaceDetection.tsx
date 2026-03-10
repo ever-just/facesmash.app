@@ -39,7 +39,6 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   const rafRef = useRef<number | null>(null);
   const [lightingHint, setLightingHint] = useState<string | null>(null);
   const lightingHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const poorLightingStartRef = useRef<number | null>(null);
 
   const videoConstraints = {
     width: 640,
@@ -62,32 +61,43 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     }
   });
 
-  // ── Lighting guidance (Phase 3): show hint after 3s of poor lighting ──
+  // ── Lighting guidance (Phase 3): show hint after 3s of sustained poor lighting ──
+  // Uses a delayed timer so the hint fires even when lightingCondition stays the
+  // same value (React deduplicates identical setState calls, so the effect would
+  // only fire once without the timer approach).
   useEffect(() => {
+    const hints: Record<string, string> = {
+      tooDark: 'Move to a brighter area',
+      tooBright: 'Reduce glare — move away from direct light',
+      uneven: 'Even out your lighting',
+    };
+
     if (!lightingCondition || lightingCondition === 'ok') {
-      poorLightingStartRef.current = null;
+      // Lighting is fine — clear any pending show-hint timer
       if (lightingHintTimerRef.current) {
         clearTimeout(lightingHintTimerRef.current);
         lightingHintTimerRef.current = null;
       }
-      // Clear hint after a short delay so it doesn't flash
-      lightingHintTimerRef.current = setTimeout(() => setLightingHint(null), 1000);
-      return;
+      // Clear the displayed hint after a short delay so it doesn't flash off
+      const clearTimer = setTimeout(() => setLightingHint(null), 1000);
+      return () => { clearTimeout(clearTimer); };
     }
-    // Start timing poor lighting
-    if (!poorLightingStartRef.current) {
-      poorLightingStartRef.current = Date.now();
-    }
-    // Only show hint after 3 seconds of continuous poor lighting
-    const elapsed = Date.now() - poorLightingStartRef.current;
-    if (elapsed >= 3000) {
-      const hints: Record<string, string> = {
-        tooDark: 'Move to a brighter area',
-        tooBright: 'Reduce glare — move away from direct light',
-        uneven: 'Even out your lighting',
-      };
-      setLightingHint(hints[lightingCondition] ?? null);
-    }
+
+    // Poor lighting detected — schedule the hint to appear after 3 seconds.
+    // If the condition changes before 3s (to ok or a different poor type),
+    // the cleanup cancels this timer automatically.
+    const condition = lightingCondition; // capture for closure
+    lightingHintTimerRef.current = setTimeout(() => {
+      setLightingHint(hints[condition] ?? null);
+      lightingHintTimerRef.current = null;
+    }, 3000);
+
+    return () => {
+      if (lightingHintTimerRef.current) {
+        clearTimeout(lightingHintTimerRef.current);
+        lightingHintTimerRef.current = null;
+      }
+    };
   }, [lightingCondition]);
 
   // ── Continuous rAF smoothing loop (Phase 3) ──
