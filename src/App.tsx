@@ -53,7 +53,11 @@ const App = () => {
   }, []);
 
   const handleManage = useCallback((prefs?: CookieCategories) => {
-    applyConsentToSentry(prefs?.Analytics ?? false);
+    // Only update consent when preferences are actually saved (prefs defined).
+    // When prefs is undefined, the user just opened the manage UI — don't change anything.
+    if (prefs) {
+      applyConsentToSentry(prefs.Analytics ?? false);
+    }
   }, []);
 
   return (
