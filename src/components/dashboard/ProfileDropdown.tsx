@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MessageSquare, LogOut } from "lucide-react";
+import { Settings, MessageSquare, LogOut } from "lucide-react";
 import { useSignOut } from "@/hooks/useSignOut";
 import FeedbackModal from "./FeedbackModal";
 
@@ -10,6 +11,7 @@ interface ProfileDropdownProps {
 }
 
 const ProfileDropdown = ({ userName }: ProfileDropdownProps) => {
+  const navigate = useNavigate();
   const { handleSignOut } = useSignOut();
   const [showFeedback, setShowFeedback] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -20,6 +22,11 @@ const ProfileDropdown = ({ userName }: ProfileDropdownProps) => {
     .map(part => part.charAt(0).toUpperCase())
     .join('')
     .slice(0, 2);
+
+  const handleSettingsClick = () => {
+    setIsOpen(false);
+    navigate('/settings');
+  };
 
   const handleFeedbackClick = () => {
     setIsOpen(false);
@@ -49,6 +56,13 @@ const ProfileDropdown = ({ userName }: ProfileDropdownProps) => {
             <p className="text-xs text-white/25 truncate mt-0.5">{userName}</p>
           </div>
           <div className="py-1">
+            <button
+              onClick={handleSettingsClick}
+              className="flex w-full items-center px-4 py-2.5 text-sm text-white/40 hover:bg-white/[0.04] hover:text-white/70 transition-colors"
+            >
+              <Settings className="mr-3 size-3.5" />
+              Settings
+            </button>
             <button
               onClick={handleFeedbackClick}
               className="flex w-full items-center px-4 py-2.5 text-sm text-white/40 hover:bg-white/[0.04] hover:text-white/70 transition-colors"
