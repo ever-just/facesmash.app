@@ -188,9 +188,10 @@ const contrastStretchImage = (img: HTMLImageElement): HTMLCanvasElement | HTMLIm
       let cumulative = 0;
       let lowClip = minVal;
       let highClip = maxVal;
+      let lowClipSet = false;
       for (let b = 0; b < 256; b++) {
         cumulative += histogram[b];
-        if (cumulative >= pixelCount * 0.01 && lowClip === minVal) lowClip = b;
+        if (cumulative >= pixelCount * 0.01 && !lowClipSet) { lowClip = b; lowClipSet = true; }
         if (cumulative >= pixelCount * 0.99) { highClip = b; break; }
       }
       const clipRange = highClip - lowClip;

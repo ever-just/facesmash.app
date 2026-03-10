@@ -201,7 +201,7 @@ export const updateLivenessState = (
   const timedOut = newState.frameCount >= LIVENESS_TIMEOUT_FRAMES;
   newState.isLive = signals >= 2
     || (newState.hasBlinked && newState.frameCount >= MIN_FRAMES_FOR_LIVENESS)
-    || (timedOut && signals >= 1);
+    || (timedOut && (newState.hasBlinked || newState.hasMotion));
 
   return newState;
 };
