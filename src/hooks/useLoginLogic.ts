@@ -39,6 +39,7 @@ export const useLoginLogic = () => {
       return;
     }
 
+    resetMetrics();
     setIsScanning(true);
     const timeoutId = setTimeout(() => {
       setIsScanning(false);
