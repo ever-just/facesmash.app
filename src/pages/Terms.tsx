@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, FileText, Scale, AlertTriangle, UserCheck, Ban, RefreshCw, Gavel, Mail } from "lucide-react";
+import { ArrowLeft, FileText, Scale, AlertTriangle, UserCheck, Ban, RefreshCw, Gavel, Mail, Shield } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -13,7 +13,7 @@ const Terms = () => {
     />
   );
 
-  const lastUpdated = "March 7, 2026";
+  const lastUpdated = "March 10, 2026";
 
   const sections = [
     {
@@ -22,15 +22,15 @@ const Terms = () => {
       content: [
         {
           subtitle: "Agreement",
-          text: "By accessing or using FaceSmash (the \"Service\"), you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree to these terms, do not use the Service.",
+          text: "By accessing or using FaceSmash (the \"Service\"), you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree to these terms, do not use the Service. During registration, you must explicitly accept these Terms and our Privacy Policy by checking the consent checkbox before your account can be created.",
         },
         {
           subtitle: "Eligibility",
-          text: "You must be at least 16 years of age to use FaceSmash. By using the Service, you represent and warrant that you meet this age requirement. If you are under 18, you must have the consent of a parent or legal guardian.",
+          text: "You must be at least 16 years of age to use FaceSmash. By using the Service, you represent and warrant that you meet this age requirement. If you are under 18, you must have the consent of a parent or legal guardian. You must not use the Service if biometric data collection is prohibited in your jurisdiction without additional safeguards that we do not currently provide.",
         },
         {
           subtitle: "Modifications",
-          text: "We reserve the right to modify these Terms at any time. Material changes will be communicated via a prominent notice on the Service at least 30 days before taking effect. Your continued use after changes constitutes acceptance.",
+          text: "We reserve the right to modify these Terms at any time. Material changes will be communicated via email to registered users and a prominent notice on the Service at least 30 days before taking effect. Your continued use after changes constitutes acceptance.",
         },
       ],
     },
@@ -40,53 +40,75 @@ const Terms = () => {
       content: [
         {
           subtitle: "What FaceSmash Does",
-          text: "FaceSmash is a facial-recognition authentication platform that allows you to register your face as a biometric credential and use it to securely sign in to your account. The Service is provided by EVERJUST COMPANY.",
+          text: "FaceSmash is a facial-recognition authentication platform that allows you to register your face as a biometric credential and use it to securely sign in to your account and third-party applications that integrate FaceSmash via our SDK or API. The Service is provided by EVERJUST COMPANY.",
         },
         {
           subtitle: "How It Works",
-          text: "During registration, the Service captures facial images via your device camera and extracts facial geometry descriptors using client-side machine learning. These descriptors are stored and used to verify your identity during subsequent logins.",
+          text: "During registration, the Service captures facial images via your device camera and extracts 128-dimensional facial geometry descriptors using client-side machine learning (TensorFlow.js). These descriptors are transmitted to our servers and stored in a PostgreSQL database with pgvector. During login, your facial descriptor is compared server-side against stored templates using cosine similarity to verify your identity.",
+        },
+        {
+          subtitle: "SDK & API",
+          text: "FaceSmash provides a JavaScript SDK (@facesmash/sdk) and REST API that allow third-party developers to integrate facial authentication into their applications. If you use these developer tools, you are responsible for ensuring your integration complies with applicable biometric privacy laws and for obtaining appropriate consent from your users.",
         },
         {
           subtitle: "Availability",
-          text: "We strive to maintain the Service's availability but do not guarantee uninterrupted access. The Service may be temporarily unavailable due to maintenance, updates, or circumstances beyond our control.",
+          text: "We strive to maintain the Service's availability but do not guarantee uninterrupted access. The Service may be temporarily unavailable due to maintenance, updates, or circumstances beyond our control. We will provide reasonable notice of scheduled maintenance when possible.",
+        },
+      ],
+    },
+    {
+      icon: Shield,
+      title: "3. Biometric Data Consent",
+      content: [
+        {
+          subtitle: "What You Consent To",
+          text: "By registering for FaceSmash and checking the consent checkbox, you provide explicit, informed, written consent for EVERJUST COMPANY to: (a) collect your facial geometry descriptors via your device's camera; (b) transmit these descriptors to our servers for storage; (c) store these descriptors in our database for the purpose of authenticating your identity; and (d) compare your facial descriptors against stored templates each time you sign in.",
+        },
+        {
+          subtitle: "Purpose Limitation",
+          text: "Your biometric data will be used solely for the purpose of authenticating your identity to FaceSmash and FaceSmash-integrated applications. We will not use your biometric data for any other purpose, including but not limited to: advertising, profiling, surveillance, training machine learning models, or sale to third parties.",
+        },
+        {
+          subtitle: "Withdrawal of Consent",
+          text: "You may withdraw your consent at any time by deleting your account from your dashboard. Upon withdrawal, all biometric data will be permanently destroyed in accordance with the retention schedule described in our Privacy Policy. Withdrawal of consent will prevent you from using the Service.",
         },
       ],
     },
     {
       icon: Scale,
-      title: "3. User Obligations",
+      title: "4. User Obligations",
       content: [
         {
           subtitle: "Accurate Registration",
-          text: "You agree to provide accurate information during registration and to register only your own face. Registering another person's facial biometrics without their explicit consent is strictly prohibited and may violate applicable law.",
+          text: "You agree to provide accurate information during registration and to register only your own face. Registering another person's facial biometrics without their explicit consent is strictly prohibited and may violate applicable law, including the Illinois Biometric Information Privacy Act (BIPA).",
         },
         {
           subtitle: "Account Security",
-          text: "You are responsible for maintaining the security of your account. You agree to notify us immediately if you suspect unauthorized access. Because authentication is biometric, you should not allow others to use your device's camera to impersonate you.",
+          text: "You are responsible for maintaining the security of your account. You agree to notify us immediately at security@facesmash.app if you suspect unauthorized access. Because authentication is biometric, you should not allow others to use your device's camera to impersonate you.",
         },
         {
           subtitle: "Lawful Use",
-          text: "You agree to use the Service only for lawful purposes and in compliance with all applicable local, state, national, and international laws and regulations.",
+          text: "You agree to use the Service only for lawful purposes and in compliance with all applicable local, state, national, and international laws and regulations, including biometric privacy laws in your jurisdiction.",
         },
       ],
     },
     {
       icon: Ban,
-      title: "4. Prohibited Conduct",
+      title: "5. Prohibited Conduct",
       content: [
         {
           subtitle: "You May Not",
-          text: "Attempt to reverse-engineer, decompile, or extract the facial recognition models or algorithms used by the Service. Use the Service to collect biometric data of other individuals without their consent. Attempt to bypass, disable, or interfere with security features of the Service. Use automated scripts, bots, or scrapers to access or interact with the Service. Impersonate another person or misrepresent your identity.",
+          text: "Attempt to reverse-engineer, decompile, or extract the facial recognition models or algorithms used by the Service. Use the Service to collect biometric data of other individuals without their consent. Attempt to bypass, disable, or interfere with security features of the Service. Use automated scripts, bots, or scrapers to access or interact with the Service. Impersonate another person or misrepresent your identity. Use the API or SDK in violation of biometric privacy laws. Attempt to reconstruct facial images from stored descriptors.",
         },
         {
           subtitle: "Enforcement",
-          text: "Violation of these prohibitions may result in immediate termination of your account and, where applicable, referral to law enforcement authorities.",
+          text: "Violation of these prohibitions may result in immediate termination of your account and, where applicable, referral to law enforcement authorities. We reserve the right to report violations of biometric privacy laws to the appropriate regulatory authorities.",
         },
       ],
     },
     {
       icon: AlertTriangle,
-      title: "5. Disclaimers & Limitation of Liability",
+      title: "6. Disclaimers & Limitation of Liability",
       content: [
         {
           subtitle: "\"As Is\" Service",
@@ -94,57 +116,61 @@ const Terms = () => {
         },
         {
           subtitle: "Biometric Accuracy",
-          text: "While we strive for high accuracy, facial recognition technology is not infallible. We do not guarantee that the Service will correctly identify or authenticate every user in every circumstance. Environmental factors such as lighting, camera quality, and facial changes may affect performance.",
+          text: "While we strive for high accuracy, facial recognition technology is not infallible. We do not guarantee that the Service will correctly identify or authenticate every user in every circumstance. Environmental factors such as lighting, camera quality, and facial changes (e.g., aging, facial hair, accessories) may affect performance. False matches and false rejections may occur.",
         },
         {
           subtitle: "Limitation of Liability",
-          text: "To the maximum extent permitted by law, EVERJUST COMPANY and its officers, directors, employees, and agents shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of or inability to use the Service, even if we have been advised of the possibility of such damages. Our total aggregate liability shall not exceed $100 USD.",
+          text: "To the maximum extent permitted by law, EVERJUST COMPANY and its officers, directors, employees, and agents shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of or inability to use the Service, even if we have been advised of the possibility of such damages. Our total aggregate liability shall not exceed $100 USD. This limitation does not apply to liability arising from our negligent handling of biometric data where prohibited by applicable law.",
         },
       ],
     },
     {
       icon: RefreshCw,
-      title: "6. Termination",
+      title: "7. Termination",
       content: [
         {
           subtitle: "By You",
-          text: "You may terminate your account at any time by deleting it from your dashboard settings. Upon termination, all your data — including biometric descriptors — will be permanently deleted in accordance with our Privacy Policy.",
+          text: "You may terminate your account at any time by deleting it from your dashboard settings. Upon termination, all your data — including biometric descriptors, face scan images, and sign-in logs — will be permanently deleted in accordance with our Privacy Policy within 30 days.",
         },
         {
           subtitle: "By Us",
-          text: "We may suspend or terminate your access to the Service at any time, with or without cause, and with or without notice. Reasons for termination may include violation of these Terms, suspected fraudulent activity, or extended account inactivity.",
+          text: "We may suspend or terminate your access to the Service at any time, with or without cause, and with or without notice. Reasons for termination may include violation of these Terms, suspected fraudulent activity, or extended account inactivity (24+ months). We will notify you via email and delete your biometric data per our Privacy Policy.",
         },
         {
           subtitle: "Effect of Termination",
-          text: "Upon termination, your right to use the Service ceases immediately. Sections of these Terms that by their nature should survive termination will survive, including disclaimers, limitations of liability, and governing law.",
+          text: "Upon termination, your right to use the Service ceases immediately. All biometric data will be destroyed per our retention schedule. Sections of these Terms that by their nature should survive termination will survive, including disclaimers, limitations of liability, biometric data destruction obligations, and governing law.",
         },
       ],
     },
     {
       icon: Gavel,
-      title: "7. Governing Law & Disputes",
+      title: "8. Governing Law & Disputes",
       content: [
         {
           subtitle: "Governing Law",
-          text: "These Terms are governed by and construed in accordance with the laws of the State of Delaware, United States, without regard to its conflict of law provisions.",
+          text: "These Terms are governed by and construed in accordance with the laws of the State of Delaware, United States, without regard to its conflict of law provisions. Where mandatory local laws apply (e.g., BIPA, GDPR, CCPA), those laws will take precedence over conflicting provisions of these Terms.",
         },
         {
           subtitle: "Dispute Resolution",
-          text: "Any disputes arising from these Terms or the Service shall first be attempted to be resolved through good-faith negotiation. If negotiation fails, disputes shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association, conducted in English.",
+          text: "Any disputes arising from these Terms or the Service shall first be attempted to be resolved through good-faith negotiation for a period of 30 days. If negotiation fails, disputes shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association, conducted in English.",
         },
         {
           subtitle: "Class Action Waiver",
-          text: "You agree that any dispute resolution proceedings will be conducted on an individual basis and not as part of a class, consolidated, or representative action.",
+          text: "You agree that any dispute resolution proceedings will be conducted on an individual basis and not as part of a class, consolidated, or representative action. This waiver does not apply where prohibited by law, including claims under the Illinois BIPA which expressly permit class actions.",
         },
       ],
     },
     {
       icon: Mail,
-      title: "8. Contact Information",
+      title: "9. Contact Information",
       content: [
         {
           subtitle: "Questions",
           text: "If you have questions about these Terms, please contact us at: legal@facesmash.app",
+        },
+        {
+          subtitle: "Privacy & Biometric Data Inquiries",
+          text: "For privacy-related inquiries, biometric data requests, or deletion requests, contact: privacy@facesmash.app",
         },
         {
           subtitle: "EVERJUST COMPANY",
