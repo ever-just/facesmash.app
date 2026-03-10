@@ -47,7 +47,7 @@ interface UseFaceTrackingProps {
 
 // ── Descriptor pre-computation constants ──
 // Start extracting descriptors after this many tracking frames (liveness is building up)
-const DESCRIPTOR_START_FRAME = 10;
+const DESCRIPTOR_START_FRAME = 5;
 // Extract a descriptor every Nth tracking frame to avoid overloading the GPU
 const DESCRIPTOR_EVERY_N_FRAMES = 3;
 
@@ -70,12 +70,15 @@ export const useFaceTracking = ({
 
   // ── Ready Descriptor state ──
   // Pre-computed descriptor maintained during tracking so there's zero capture delay
-  // when liveness passes. Updated every 3rd frame once frameCount >= 10.
+  // when liveness passes. Updated every 3rd frame once frameCount >= DESCRIPTOR_START_FRAME.
   const readyDescriptorRef = useRef<ReadyDescriptor | null>(null);
   const [readyDescriptor, setReadyDescriptor] = useState<ReadyDescriptor | null>(null);
 
   // ── Lighting condition (Phase 3) ──
   const [lightingCondition, setLightingCondition] = useState<LightingCondition>(null);
+
+  // ── Reusable offscreen canvas for lighting checks (avoids GC pressure on mobile) ──
+  const lightingCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Keep callback refs stable to avoid re-render churn
   const onFaceDetectedRef = useRef(onFaceDetected);
@@ -107,9 +110,14 @@ export const useFaceTracking = ({
         const box = detection.detection.box;
 
         // ── Lighting check (Phase 3): every 5th frame, sample face region brightness ──
+        // Reuses a single offscreen canvas (lightingCanvasRef) to avoid creating + discarding
+        // a new HTMLCanvasElement every check, which causes GC pressure on mobile.
         if (frameCounterRef.current % 5 === 0) {
           try {
-            const canvas = document.createElement('canvas');
+            if (!lightingCanvasRef.current) {
+              lightingCanvasRef.current = document.createElement('canvas');
+            }
+            const canvas = lightingCanvasRef.current;
             const faceW = Math.round(box.width);
             const faceH = Math.round(box.height);
             canvas.width = faceW;
@@ -281,6 +289,8 @@ export const useFaceTracking = ({
     // Reset ready descriptor
     readyDescriptorRef.current = null;
     setReadyDescriptor(null);
+    // Reset lighting condition so stale hints don't flash on retry
+    setLightingCondition(null);
     frameCounterRef.current = 0;
     livenessMarkedRef.current = false;
   }, []);
