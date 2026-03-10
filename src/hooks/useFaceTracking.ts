@@ -35,6 +35,9 @@ export interface ReadyDescriptor {
   timestamp: number;
 }
 
+/** Lighting condition detected from face region pixels */
+export type LightingCondition = 'ok' | 'tooDark' | 'tooBright' | 'uneven' | null;
+
 interface UseFaceTrackingProps {
   webcamRef: React.RefObject<Webcam>;
   isActive: boolean;
@@ -71,6 +74,9 @@ export const useFaceTracking = ({
   const readyDescriptorRef = useRef<ReadyDescriptor | null>(null);
   const [readyDescriptor, setReadyDescriptor] = useState<ReadyDescriptor | null>(null);
 
+  // ── Lighting condition (Phase 3) ──
+  const [lightingCondition, setLightingCondition] = useState<LightingCondition>(null);
+
   // Keep callback refs stable to avoid re-render churn
   const onFaceDetectedRef = useRef(onFaceDetected);
   onFaceDetectedRef.current = onFaceDetected;
@@ -99,6 +105,48 @@ export const useFaceTracking = ({
 
       if (detection) {
         const box = detection.detection.box;
+
+        // ── Lighting check (Phase 3): every 5th frame, sample face region brightness ──
+        if (frameCounterRef.current % 5 === 0) {
+          try {
+            const canvas = document.createElement('canvas');
+            const faceW = Math.round(box.width);
+            const faceH = Math.round(box.height);
+            canvas.width = faceW;
+            canvas.height = faceH;
+            const ctx = canvas.getContext('2d');
+            if (ctx && faceW > 0 && faceH > 0) {
+              ctx.drawImage(video, box.x, box.y, box.width, box.height, 0, 0, faceW, faceH);
+              const imgData = ctx.getImageData(0, 0, faceW, faceH).data;
+              let totalBrightness = 0;
+              let minBright = 255;
+              let maxBright = 0;
+              const pixelCount = faceW * faceH;
+              for (let i = 0; i < imgData.length; i += 16) { // sample every 4th pixel
+                const r = imgData[i];
+                const g = imgData[i + 1];
+                const b = imgData[i + 2];
+                const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+                totalBrightness += brightness;
+                if (brightness < minBright) minBright = brightness;
+                if (brightness > maxBright) maxBright = brightness;
+              }
+              const avgBrightness = totalBrightness / (pixelCount / 4);
+              const range = maxBright - minBright;
+              if (avgBrightness < 60) {
+                setLightingCondition('tooDark');
+              } else if (avgBrightness > 210) {
+                setLightingCondition('tooBright');
+              } else if (range > 180 && avgBrightness < 120) {
+                setLightingCondition('uneven');
+              } else {
+                setLightingCondition('ok');
+              }
+            }
+          } catch {
+            // Non-fatal — skip lighting check
+          }
+        }
 
         // ── Liveness: compute EAR + head pose from existing landmarks ──
         // This is pure arithmetic on data we already have — adds <0.5ms per frame
@@ -252,6 +300,7 @@ export const useFaceTracking = ({
     isTracking,
     livenessState,
     readyDescriptor,
+    lightingCondition,
     startTracking,
     stopTracking
   };
