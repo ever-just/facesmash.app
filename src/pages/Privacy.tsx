@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, Shield, Eye, Database, Trash2, Lock, Globe, Mail } from "lucide-react";
+import { ArrowLeft, Shield, Eye, Database, Trash2, Lock, Globe, Mail, Cookie, BarChart3 } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -13,7 +13,7 @@ const Privacy = () => {
     />
   );
 
-  const lastUpdated = "March 10, 2026";
+  const lastUpdated = "March 11, 2026";
 
   const sections = [
     {
@@ -34,7 +34,25 @@ const Privacy = () => {
         },
         {
           subtitle: "Device & Usage Data",
-          text: "We collect basic technical information such as browser type, device type, and usage patterns (e.g., login timestamps, authentication success/failure rates) to maintain and improve the Service. We do not use third-party tracking cookies or analytics services.",
+          text: "We collect basic technical information such as browser type, device type, and usage patterns (e.g., login timestamps, authentication success/failure rates) to maintain and improve the Service.",
+        },
+      ],
+    },
+    {
+      icon: BarChart3,
+      title: "1b. Error Tracking & Performance Monitoring",
+      content: [
+        {
+          subtitle: "Sentry (Error & Performance Monitoring)",
+          text: "With your consent, we use Sentry (sentry.io), a third-party error tracking and performance monitoring service, to identify and fix software bugs and performance issues. Sentry collects: JavaScript error stack traces, HTTP request metadata (URL, status code, method — no request bodies), browser and device type, page load and navigation timing data. Sentry does NOT receive any biometric data, facial images, personal names, or email addresses. We have configured Sentry with sendDefaultPii: false to prevent transmission of personally identifiable information.",
+        },
+        {
+          subtitle: "Session Replay",
+          text: "With your consent, Sentry may record anonymized session replays to help us understand and reproduce bugs. All text inputs are masked in replays — no passwords, emails, or personal data are visible. Session replay is sampled at 5% of normal sessions and 100% of sessions where an error occurs. You can disable session replay by declining analytics cookies.",
+        },
+        {
+          subtitle: "Consent Requirement",
+          text: "Sentry error tracking and session replay are ONLY enabled when you accept analytics cookies via our cookie consent banner. If you decline or choose 'Reject All,' no data is sent to Sentry. You can change your preference at any time using the floating cookie button or the Cookie Preferences link in the footer.",
         },
       ],
     },
@@ -149,8 +167,30 @@ const Privacy = () => {
       ],
     },
     {
+      icon: Cookie,
+      title: "7. Cookies & Local Storage",
+      content: [
+        {
+          subtitle: "Authentication Cookie",
+          text: "We use a single httpOnly session cookie containing a signed JWT token to maintain your authenticated session. This cookie is essential, cannot be read by client-side JavaScript, and expires after 7 days or when you sign out. It is sent automatically by your browser with each API request.",
+        },
+        {
+          subtitle: "Local Storage (Browser)",
+          text: "We use your browser's localStorage to store the following non-cookie data: (1) Cookie consent preferences — your choice of which cookie categories to allow; (2) Session cache — a short-lived (5-minute) cache of your session verification to reduce API calls; (3) User settings — your dashboard preferences such as auto-lock timer, display options, and notification settings; (4) Profile cache — cached profile data for faster dashboard loading; (5) Announcement banner dismissal state; (6) Rate limiter state for security throttling. None of this data contains biometric information.",
+        },
+        {
+          subtitle: "Cookie Categories",
+          text: "Essential cookies (authentication, session, preferences) are always active and cannot be disabled — they are required for the Service to function. Analytics cookies (Sentry error tracking and performance monitoring) are optional and require your explicit consent. We do not use social media cookies, advertising cookies, or any third-party tracking cookies beyond Sentry.",
+        },
+        {
+          subtitle: "Managing Preferences",
+          text: "You can manage your cookie preferences at any time by clicking the floating cookie button on any page, using the 'Cookie Preferences' link in the footer, or through your dashboard settings. Changes take effect immediately. Rejecting analytics cookies will disable Sentry error tracking and session replay.",
+        },
+      ],
+    },
+    {
       icon: Mail,
-      title: "7. Contact & Changes",
+      title: "8. Contact & Changes",
       content: [
         {
           subtitle: "Contact Us",
