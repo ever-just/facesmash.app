@@ -1,5 +1,6 @@
 
 import * as faceapi from '@vladmandic/face-api';
+import { setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 
 // Shared SSD detection options — used across the app for reliable detection
 const SSD_MIN_CONFIDENCE = 0.3;
@@ -17,13 +18,11 @@ export const initializeFaceAPI = async () => {
         // Configure WASM paths to CDN before backend initialization.
         // Without this, TF.js tries to load .wasm files from the same origin,
         // which fails on Netlify SPA because the fallback serves index.html.
-        const tf = faceapi.tf as any;
-        if (tf.wasm?.setWasmPaths) {
-          tf.wasm.setWasmPaths(
-            'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@' +
-            tf.version_core + '/dist/'
-          );
-        }
+        const wasmVersion = faceapi.tf.version_core || '4.22.0';
+        setWasmPaths(
+          `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${wasmVersion}/dist/`
+        );
+        console.log(`WASM paths configured to CDN (tfjs-backend-wasm@${wasmVersion})`);
 
         await faceapi.tf.setBackend('webgl');
         await faceapi.tf.ready();
