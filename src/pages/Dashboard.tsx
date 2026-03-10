@@ -4,13 +4,13 @@ import { Loader2, ExternalLink } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import { useNavigate } from "react-router-dom";
 import { getUserProfileByName } from "@/services/userProfileService";
-import FaceScanGallery from "@/components/FaceScanGallery";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import WelcomeSection from "@/components/dashboard/WelcomeSection";
 import ProfileCard from "@/components/dashboard/ProfileCard";
-import EnhancedSecurityCard from "@/components/dashboard/EnhancedSecurityCard";
+import QuickStats from "@/components/dashboard/QuickStats";
+import SecurityGauge from "@/components/dashboard/SecurityGauge";
+import ScanHistoryTable from "@/components/dashboard/ScanHistoryTable";
 import ActivityGraph from "@/components/dashboard/ActivityGraph";
-import UserSettings from "@/components/dashboard/UserSettings";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { testStorageSetup } from "@/utils/storageTest";
@@ -113,7 +113,7 @@ const Dashboard = () => {
           href="https://developers.facesmash.app"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-between gap-4 mb-4 px-5 py-4 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] transition-colors group"
+          className="flex items-center justify-between gap-4 mb-6 px-5 py-4 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08] transition-colors group"
         >
           <div>
             <p className="text-sm font-medium text-white/80">Developer Portal</p>
@@ -122,15 +122,20 @@ const Dashboard = () => {
           <ExternalLink className="size-4 text-emerald-400/60 group-hover:text-emerald-400 transition-colors shrink-0" />
         </a>
 
-        {/* Profile + Security — side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Quick Stats — hero row */}
+        <div className="mb-6">
+          <QuickStats userName={userName} />
+        </div>
+
+        {/* Security Gauge + Profile — side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <SecurityGauge userName={userName} />
           <ProfileCard userName={userName} userProfile={userProfile} />
-          <EnhancedSecurityCard userName={userName} />
         </div>
 
         {/* Activity */}
         {settings.showActivityHistory && (
-          <div className="mb-4">
+          <div className="mb-6">
             <ActivityGraph 
               userEmail={userName} 
               userCreatedAt={userProfile?.created_at}
@@ -138,14 +143,9 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Face Scan Gallery */}
-        <div className="mb-4">
-          <FaceScanGallery userEmail={userName} />
-        </div>
-
-        {/* Settings */}
-        <div className="mb-4">
-          <UserSettings userName={userName} />
+        {/* Scan History — data table replaces broken image gallery */}
+        <div className="mb-6">
+          <ScanHistoryTable userEmail={userName} />
         </div>
         </ErrorBoundary>
       </div>

@@ -23,6 +23,7 @@ const Status = lazy(() => import("./pages/Status"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const PricingSuccess = lazy(() => import("./pages/PricingSuccess"));
 const PricingCancel = lazy(() => import("./pages/PricingCancel"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +62,7 @@ const App = () => (
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/pricing/success" element={<PricingSuccess />} />
                 <Route path="/pricing/cancel" element={<PricingCancel />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
