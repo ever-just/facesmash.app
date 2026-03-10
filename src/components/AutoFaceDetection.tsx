@@ -135,7 +135,14 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
           h: lerp(cur.h, tgt.h, t),
         };
         smoothPositionRef.current = next;
-        setSmoothPosition({ ...next });
+        // Skip re-render when position has converged (delta < 0.5px)
+        const dx = Math.abs(next.x - cur.x);
+        const dy = Math.abs(next.y - cur.y);
+        const dw = Math.abs(next.w - cur.w);
+        const dh = Math.abs(next.h - cur.h);
+        if (dx > 0.5 || dy > 0.5 || dw > 0.5 || dh > 0.5) {
+          setSmoothPosition({ ...next });
+        }
       }
       rafRef.current = requestAnimationFrame(smoothLoop);
     };
@@ -294,7 +301,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
           )}
 
           {/* Dynamic Face Guide Overlay (Phase 3: unified progress + color gradient) */}
-          {!isLoading && !error && (
+          {!isLoading && !error && !isScanning && (
             <div className="absolute inset-0 pointer-events-none">
               {smoothPosition ? (
                 // Dynamic face tracking overlay - positioned at face center
