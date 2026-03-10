@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, FileText, Scale, AlertTriangle, UserCheck, Ban, RefreshCw, Gavel, Mail, Shield } from "lucide-react";
+import { ArrowLeft, FileText, Scale, AlertTriangle, UserCheck, Ban, RefreshCw, Gavel, Mail, Shield, Cookie } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -13,7 +13,7 @@ const Terms = () => {
     />
   );
 
-  const lastUpdated = "March 10, 2026";
+  const lastUpdated = "March 11, 2026";
 
   const sections = [
     {
@@ -143,8 +143,26 @@ const Terms = () => {
       ],
     },
     {
+      icon: Cookie,
+      title: "8. Cookies & Data Processing",
+      content: [
+        {
+          subtitle: "Cookie Consent",
+          text: "When you first visit FaceSmash, a cookie consent banner will appear allowing you to accept or reject non-essential cookies. Essential cookies (authentication, session management) are always active and required for the Service to function. Analytics cookies (Sentry error tracking and performance monitoring) require your explicit consent and can be enabled or disabled at any time.",
+        },
+        {
+          subtitle: "Managing Preferences",
+          text: "You can change your cookie preferences at any time by clicking the floating cookie settings button, using the 'Cookie Preferences' link in the footer, or through your dashboard settings. Your preferences are stored locally in your browser and take effect immediately.",
+        },
+        {
+          subtitle: "Third-Party Data Processing",
+          text: "When you consent to analytics cookies, we use Sentry (sentry.io) for error tracking and performance monitoring. Sentry processes technical data (error traces, HTTP metadata, browser info) on our behalf under their data processing agreement. No biometric data, facial images, or personal identifiers are sent to Sentry. You can review Sentry's privacy practices at sentry.io/privacy.",
+        },
+      ],
+    },
+    {
       icon: Gavel,
-      title: "8. Governing Law & Disputes",
+      title: "9. Governing Law & Disputes",
       content: [
         {
           subtitle: "Governing Law",
@@ -162,7 +180,7 @@ const Terms = () => {
     },
     {
       icon: Mail,
-      title: "9. Contact Information",
+      title: "10. Contact Information",
       content: [
         {
           subtitle: "Questions",

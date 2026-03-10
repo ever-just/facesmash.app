@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
-import { ChevronDown, Trash2 } from "lucide-react";
+import { ChevronDown, Trash2, Cookie, Database } from "lucide-react";
 import { api } from "@/integrations/api/client";
 import { useSignOut } from "@/hooks/useSignOut";
 import { loadSettings, type UserSettings as Settings } from "@/hooks/useUserSettings";
+import { useCookieConsent } from "react-cookie-manager";
+import { clearNonEssentialData } from "@/utils/consentManager";
 
 interface UserSettingsProps {
   userName: string;
@@ -155,6 +157,16 @@ const UserSettings = ({ userName }: UserSettingsProps) => {
 
         <Divider />
 
+        {/* --- Privacy & Data section --- */}
+        <div>
+          <p className="text-white/15 uppercase tracking-[0.15em] text-[9px] mb-4">Privacy & Data</p>
+          <div className="space-y-4">
+            <PrivacyControls />
+          </div>
+        </div>
+
+        <Divider />
+
         {/* --- Danger zone --- */}
         <div>
           <p className="text-red-400/40 uppercase tracking-[0.15em] text-[9px] mb-4">Danger zone</p>
@@ -215,5 +227,65 @@ const SettingRow = ({
 );
 
 const Divider = () => <div className="border-t border-white/[0.04]" />;
+
+const PrivacyControls = () => {
+  const { showConsentBanner, detailedConsent } = useCookieConsent();
+  const [cleared, setCleared] = useState(false);
+
+  const handleClearCache = () => {
+    clearNonEssentialData();
+    setCleared(true);
+    setTimeout(() => setCleared(false), 2000);
+  };
+
+  const analyticsEnabled = detailedConsent?.Analytics?.consented ?? false;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-white/60 text-sm">Cookie preferences</p>
+          <p className="text-white/20 text-xs mt-0.5">
+            Analytics: <span className={analyticsEnabled ? "text-emerald-400" : "text-white/40"}>{analyticsEnabled ? "Enabled" : "Disabled"}</span>
+          </p>
+        </div>
+        <button
+          onClick={showConsentBanner}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] hover:bg-white/[0.1] text-white/60 border border-white/[0.08] transition-colors"
+        >
+          <Cookie className="size-3" />
+          Manage
+        </button>
+      </div>
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-white/60 text-sm">Clear cached data</p>
+          <p className="text-white/20 text-xs mt-0.5">Remove non-essential cached data from your browser</p>
+        </div>
+        <button
+          onClick={handleClearCache}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] hover:bg-white/[0.1] text-white/60 border border-white/[0.08] transition-colors"
+        >
+          <Database className="size-3" />
+          {cleared ? "Cleared!" : "Clear"}
+        </button>
+      </div>
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-white/60 text-sm">Export your data</p>
+          <p className="text-white/20 text-xs mt-0.5">Request a copy of your stored data</p>
+        </div>
+        <a
+          href="mailto:privacy@facesmash.app?subject=Data%20Export%20Request"
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] hover:bg-white/[0.1] text-white/60 border border-white/[0.08] transition-colors"
+        >
+          Request
+        </a>
+      </div>
+    </div>
+  );
+};
 
 export default UserSettings;

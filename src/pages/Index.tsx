@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import StatusIndicator from "@/components/StatusIndicator";
+import { useCookieConsent } from "react-cookie-manager";
 
 /* ─── Brand SVG logos ─── */
 const AppleLogo = ({ className }: { className?: string }) => (
@@ -52,6 +53,19 @@ const SamsungLogo = ({ className }: { className?: string }) => (
     <path d="M5.9 7.1C4.1 7.1 2.5 8.2 2.5 10c0 1.3.7 2.1 2.2 2.7l1 .4c.9.3 1.3.7 1.3 1.3 0 .7-.6 1.2-1.5 1.2-1 0-1.7-.5-2.1-1.3l-1.6.9C2.5 16.5 3.8 17 5.5 17c2 0 3.5-1.1 3.5-3 0-1.4-.8-2.3-2.4-2.9l-1-.4c-.8-.3-1.1-.6-1.1-1.1 0-.6.5-1 1.3-1 .7 0 1.3.3 1.7.9l1.5-1C8.3 7.5 7.2 7.1 5.9 7.1zM24 15.5V7.3h-2v6.1l-3.5-6.1h-1.8v8.2h2V9.6l3.5 5.9H24zm-14.8-2c0 2.1 1.4 3.5 3.5 3.5.8 0 1.5-.2 2.1-.5v-2.3c-.5.5-1.1.8-1.8.8-1.2 0-1.9-.9-1.9-2.2V12c0-1.3.7-2.2 1.9-2.2.7 0 1.3.3 1.8.8V8.3c-.6-.3-1.3-.5-2.1-.5-2.1 0-3.5 1.4-3.5 3.5v.2z"/>
   </svg>
 );
+
+/* ─── Cookie preferences footer button ─── */
+const CookiePrefsButton = () => {
+  const { showConsentBanner } = useCookieConsent();
+  return (
+    <button
+      onClick={showConsentBanner}
+      className="text-sm text-white/30 hover:text-white/60 transition-colors"
+    >
+      Cookie Preferences
+    </button>
+  );
+};
 
 /* ─── FAQ accordion item ─── */
 const FAQItem = ({ q, a, i }: { q: string; a: string; i: number }) => {
@@ -1351,6 +1365,7 @@ const Index = () => {
                 <li><Link to="/terms" className="text-sm text-white/30 hover:text-white/60 transition-colors">Terms of Service</Link></li>
                 <li><a href="https://docs.facesmash.app/docs/security" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">Security</a></li>
                 <li><Link to="/status" className="text-sm text-white/30 hover:text-white/60 transition-colors">System Status</Link></li>
+                <li><CookiePrefsButton /></li>
               </ul>
             </div>
           </div>
