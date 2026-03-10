@@ -1,12 +1,14 @@
+import * as Sentry from '@sentry/react';
 import React, { useRef, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { Camera, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useFaceTracking } from '@/hooks/useFaceTracking';
+import { useFaceTracking, type ReadyDescriptor } from '@/hooks/useFaceTracking';
 
 interface AutoFaceDetectionProps {
   onImagesCapture: (images: string[]) => void;
+  onReadyDescriptorCapture?: (descriptor: ReadyDescriptor) => void;
   isScanning?: boolean;
   disabled?: boolean;
 }
@@ -15,6 +17,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   onImagesCapture,
+  onReadyDescriptorCapture,
   isScanning = false,
   disabled = false,
 }) => {
@@ -27,6 +30,8 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   const [detectionProgress, setDetectionProgress] = useState(0);
   const onImagesCaptureRef = useRef(onImagesCapture);
   onImagesCaptureRef.current = onImagesCapture;
+  const onReadyDescriptorCaptureRef = useRef(onReadyDescriptorCapture);
+  onReadyDescriptorCaptureRef.current = onReadyDescriptorCapture;
   const hasCapturedRef = useRef(false);
   const smoothPositionRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const [smoothPosition, setSmoothPosition] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -38,8 +43,8 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     facingMode: "user"
   };
 
-  // Initialize face tracking (includes liveness detection — zero extra cost)
-  const { facePosition, isTracking, livenessState } = useFaceTracking({
+  // Initialize face tracking (includes liveness detection + ready descriptor pre-computation)
+  const { facePosition, isTracking, livenessState, readyDescriptor } = useFaceTracking({
     webcamRef,
     isActive: hasPermission && !isLoading && !isScanning && !disabled,
     onFaceDetected: () => {
@@ -103,6 +108,9 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         stream.getTracks().forEach(track => track.stop());
       } catch (err) {
         console.error('Camera initialization error:', err);
+        Sentry.captureException(err, {
+          tags: { component: 'AutoFaceDetection', action: 'camera-init' },
+        });
         setHasPermission(false);
         setError('Camera access denied or not available');
         setIsLoading(false);
@@ -113,15 +121,31 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   }, []);
 
   // Auto-detection logic — gated on liveness to reject static photos
+  // Phase 2: When a readyDescriptor is available (pre-computed during tracking),
+  // submit it directly — no capture delay. Falls back to traditional capture if not ready.
   useEffect(() => {
     if (!hasPermission || isLoading || isScanning || disabled || !faceDetected || hasCapturedRef.current) return;
     // Require liveness confirmation before allowing capture
     if (!livenessState.isLive) return;
 
     let cancelled = false;
+
+    // ── Fast path: use pre-computed ready descriptor (zero capture delay) ──
+    if (readyDescriptor && onReadyDescriptorCaptureRef.current) {
+      // Small delay for visual feedback that liveness passed
+      const fastTimer = setTimeout(() => {
+        if (cancelled || hasCapturedRef.current) return;
+        hasCapturedRef.current = true;
+        setDetectionProgress(100);
+        onReadyDescriptorCaptureRef.current!(readyDescriptor);
+      }, 300);
+      return () => { cancelled = true; clearTimeout(fastTimer); setDetectionProgress(0); };
+    }
+
+    // ── Fallback: traditional capture (only when readyDescriptor is not available) ──
     let detectionCount = 0;
     const maxDetections = 2;
-    const detectionInterval = 1000; // Reduced from 1500ms for faster capture
+    const detectionInterval = 1000;
     let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
     const autoDetect = async () => {
@@ -135,20 +159,10 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         if (detectionCount >= maxDetections) {
           if (cancelled || hasCapturedRef.current) return;
           hasCapturedRef.current = true;
-          // Capture multiple images for better accuracy
-          const images: string[] = [];
-          for (let i = 0; i < 3; i++) {
-            if (cancelled) return;
-            const capturedImage = webcamRef.current?.getScreenshot();
-            if (capturedImage) {
-              images.push(capturedImage);
-            }
-            if (i < 2) {
-              await new Promise(resolve => setTimeout(resolve, 200));
-            }
-          }
-          if (!cancelled && images.length > 0) {
-            onImagesCaptureRef.current(images);
+          // Capture a single image (was 3, but readyDescriptor handles the quality path)
+          const capturedImage = webcamRef.current?.getScreenshot();
+          if (!cancelled && capturedImage) {
+            onImagesCaptureRef.current([capturedImage]);
           }
           return;
         }
@@ -159,7 +173,6 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       }
     };
 
-    // Start auto-detection after face is stable (reduced from 1000ms)
     const startTimer = setTimeout(autoDetect, 600);
 
     return () => {
@@ -168,7 +181,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       if (pendingTimer) clearTimeout(pendingTimer);
       setDetectionProgress(0);
     };
-  }, [hasPermission, isLoading, isScanning, disabled, faceDetected, livenessState.isLive]);
+  }, [hasPermission, isLoading, isScanning, disabled, faceDetected, livenessState.isLive, readyDescriptor]);
 
   const handleRetry = () => {
     window.location.reload();
@@ -212,6 +225,9 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
               className="w-full h-full object-cover"
               onUserMediaError={(error) => {
                 console.error('Webcam error:', error);
+                Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+                  tags: { component: 'AutoFaceDetection', action: 'webcam-media-error' },
+                });
                 setError('Failed to access camera');
               }}
             />

@@ -1,5 +1,8 @@
 
+import * as Sentry from '@sentry/react';
 import * as faceapi from '@vladmandic/face-api';
+
+import { recordWarmup } from './performanceMetrics';
 
 // Shared SSD detection options — used across the app for reliable detection
 const SSD_MIN_CONFIDENCE = 0.3;
@@ -48,6 +51,12 @@ export const initializeFaceAPI = async () => {
       }
     } catch (tfError) {
       console.warn('TF.js backend init skipped (non-fatal):', tfError);
+      Sentry.addBreadcrumb({
+        category: 'faceapi',
+        message: 'TF.js backend init skipped',
+        level: 'warning',
+        data: { error: String(tfError) },
+      });
     }
 
     // Load models — SsdMobilenetv1 is the primary detector (more reliable than TinyFaceDetector)
@@ -60,9 +69,64 @@ export const initializeFaceAPI = async () => {
     ]);
     const tensorCount = faceapi.tf?.engine()?.state?.numTensors ?? 'unknown';
     console.log(`FaceAPI models loaded — tensors: ${tensorCount}`);
+
+    // ── Model warmup ──
+    // Run a full detection pipeline on a tiny synthetic face image so that
+    // WebGL shader programs are compiled BEFORE the first real inference.
+    // Without this, the first real detection is 2-5x slower because the GPU
+    // has to compile shaders on the fly.
+    try {
+      const warmupStart = performance.now();
+      const warmupCanvas = document.createElement('canvas');
+      warmupCanvas.width = 128;
+      warmupCanvas.height = 128;
+      const ctx = warmupCanvas.getContext('2d');
+      if (ctx) {
+        // Draw a simple oval "face" shape — enough to trigger detection paths
+        ctx.fillStyle = '#d2a87e'; // skin-tone fill
+        ctx.beginPath();
+        ctx.ellipse(64, 60, 30, 40, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Two dark circles for "eyes"
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.arc(52, 52, 4, 0, Math.PI * 2);
+        ctx.arc(76, 52, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Run full pipelines to compile all shader programs.
+        // face-api's chained task objects are not standard Promises,
+        // so .catch() doesn't exist on them — use try/catch instead.
+        // 1. SSD + landmarks + descriptor
+        try {
+          await faceapi.detectSingleFace(warmupCanvas, getSsdOptions())
+            .withFaceLandmarks().withFaceDescriptor();
+        } catch { /* no face found in synthetic image — expected */ }
+        // 2. TinyFaceDetector + landmarks (used for tracking)
+        try {
+          await faceapi.detectSingleFace(warmupCanvas, getTinyOptions())
+            .withFaceLandmarks();
+        } catch { /* expected */ }
+      }
+      const warmupMs = performance.now() - warmupStart;
+      recordWarmup(warmupMs);
+      console.log(`Model warmup complete in ${warmupMs.toFixed(0)}ms`);
+    } catch (warmupErr) {
+      console.warn('Model warmup failed (non-fatal):', warmupErr);
+      Sentry.addBreadcrumb({
+        category: 'faceapi',
+        message: 'Model warmup failed (non-fatal)',
+        level: 'warning',
+        data: { error: String(warmupErr) },
+      });
+    }
+
     return true;
   } catch (error) {
     console.error('Failed to load FaceAPI models:', error);
+    Sentry.captureException(error, {
+      tags: { component: 'faceRecognition', action: 'initializeFaceAPI' },
+    });
     return false;
   }
 };
@@ -94,6 +158,9 @@ export const extractFaceDescriptor = async (input: string | HTMLVideoElement): P
     return null;
   } catch (error) {
     console.error('Error extracting face descriptor:', error);
+    Sentry.captureException(error, {
+      tags: { component: 'faceRecognition', action: 'extractFaceDescriptor' },
+    });
     return null;
   }
 };

@@ -21,6 +21,7 @@ const Login = () => {
     loginResult,
     matchedUser,
     handleImagesCapture,
+    handleReadyDescriptorCapture,
     resetLogin,
     goToDashboard
   } = useLoginLogic();
@@ -94,6 +95,7 @@ const Login = () => {
               <FaceScanCard 
                 isScanning={isScanning}
                 onImagesCapture={handleImagesCapture}
+                onReadyDescriptorCapture={handleReadyDescriptorCapture}
               />
             )}
 

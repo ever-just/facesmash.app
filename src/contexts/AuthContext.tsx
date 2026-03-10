@@ -1,4 +1,5 @@
 
+import * as Sentry from '@sentry/react';
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '@/integrations/api/client';
 
@@ -85,8 +86,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           clearCachedSession();
           setUser(null);
         }
-      } catch {
+      } catch (err) {
         // Network error — keep cached user if available
+        Sentry.addBreadcrumb({
+          category: 'auth',
+          message: 'Session verify failed (network)',
+          level: 'warning',
+          data: { error: String(err) },
+        });
         const currentUser = localStorage.getItem('currentUserName');
         if (currentUser) {
           setUser({ email: currentUser });
@@ -107,6 +114,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(null);
     } catch (error) {
       console.error('Error signing out:', error);
+      Sentry.captureException(error, {
+        tags: { component: 'AuthContext', action: 'signOut' },
+      });
       // Still clear local state even if server call fails
       localStorage.removeItem('currentUserName');
       clearCachedSession();

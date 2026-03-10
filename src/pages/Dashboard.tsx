@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { useState, useEffect } from "react";
 import { Loader2, ExternalLink } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
@@ -48,6 +49,9 @@ const Dashboard = () => {
         }
       } catch (error) {
         console.error('Failed to fetch user profile:', error);
+        Sentry.captureException(error, {
+          tags: { component: 'Dashboard', action: 'fetchUserProfile' },
+        });
         // Keep cached profile if available, don't crash
       }
     };

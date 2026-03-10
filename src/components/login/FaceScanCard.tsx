@@ -1,12 +1,14 @@
-import { Loader2, Scan } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import AutoFaceDetection from "@/components/AutoFaceDetection";
+import { type ReadyDescriptor } from "@/hooks/useFaceTracking";
 
 interface FaceScanCardProps {
   isScanning: boolean;
   onImagesCapture: (images: string[]) => void;
+  onReadyDescriptorCapture?: (descriptor: ReadyDescriptor) => void;
 }
 
-const FaceScanCard = ({ isScanning, onImagesCapture }: FaceScanCardProps) => {
+const FaceScanCard = ({ isScanning, onImagesCapture, onReadyDescriptorCapture }: FaceScanCardProps) => {
   return (
     <div className="w-full max-w-xl mx-auto">
       {isScanning ? (
@@ -25,7 +27,8 @@ const FaceScanCard = ({ isScanning, onImagesCapture }: FaceScanCardProps) => {
       ) : (
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
           <AutoFaceDetection 
-            onImagesCapture={onImagesCapture} 
+            onImagesCapture={onImagesCapture}
+            onReadyDescriptorCapture={onReadyDescriptorCapture}
             isScanning={isScanning}
           />
         </div>
