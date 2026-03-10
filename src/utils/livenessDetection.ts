@@ -203,11 +203,13 @@ export const updateLivenessState = (
   // 1. Two or more distinct signals (blink + motion, blink + EAR, motion + EAR)
   // 2. A single blink detected (strongest anti-spoof signal on its own)
   // 3. Timeout with motion OR blink (prevents UX deadlock while requiring a signal)
-  // 4. Timeout with EAR fluctuation (weakest fallback — still blocks static photos)
+  //
+  // NOTE: EAR-fluctuation-only fallback was considered but rejected —
+  // inference noise in TF.js landmark detection produces EAR variance > 0.0001
+  // even on perfectly static photos, making it an unreliable anti-spoof signal.
   newState.isLive = signals >= 2
     || (newState.hasBlinked && newState.frameCount >= MIN_FRAMES_FOR_LIVENESS)
-    || (timedOut && (newState.hasBlinked || newState.hasMotion))
-    || (timedOut && hasEarFluctuation);
+    || (timedOut && (newState.hasBlinked || newState.hasMotion));
 
   return newState;
 };

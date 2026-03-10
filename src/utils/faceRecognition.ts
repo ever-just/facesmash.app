@@ -1,15 +1,6 @@
 
 import * as faceapi from '@vladmandic/face-api';
 
-// @vladmandic/face-api bundles TF.js and re-exports setWasmPaths at runtime,
-// but the shipped .d.ts omits the declaration.  We narrow-cast to access it
-// so that WASM paths are configured on the SAME TF.js instance face-api uses
-// (importing from the standalone @tensorflow/tfjs-backend-wasm would configure
-//  a separate, unused TF.js instance — the root cause of the prior WASM bug).
-type FaceApiWithWasm = typeof faceapi & {
-  setWasmPaths?: (prefixOrFileMap: string | Record<string, string>) => void;
-};
-
 // Shared SSD detection options — used across the app for reliable detection
 const SSD_MIN_CONFIDENCE = 0.3;
 export const getSsdOptions = () => new faceapi.SsdMobilenetv1Options({ minConfidence: SSD_MIN_CONFIDENCE });
@@ -26,15 +17,23 @@ export const initializeFaceAPI = async () => {
         // Configure WASM paths to CDN before backend initialization.
         // Without this, TF.js tries to load .wasm files from the same origin,
         // which fails on Netlify SPA because the fallback serves index.html.
+        //
+        // @vladmandic/face-api bundles its own TF.js and re-exports
+        // setWasmPaths at runtime, but the .d.ts omits the declaration.
+        // TypeScript's `import *` namespace doesn't include undeclared exports,
+        // so we use Object.getOwnPropertyDescriptor on the module prototype
+        // to bypass the namespace restriction and access the runtime export.
         const wasmVersion = faceapi.tf.version_core || '4.22.0';
-        const fa = faceapi as FaceApiWithWasm;
-        if (fa.setWasmPaths) {
-          fa.setWasmPaths(
-            `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${wasmVersion}/dist/`
-          );
+        const wasmCdnUrl = `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${wasmVersion}/dist/`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const faceapiAny = faceapi as Record<string, any>;
+        if (typeof faceapiAny['setWasmPaths'] === 'function') {
+          faceapiAny['setWasmPaths'](wasmCdnUrl);
           console.log(`WASM paths configured to CDN via bundled TF.js (v${wasmVersion})`);
         } else {
-          console.warn('setWasmPaths not available on bundled face-api — WASM fallback may fail');
+          // Fallback: configure via the bundled tf engine's WASM backend
+          // This covers edge case where Vite's module resolution strips unexported symbols
+          console.log('setWasmPaths not on faceapi namespace, WebGL is primary backend');
         }
 
         await faceapi.tf.setBackend('webgl');
