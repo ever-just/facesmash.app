@@ -217,7 +217,7 @@ const Register = () => {
       console.error('Enhanced registration error:', error);
       Sentry.captureException(error, {
         tags: { component: 'Register', action: 'registration' },
-        extra: { email, hasImage: !!imageData },
+        extra: { hasImage: !!imageData },
       });
       setNotification({
         type: 'error',
