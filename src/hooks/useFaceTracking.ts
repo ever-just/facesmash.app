@@ -109,8 +109,10 @@ export const useFaceTracking = ({
         lastDetectionTimeRef.current = Date.now();
         onFaceDetectedRef.current?.(position);
       } else {
-        // Clear face position if no detection for more than 500ms
-        if (Date.now() - lastDetectionTimeRef.current > 500) {
+        // Clear face position if no detection for more than 1000ms
+        // (raised from 500ms — brief tracking drops during slight movement
+        //  were resetting liveness progress, causing the "takes forever" UX issue)
+        if (Date.now() - lastDetectionTimeRef.current > 1000) {
           setFacePosition(null);
           onFaceLostRef.current?.();
         }
@@ -137,7 +139,8 @@ export const useFaceTracking = ({
     console.log('Stopping face tracking...');
     setIsTracking(false);
     setFacePosition(null);
-    // Reset liveness state when tracking stops
+    // Reset liveness state when tracking fully stops
+    // (brief face-lost pauses no longer reset — only full stop does)
     livenessRef.current = createLivenessState();
     setLivenessState(createLivenessState());
   }, []);

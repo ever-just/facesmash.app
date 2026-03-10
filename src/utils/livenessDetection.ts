@@ -113,9 +113,9 @@ export interface LivenessState {
 }
 
 const EAR_BLINK_THRESHOLD = 0.21;
-const MIN_FRAMES_FOR_LIVENESS = 4;
+const MIN_FRAMES_FOR_LIVENESS = 3;  // reduced from 4 — faster liveness pass
 const MAX_HISTORY = 30;
-const LIVENESS_TIMEOUT_FRAMES = 20; // ~4s at 200ms intervals — fallback if 1+ signal present
+const LIVENESS_TIMEOUT_FRAMES = 12; // ~2.4s at 200ms intervals (reduced from 20/~4s)
 
 export const createLivenessState = (): LivenessState => ({
   earHistory: [],
@@ -199,6 +199,14 @@ export const updateLivenessState = (
   // OR if we've waited long enough (timeout) with at least 1 signal (prevents UX deadlock)
   const signals = [newState.hasBlinked, newState.hasMotion, hasEarFluctuation].filter(Boolean).length;
   const timedOut = newState.frameCount >= LIVENESS_TIMEOUT_FRAMES;
+  // Liveness pass conditions (ordered by strength):
+  // 1. Two or more distinct signals (blink + motion, blink + EAR, motion + EAR)
+  // 2. A single blink detected (strongest anti-spoof signal on its own)
+  // 3. Timeout with motion OR blink (prevents UX deadlock while requiring a signal)
+  //
+  // NOTE: EAR-fluctuation-only fallback was considered but rejected —
+  // inference noise in TF.js landmark detection produces EAR variance > 0.0001
+  // even on perfectly static photos, making it an unreliable anti-spoof signal.
   newState.isLive = signals >= 2
     || (newState.hasBlinked && newState.frameCount >= MIN_FRAMES_FOR_LIVENESS)
     || (timedOut && (newState.hasBlinked || newState.hasMotion));
