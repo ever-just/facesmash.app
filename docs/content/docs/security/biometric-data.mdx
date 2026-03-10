@@ -81,20 +81,24 @@ Multiple quality factors are computed to ensure the capture is usable:
 
 ### Database
 
-Face descriptors are stored in a PocketBase database as JSON arrays. The database is hosted on a dedicated server with:
+Face descriptors are stored in PostgreSQL 16 with pgvector as `vector(128)` columns. The database is hosted on a dedicated DigitalOcean Droplet with:
 
-- HTTPS-only access (TLS 1.3)
-- No public admin access
+- HTTPS-only API access via Caddy reverse proxy (auto-TLS)
+- No public database access (localhost-only PostgreSQL)
+- HNSW indexes for fast cosine similarity searches
 - Regular backups
 
 ## Matching Process
 
 When a user attempts to login:
 
-1. A new descriptor is extracted from the live camera feed
-2. The new descriptor is compared against all stored descriptors using **Euclidean distance**
-3. The distance is converted to a similarity score: `similarity = 1 - distance`
-4. If similarity exceeds the adaptive threshold (default 0.45), the user is authenticated
+1. Liveness detection validates a real face (blink + head pose tracking)
+2. A new descriptor is extracted from the live camera feed
+3. The descriptor is sent to the Hono API over HTTPS
+4. The server performs a **pgvector cosine similarity search** across all stored descriptors
+5. The cosine distance is converted to a similarity score: `similarity = 1 - cosine_distance`
+6. If similarity exceeds the adaptive threshold (default 0.45), the user is authenticated
+7. A JWT httpOnly cookie is set for session management
 
 ### Matching Guarantees
 

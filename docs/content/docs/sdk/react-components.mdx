@@ -109,7 +109,7 @@ The provider exposes these values to child components via `useFaceSmash()`:
 
 | Field | Type | Description |
 |---|---|---|
-| `client` | `FaceSmashClient` | The initialized SDK client — access `client.login()`, `client.register()`, `client.analyzeFace()`, `client.on()`, `client.pb` (PocketBase instance) |
+| `client` | `FaceSmashClient` | The initialized SDK client — access `client.login()`, `client.register()`, `client.analyzeFace()`, `client.on()`, `.config`, `.isReady` |
 | `isReady` | `boolean` | `true` once all models are loaded and the client can process faces |
 | `isLoading` | `boolean` | `true` while models are downloading and initializing |
 | `loadProgress` | `number` | Progress value from 0 to 100 during model loading |
@@ -117,14 +117,14 @@ The provider exposes these values to child components via `useFaceSmash()`:
 | `retryInit` | `() => void` | Call this to retry model loading after a failure |
 
 <Callout type="warn">
-  **Do not nest multiple providers.** Each `FaceSmashProvider` creates its own `FaceSmashClient` and `PocketBase` instance. Use a single provider at the top of your component tree.
+  **Do not nest multiple providers.** Each `FaceSmashProvider` creates its own `FaceSmashClient` instance. Use a single provider at the top of your component tree.
 </Callout>
 
 ---
 
 ## `<FaceLogin />`
 
-Drop-in login component. Renders a mirrored webcam feed, waits 2 seconds for the user to position their face, then auto-captures multiple frames and authenticates against all registered users in PocketBase.
+Drop-in login component. Renders a mirrored webcam feed, waits 2 seconds for the user to position their face, then auto-captures multiple frames and authenticates via the Hono API's pgvector matching.
 
 ### Basic Usage
 
@@ -254,7 +254,7 @@ interface LoginResult {
 }
 
 interface UserProfile {
-  id: string;           // PocketBase record ID
+  id: string;           // UUID
   name: string;         // Display name
   email: string;        // Email address
   face_embedding: number[]; // 128-dimensional face descriptor
@@ -275,7 +275,7 @@ interface UserProfile {
 
 ## `<FaceRegister />`
 
-Drop-in registration component. Renders a mirrored webcam feed, captures face images, checks for duplicate faces among existing users, and creates a new user profile in PocketBase.
+Drop-in registration component. Renders a mirrored webcam feed, captures face images, checks for duplicate faces via server-side pgvector matching, and creates a new user profile in PostgreSQL.
 
 ### Basic Usage
 
@@ -460,7 +460,7 @@ function CustomLoginButton() {
 
 | Field | Type | Description |
 |---|---|---|
-| `client` | `FaceSmashClient` | The SDK client — call `.login()`, `.register()`, `.analyzeFace()`, `.on()`, access `.pb` (PocketBase), `.config`, `.isReady` |
+| `client` | `FaceSmashClient` | The SDK client — call `.login()`, `.register()`, `.analyzeFace()`, `.on()`, access `.config`, `.isReady` |
 | `isReady` | `boolean` | `true` when all 5 neural networks are loaded and ready |
 | `isLoading` | `boolean` | `true` during model download and initialization |
 | `loadProgress` | `number` | 0–100 progress value. Jumps to 10 after TF.js init, then 100 when all models load |

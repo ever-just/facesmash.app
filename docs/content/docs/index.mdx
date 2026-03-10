@@ -46,49 +46,51 @@ npm install @facesmash/sdk
 ### Registration Flow
 
 ```
-User opens webcam → SDK captures 3+ frames → Each frame analyzed for quality
+User opens webcam → Liveness detection validates real face (blink + head pose)
+→ SDK captures 3+ frames → Each frame analyzed for quality
 → Best frame selected → 128-D face descriptor extracted via FaceRecognitionNet
-→ Duplicate check against all existing users (similarity ≥ 0.75 = duplicate)
-→ New user_profiles record created → Initial face_templates record stored
-→ face_scans audit log entry created
+→ Descriptor sent to Hono API → Server-side pgvector duplicate check (cosine similarity ≥ 0.75)
+→ New user_profiles row created in PostgreSQL → Initial face_templates row stored
+→ face_scans audit log entry created → JWT httpOnly cookie returned
 ```
 
 ### Login Flow
 
 ```
-User opens webcam → SDK captures 3+ frames → Best quality frame selected
-→ Face descriptor extracted → All user_profiles fetched from PocketBase
-→ For each user: enhancedMatch() with adaptive threshold
-→ If user has templates: multiTemplateMatch() also evaluated
+User opens webcam → Liveness detection validates real face (blink + head pose)
+→ SDK captures 3+ frames → Best quality frame selected
+→ Face descriptor extracted → Sent to Hono API
+→ Server-side pgvector cosine similarity search across all users
+→ For each candidate: adaptive threshold with lighting/confidence adjustments
 → Best match above threshold wins → sign_in_logs entry created
 → If quality > 0.5: stored embedding updated (adaptive learning)
 → If quality > 0.6: new face_template stored (template learning)
+→ JWT httpOnly cookie returned on .facesmash.app domain
 ```
 
 ### Architecture
 
 ```
-Browser (Client-Side)                     Server (PocketBase API)
+Browser (Client-Side)                     Server (Hono API + PostgreSQL)
 ┌──────────────────────────────┐         ┌──────────────────────────┐
-│ TensorFlow.js (WebGL)        │         │                          │
-│ ┌──────────────────────────┐ │         │ user_profiles            │
-│ │ SSD MobileNet v1         │ │         │   → name, email,         │
-│ │ TinyFaceDetector         │ │  REST   │     face_embedding[128]  │
-│ │ FaceLandmark68Net        │ │  API    │                          │
-│ │ FaceRecognitionNet       │ │ ◄─────► │ face_templates           │
-│ │ FaceExpressionNet        │ │         │   → descriptor, quality  │
-│ └──────────────────────────┘ │         │                          │
-│                              │         │ face_scans               │
-│ Quality Analysis             │         │   → audit log            │
-│ Adaptive Matching            │         │                          │
-│ Multi-template Comparison    │         │ sign_in_logs             │
-│ Descriptor Normalization     │         │   → login history        │
+│ TensorFlow.js (WebGL)        │         │ Hono.js (Node.js)        │
+│ ┌──────────────────────────┐ │         │                          │
+│ │ SSD MobileNet v1         │ │         │ PostgreSQL 16 + pgvector │
+│ │ TinyFaceDetector         │ │  REST   │ ┌──────────────────────┐ │
+│ │ FaceLandmark68Net        │ │  API    │ │ user_profiles        │ │
+│ │ FaceRecognitionNet       │ │ ◄─────► │ │ face_templates       │ │
+│ │ FaceExpressionNet        │ │  JWT    │ │ face_scans           │ │
+│ └──────────────────────────┘ │ cookie  │ │ sign_in_logs         │ │
+│                              │         │ └──────────────────────┘ │
+│ Quality Analysis             │         │                          │
+│ Liveness Detection           │         │ pgvector cosine search   │
+│ Descriptor Normalization     │         │ Drizzle ORM              │
 └──────────────────────────────┘         └──────────────────────────┘
-       ~12.5 MB models                    PocketBase (Go binary)
-       Cached by browser                  Self-hostable
+       ~12.5 MB models                    Hono + Caddy (auto-TLS)
+       Cached by browser                  DigitalOcean Droplet
 ```
 
-**All face processing happens in the browser.** The server only stores compact numeric vectors (128 floats per face) and metadata. Raw face images are never transmitted or stored on the server.
+**All face processing happens in the browser.** The server performs vector similarity matching via pgvector and stores compact numeric vectors (128 floats per face) and metadata. Raw face images are never transmitted or stored on the server.
 
 ---
 
@@ -147,7 +149,7 @@ const result = await client.login(images); // base64 data URLs from webcam
 - [**SDK Overview**](/docs/sdk) — Architecture, neural networks, exports, dependencies, performance
 - [**React Components**](/docs/sdk/react-components) — `<FaceSmashProvider>`, `<FaceLogin>`, `<FaceRegister>`, 4 hooks, full prop tables
 - [**Vanilla JS**](/docs/sdk/vanilla-js) — `FaceSmashClient` API, low-level utilities, event system, Vue/Svelte/Angular examples
-- [**Configuration**](/docs/sdk/configuration) — Every option deep-dive, threshold tuning, PocketBase schemas, self-hosting guide
+- [**Configuration**](/docs/sdk/configuration) — Every option deep-dive, threshold tuning, database schema, self-hosting guide
 
 ### Guides
 - [**React Integration**](/docs/guides/react-integration) — Step-by-step React setup with provider, components, and hooks
@@ -155,5 +157,5 @@ const result = await client.login(images); // base64 data URLs from webcam
 - [**Improving Accuracy**](/docs/guides/improving-accuracy) — Tuning thresholds, lighting tips, multi-template strategies
 
 ### Reference
-- [**API Reference**](/docs/api-reference) — PocketBase REST API endpoints
+- [**API Reference**](/docs/api-reference) — Hono REST API endpoints
 - [**Security & Privacy**](/docs/security) — How biometric data is processed, stored, and protected

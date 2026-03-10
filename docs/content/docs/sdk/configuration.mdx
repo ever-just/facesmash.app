@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: SDK options, thresholds, events, PocketBase collections, and self-hosting
+description: SDK options, thresholds, events, database schema, and self-hosting
 ---
 
 Every aspect of the FaceSmash SDK is configurable through the `FaceSmashConfig` object. All options are optional — sensible defaults are applied for any option you omit.
@@ -96,21 +96,21 @@ interface ResolvedConfig {
 | **Type** | `string` |
 | **Default** | `"https://api.facesmash.app"` |
 
-The URL of your PocketBase backend. The SDK creates a `PocketBase` client pointing at this URL and uses it for all database operations (user lookups, template storage, scan logging, etc.).
+The URL of the FaceSmash Hono API backend. The SDK sends face descriptors to this URL for server-side matching via pgvector and stores user profiles, templates, and scan logs in PostgreSQL.
 
 ```typescript
 // Use the hosted FaceSmash API
 createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
 
-// Self-hosted PocketBase
-createFaceSmash({ apiUrl: 'https://my-pocketbase.example.com' });
+// Self-hosted Hono API
+createFaceSmash({ apiUrl: 'https://api.yourdomain.com' });
 
 // Local development
-createFaceSmash({ apiUrl: 'http://localhost:8090' });
+createFaceSmash({ apiUrl: 'http://localhost:3000' });
 ```
 
 <Callout type="info">
-  The PocketBase client is accessible via `client.pb` for custom queries. Auto-cancellation is disabled (`pb.autoCancellation(false)`) to prevent race conditions during face matching.
+  The API uses JWT authentication via httpOnly cookies on the `.facesmash.app` domain. Sessions are managed automatically — no manual token handling required.
 </Callout>
 
 ---
@@ -323,7 +323,7 @@ When `true`, the SDK logs detailed information to `console.log` and `console.err
 - Model loading success/failure
 - Face detection results and descriptor extraction
 - Matching scores and threshold decisions
-- PocketBase query results
+- API request/response data
 
 ```typescript
 // Enable for development
@@ -496,86 +496,90 @@ client.on((event) => {
 
 ---
 
-## PocketBase Backend
+## Hono API Backend
 
-The SDK uses [PocketBase](https://pocketbase.io) as its data layer. PocketBase is an open-source, self-contained backend (Go binary) that provides a REST API, real-time subscriptions, and an admin dashboard.
+The FaceSmash API is a [Hono.js](https://hono.dev) REST API backed by PostgreSQL 16 with [pgvector](https://github.com/pgvector/pgvector) for server-side face matching. It uses [Drizzle ORM](https://orm.drizzle.team) for type-safe database access and JWT httpOnly cookies for session management.
 
-### Accessing PocketBase Directly
+### API Endpoints
 
-The `client.pb` property exposes the full PocketBase JS client:
+The SDK communicates with these API endpoints:
 
-```typescript
-const client = createFaceSmash({ apiUrl: 'https://api.facesmash.app' });
-
-// List all users
-const users = await client.pb.collection('user_profiles').getFullList();
-
-// Get a specific user's templates
-const templates = await client.pb.collection('face_templates').getList(1, 50, {
-  filter: 'user_email="jane@example.com"',
-  sort: '-quality_score',
-});
-
-// Get recent login logs
-const logs = await client.pb.collection('sign_in_logs').getList(1, 20, {
-  filter: 'user_email="jane@example.com"',
-  sort: '-created',
-});
-
-// Delete a user profile
-await client.pb.collection('user_profiles').delete(userId);
+```
+POST /api/auth/register    — Register a new face + create user profile
+POST /api/auth/login       — Match face descriptor via pgvector cosine similarity
+GET  /api/auth/me          — Get current authenticated user from JWT cookie
+POST /api/auth/logout      — Clear the JWT cookie
+GET  /api/health           — API health check with version info
 ```
 
-### Required Collections
+### Database Schema
 
-Your PocketBase instance must have these four collections. The SDK will not work without them.
+The API uses four PostgreSQL tables with Drizzle ORM. pgvector enables efficient cosine similarity searches across face embeddings.
 
 #### `user_profiles`
 
 Stores registered users and their primary face embeddings.
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `name` | `text` | Yes | User's display name |
-| `email` | `email` | Yes | User's email (unique identifier) |
-| `face_embedding` | `json` | Yes | Array of 128 `number` values — the face descriptor |
-| `created` | `autodate` | Auto | Record creation timestamp |
-| `updated` | `autodate` | Auto | Last update timestamp |
+| Column | Type | Description |
+|---|---|---|
+| `id` | `uuid` | Primary key (auto-generated) |
+| `name` | `text` | User's display name |
+| `email` | `text` | User's email (unique) |
+| `face_embedding` | `vector(128)` | 128-D face descriptor (pgvector) |
+| `app_id` | `text` | Application identifier (e.g., `'facesmash'`) |
+| `confidence_boost` | `integer` | Adaptive confidence boost from login history |
+| `created_at` | `timestamp` | Record creation timestamp |
+| `updated_at` | `timestamp` | Last update timestamp |
 
 #### `face_templates`
 
 Stores multiple face descriptors per user for improved matching accuracy.
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `user_email` | `text` | Yes | Email of the user this template belongs to |
-| `descriptor` | `json` | Yes | Array of 128 `number` values |
-| `quality_score` | `number` | Yes | Quality score when this template was captured (0–1) |
-| `label` | `text` | No | `"registration"` for initial, `"auto"` for learned templates |
-| `created` | `autodate` | Auto | When this template was stored |
+| Column | Type | Description |
+|---|---|---|
+| `id` | `uuid` | Primary key (auto-generated) |
+| `user_id` | `uuid` | FK → user_profiles.id (CASCADE delete) |
+| `descriptor` | `vector(128)` | 128-D face descriptor (pgvector) |
+| `quality_score` | `real` | Quality score when captured (0–1) |
+| `label` | `text` | `'registration'` or `'auto'` |
+| `created_at` | `timestamp` | When this template was stored |
 
 #### `face_scans`
 
 Audit log of every face scan (both logins and registrations).
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `user_email` | `text` | Yes | Email of the scanned user |
-| `face_embedding` | `text` | Yes | JSON-stringified array of 128 numbers |
-| `confidence` | `text` | Yes | Detection confidence as a string (e.g., `"0.95"`) |
-| `scan_type` | `text` | Yes | `"login"` or `"registration"` |
-| `quality_score` | `text` | Yes | Quality score as a string (e.g., `"0.72"`) |
-| `created` | `autodate` | Auto | Scan timestamp |
+| Column | Type | Description |
+|---|---|---|
+| `id` | `uuid` | Primary key (auto-generated) |
+| `user_id` | `uuid` | FK → user_profiles.id (CASCADE delete) |
+| `face_embedding` | `vector(128)` | The scanned descriptor |
+| `confidence` | `real` | Detection confidence (0–1) |
+| `scan_type` | `text` | `'login'` or `'registration'` |
+| `quality_score` | `real` | Quality score (0–1) |
+| `created_at` | `timestamp` | Scan timestamp |
 
 #### `sign_in_logs`
 
-Simple log of successful sign-in events.
+Log of sign-in events with detailed metadata.
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `user_email` | `text` | Yes | Email of the user who signed in |
-| `success` | `bool` | Yes | Always `true` (only successful logins are logged) |
-| `created` | `autodate` | Auto | Sign-in timestamp |
+| Column | Type | Description |
+|---|---|---|
+| `id` | `uuid` | Primary key (auto-generated) |
+| `user_id` | `uuid` | FK → user_profiles.id (CASCADE delete) |
+| `success` | `boolean` | Whether the login was successful |
+| `similarity` | `real` | Match similarity score |
+| `ip_address` | `text` | Client IP address |
+| `user_agent` | `text` | Client user agent string |
+| `created_at` | `timestamp` | Sign-in timestamp |
+
+### pgvector Indexes
+
+HNSW indexes are created on the `face_embedding` and `descriptor` columns for fast cosine similarity searches:
+
+```sql
+CREATE INDEX ON user_profiles USING hnsw (face_embedding vector_cosine_ops);
+CREATE INDEX ON face_templates USING hnsw (descriptor vector_cosine_ops);
+```
 
 ---
 
@@ -583,38 +587,51 @@ Simple log of successful sign-in events.
 
 To run FaceSmash entirely on your own infrastructure:
 
-### 1. Install PocketBase
+### 1. Set Up PostgreSQL with pgvector
 
-Download PocketBase from [pocketbase.io](https://pocketbase.io/docs/) and run it:
+Install PostgreSQL 16 and the pgvector extension:
 
 ```bash
-./pocketbase serve --http=0.0.0.0:8090
+# Ubuntu/Debian
+sudo apt install postgresql-16 postgresql-16-pgvector
+
+# Create the database
+sudo -u postgres createdb facesmash_auth
+sudo -u postgres psql -d facesmash_auth -c 'CREATE EXTENSION vector;'
 ```
 
-### 2. Create Collections
+### 2. Clone and Configure the API
 
-Open the PocketBase admin UI at `http://your-server:8090/_/` and create the four collections listed above with the specified field types.
+```bash
+git clone https://github.com/ever-just/facesmash-api.git
+cd facesmash-api
+npm install
 
-### 3. Configure CORS
+# Create .env file
+cat > .env << EOF
+DATABASE_URL=postgresql://user:password@localhost:5432/facesmash_auth
+JWT_SECRET=$(openssl rand -hex 32)
+COOKIE_DOMAIN=.yourdomain.com
+PORT=3000
+EOF
 
-If your frontend and PocketBase are on different domains, configure CORS. With Caddy as a reverse proxy:
+# Run database migrations
+npx drizzle-kit push
+
+# Build and start
+npx tsc
+node dist/index.js
+```
+
+### 3. Configure Caddy as Reverse Proxy
 
 ```
 api.yourdomain.com {
-    header Access-Control-Allow-Origin "{header.Origin}"
-    header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    header Access-Control-Allow-Headers "Content-Type, Authorization"
-    header Access-Control-Allow-Credentials "true"
-
-    @options method OPTIONS
-    handle @options {
-        header Access-Control-Max-Age "86400"
-        respond 204
-    }
-
-    reverse_proxy localhost:8090
+    reverse_proxy localhost:3000
 }
 ```
+
+Caddy automatically provisions TLS certificates via Let's Encrypt.
 
 ### 4. (Optional) Self-Host Models
 
@@ -639,5 +656,5 @@ await client.init();
 ```
 
 <Callout type="info">
-  **No API keys required.** PocketBase collections can be configured with public read/write rules for prototyping, or locked down with auth rules for production. The SDK does not require authentication tokens — it uses PocketBase's REST API directly.
+  **JWT sessions are automatic.** The API sets httpOnly cookies on your configured domain. The SDK handles authentication transparently — no manual token management required.
 </Callout>

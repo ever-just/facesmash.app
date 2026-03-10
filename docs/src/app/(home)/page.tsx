@@ -49,7 +49,7 @@ const sections = [
     href: '/docs/api-reference',
     icon: Plug,
     title: 'API Reference',
-    desc: 'PocketBase REST API — authentication, face endpoints, users, and webhooks.',
+    desc: 'Hono REST API — authentication, face endpoints, users, and webhooks.',
     color: 'text-purple-400',
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
@@ -331,7 +331,7 @@ export default function HomePage() {
           <a href="https://everjust.co" className="font-medium underline underline-offset-4 hover:text-fd-foreground transition-colors" target="_blank" rel="noopener noreferrer">
             EVERJUST
           </a>
-          <span className="ml-3 text-[10px] opacity-40 font-mono">v1.2.0</span>
+          <span className="ml-3 text-[10px] opacity-40 font-mono">v2.0.0</span>
         </p>
       </section>
     </div>
