@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { useState } from "react";
 import SEOHead from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
@@ -214,6 +215,10 @@ const Register = () => {
       });
     } catch (error) {
       console.error('Enhanced registration error:', error);
+      Sentry.captureException(error, {
+        tags: { component: 'Register', action: 'registration' },
+        extra: { email, hasImage: !!imageData },
+      });
       setNotification({
         type: 'error',
         title: 'Registration Error',

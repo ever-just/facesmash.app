@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import React, { useRef, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { Camera, AlertCircle, RefreshCw } from 'lucide-react';
@@ -107,6 +108,9 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         stream.getTracks().forEach(track => track.stop());
       } catch (err) {
         console.error('Camera initialization error:', err);
+        Sentry.captureException(err, {
+          tags: { component: 'AutoFaceDetection', action: 'camera-init' },
+        });
         setHasPermission(false);
         setError('Camera access denied or not available');
         setIsLoading(false);
@@ -221,6 +225,9 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
               className="w-full h-full object-cover"
               onUserMediaError={(error) => {
                 console.error('Webcam error:', error);
+                Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+                  tags: { component: 'AutoFaceDetection', action: 'webcam-media-error' },
+                });
                 setError('Failed to access camera');
               }}
             />

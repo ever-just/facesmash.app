@@ -1,4 +1,5 @@
 
+import * as Sentry from '@sentry/react';
 import { useRef, useCallback, useState, useEffect } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import Webcam from 'react-webcam';
@@ -196,6 +197,10 @@ export const useFaceTracking = ({
       }
     } catch (error) {
       console.error('Face tracking error:', error);
+      Sentry.captureException(error, {
+        tags: { component: 'useFaceTracking', action: 'detectFace' },
+        extra: { frameCount: frameCounterRef.current },
+      });
     } finally {
       const frameMs = performance.now() - frameStart;
       recordTrackingFrame(frameMs);

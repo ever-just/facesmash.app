@@ -4,6 +4,8 @@
  * Uses httpOnly cookies for authentication (auto-sent by browser with credentials: 'include').
  */
 
+import * as Sentry from '@sentry/react';
+
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.facesmash.app';
 
 interface ApiOptions {
@@ -44,13 +46,39 @@ class FaceSmashAPI {
       fetchOptions.body = JSON.stringify(body);
     }
 
-    const res = await fetch(`${this.baseUrl}${path}`, fetchOptions);
-    let data: T;
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}${path}`, fetchOptions);
+    } catch (networkError) {
+      Sentry.captureException(networkError, {
+        tags: { component: 'api-client', endpoint: path },
+        extra: { method, baseUrl: this.baseUrl },
+      });
+      throw networkError;
+    }
 
+    let data: T;
     try {
       data = await res.json();
     } catch {
       data = {} as T;
+    }
+
+    // Report server errors (5xx) and unexpected client errors to Sentry
+    if (res.status >= 500) {
+      Sentry.captureMessage(`API ${res.status}: ${method} ${path}`, {
+        level: 'error',
+        tags: { component: 'api-client', endpoint: path, statusCode: String(res.status) },
+        extra: { method, responseData: data },
+      });
+    } else if (!res.ok && res.status !== 401 && res.status !== 409) {
+      // 401 (unauthenticated) and 409 (duplicate) are expected flows, not errors
+      Sentry.addBreadcrumb({
+        category: 'api',
+        message: `${method} ${path} → ${res.status}`,
+        level: 'warning',
+        data: { status: res.status },
+      });
     }
 
     return { data, ok: res.ok, status: res.status };

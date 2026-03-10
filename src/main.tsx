@@ -13,15 +13,36 @@ Sentry.init({
   release: `facesmash@${import.meta.env.VITE_APP_VERSION ?? '2.0.0'}`,
   // Only send events in production to avoid noisy dev errors
   enabled: import.meta.env.PROD,
-  // Capture 10% of transactions for performance monitoring
-  tracesSampleRate: 0.1,
-  // Capture 10% of sessions for replay (only on errors)
+  // Capture 20% of transactions for performance monitoring
+  tracesSampleRate: 0.2,
+  // Capture 100% of sessions with errors for replay, 5% of all sessions
   replaysOnErrorSampleRate: 1.0,
-  replaysSessionSampleRate: 0,
+  replaysSessionSampleRate: 0.05,
   sendDefaultPii: false, // Do not send PII (IP, user agent) by default
+  // Automatically capture console.error as breadcrumbs
+  beforeBreadcrumb(breadcrumb) {
+    // Filter out noisy breadcrumbs
+    if (breadcrumb.category === 'console' && breadcrumb.level === 'log') {
+      return null; // skip verbose console.log breadcrumbs
+    }
+    return breadcrumb;
+  },
   integrations: [
-    Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration(),
+    Sentry.browserTracingIntegration({
+      // Track these routes for performance
+      tracePropagationTargets: ['api.facesmash.app', /^\/api\//],
+    }),
+    Sentry.replayIntegration({
+      // Mask all text inputs and user data in replays
+      maskAllText: false,
+      maskAllInputs: true,
+      blockAllMedia: false,
+    }),
+    Sentry.httpClientIntegration({
+      // Capture failed HTTP requests as Sentry events
+      failedRequestStatusCodes: [[500, 599]],
+      failedRequestTargets: ['api.facesmash.app'],
+    }),
   ],
 });
 

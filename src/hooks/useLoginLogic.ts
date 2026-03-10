@@ -1,4 +1,5 @@
 
+import * as Sentry from '@sentry/react';
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -87,6 +88,10 @@ export const useLoginLogic = () => {
     } catch (error) {
       clearTimeout(timeoutId);
       console.error('[Fast path] Login error:', error);
+      Sentry.captureException(error, {
+        tags: { component: 'useLoginLogic', action: 'fast-path-login' },
+        extra: { qualityScore: ready.qualityScore, descriptorAge: Date.now() - ready.timestamp },
+      });
       setIsScanning(false);
       setScanComplete(true);
       setLoginResult('failed');
@@ -206,6 +211,10 @@ export const useLoginLogic = () => {
     } catch (error) {
       clearTimeout(timeoutId);
       console.error('Login error:', error);
+      Sentry.captureException(error, {
+        tags: { component: 'useLoginLogic', action: 'fallback-login' },
+        extra: { imageCount: images.length },
+      });
       setIsScanning(false);
       setScanComplete(true);
       setLoginResult('failed');

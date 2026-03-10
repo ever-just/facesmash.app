@@ -1,4 +1,5 @@
 
+import * as Sentry from '@sentry/react';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { initializeFaceAPI } from '@/utils/faceRecognition';
 
@@ -60,6 +61,10 @@ export const FaceAPIProvider = ({ children }: FaceAPIProviderProps) => {
       }
     } catch (err) {
       console.error('Global Face API initialization failed:', err);
+      Sentry.captureException(err, {
+        tags: { component: 'FaceAPIContext', action: 'model-loading' },
+        extra: { loadProgress },
+      });
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
       setIsLoading(false);
       setLoadProgress(0);

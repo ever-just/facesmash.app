@@ -102,25 +102,42 @@ export const logMetricsSummary = (): void => {
     ? (metrics.descriptorTotalMs / metrics.descriptorExtractions).toFixed(1)
     : 'N/A';
 
-  const cameraToLiveness = metrics.livenessPassAt && metrics.cameraReadyAt
-    ? ((metrics.livenessPassAt - metrics.cameraReadyAt) / 1000).toFixed(2)
-    : 'N/A';
-  const livenessToDescriptor = metrics.descriptorReadyAt && metrics.livenessPassAt
-    ? ((metrics.descriptorReadyAt - metrics.livenessPassAt) / 1000).toFixed(2)
-    : 'N/A';
-  const descriptorToApi = metrics.apiResponseAt && metrics.descriptorReadyAt
-    ? ((metrics.apiResponseAt - metrics.descriptorReadyAt) / 1000).toFixed(2)
-    : 'N/A';
   const totalLogin = metrics.loginCompleteAt && metrics.cameraReadyAt
     ? ((metrics.loginCompleteAt - metrics.cameraReadyAt) / 1000).toFixed(2)
     : 'N/A';
+
+  // Phase 2: descriptor is pre-computed during tracking BEFORE liveness passes.
+  // Detect actual ordering and display segments correctly.
+  const descriptorFirst = metrics.descriptorReadyAt > 0 && metrics.livenessPassAt > 0
+    && metrics.descriptorReadyAt < metrics.livenessPassAt;
+
+  let pipelineStr: string;
+  if (descriptorFirst) {
+    // Phase 2 fast path: camera → descriptor → liveness → API
+    const cameraToDescriptor = metrics.descriptorReadyAt && metrics.cameraReadyAt
+      ? ((metrics.descriptorReadyAt - metrics.cameraReadyAt) / 1000).toFixed(2) : 'N/A';
+    const descriptorToLiveness = metrics.livenessPassAt && metrics.descriptorReadyAt
+      ? ((metrics.livenessPassAt - metrics.descriptorReadyAt) / 1000).toFixed(2) : 'N/A';
+    const livenessToApi = metrics.apiResponseAt && metrics.livenessPassAt
+      ? ((metrics.apiResponseAt - metrics.livenessPassAt) / 1000).toFixed(2) : 'N/A';
+    pipelineStr = `camera→descriptor ${cameraToDescriptor}s | descriptor→liveness ${descriptorToLiveness}s | liveness→API ${livenessToApi}s | total ${totalLogin}s`;
+  } else {
+    // Legacy / fallback path: camera → liveness → descriptor → API
+    const cameraToLiveness = metrics.livenessPassAt && metrics.cameraReadyAt
+      ? ((metrics.livenessPassAt - metrics.cameraReadyAt) / 1000).toFixed(2) : 'N/A';
+    const livenessToDescriptor = metrics.descriptorReadyAt && metrics.livenessPassAt
+      ? ((metrics.descriptorReadyAt - metrics.livenessPassAt) / 1000).toFixed(2) : 'N/A';
+    const descriptorToApi = metrics.apiResponseAt && metrics.descriptorReadyAt
+      ? ((metrics.apiResponseAt - metrics.descriptorReadyAt) / 1000).toFixed(2) : 'N/A';
+    pipelineStr = `camera→liveness ${cameraToLiveness}s | liveness→descriptor ${livenessToDescriptor}s | descriptor→API ${descriptorToApi}s | total ${totalLogin}s`;
+  }
 
   console.log(
     `%c[FaceSmash Perf]%c\n` +
     `  Tracking: ${avgTrackingMs}ms avg (${metrics.trackingMinMs === Infinity ? 'N/A' : metrics.trackingMinMs.toFixed(0)}-${metrics.trackingMaxMs.toFixed(0)}ms), ${metrics.trackingFrameCount} frames, ~${getTrackingFPS().toFixed(1)} FPS\n` +
     `  Descriptors: ${avgDescriptorMs}ms avg, ${metrics.descriptorExtractions} extractions\n` +
     `  Warmup: ${metrics.warmupMs.toFixed(0)}ms\n` +
-    `  Pipeline: camera→liveness ${cameraToLiveness}s | liveness→descriptor ${livenessToDescriptor}s | descriptor→API ${descriptorToApi}s | total ${totalLogin}s`,
+    `  Pipeline: ${pipelineStr}`,
     'color: #22c55e; font-weight: bold',
     'color: inherit'
   );
