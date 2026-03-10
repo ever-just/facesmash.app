@@ -1,0 +1,23 @@
+version: 1
+
+setup:
+  initialize:
+    - command: "cd ~/repos/facesmash.app && npm ci"
+      description: "Install dependencies"
+
+  maintenance:
+    - command: "cd ~/repos/facesmash.app && npm ci"
+      description: "Keep dependencies up to date"
+
+run:
+  dev:
+    - command: "cd ~/repos/facesmash.app && npm run dev"
+      description: "Start Vite dev server at http://localhost:8080"
+
+  build:
+    - command: "cd ~/repos/facesmash.app && npm run build"
+      description: "Production build to dist/"
+
+secrets:
+  - name: netlify
+    description: "Netlify API auth token for deploying facesmash.app"
