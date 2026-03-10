@@ -47,6 +47,16 @@ export const resetMetrics = (): void => {
   metrics = createEmptyMetrics();
 };
 
+/**
+ * Reset only login-phase metrics, preserving tracking milestones.
+ * Use this in the fast path where cameraReady, livenessPass, and descriptorReady
+ * were already recorded during tracking and should not be zeroed out.
+ */
+export const resetLoginMetrics = (): void => {
+  metrics.apiResponseAt = 0;
+  metrics.loginCompleteAt = 0;
+};
+
 /** Record a single tracking frame duration */
 export const recordTrackingFrame = (durationMs: number): void => {
   metrics.trackingFrameCount++;

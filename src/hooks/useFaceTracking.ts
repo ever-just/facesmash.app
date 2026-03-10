@@ -30,6 +30,7 @@ interface FacePosition {
 export interface ReadyDescriptor {
   descriptor: Float32Array;
   qualityScore: number;
+  livenessConfidence: number;
   timestamp: number;
 }
 
@@ -132,6 +133,7 @@ export const useFaceTracking = ({
               const newDescriptor: ReadyDescriptor = {
                 descriptor: fullDetection.descriptor,
                 qualityScore: score,
+                livenessConfidence: livenessRef.current.confidence,
                 timestamp: Date.now(),
               };
               readyDescriptorRef.current = newDescriptor;

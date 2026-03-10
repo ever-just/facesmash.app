@@ -9,6 +9,7 @@ import { api } from "@/integrations/api/client";
 import { type ReadyDescriptor } from "@/hooks/useFaceTracking";
 import {
   resetMetrics,
+  resetLoginMetrics,
   markApiResponse,
   markLoginComplete,
   logMetricsSummary,
@@ -39,7 +40,7 @@ export const useLoginLogic = () => {
       return;
     }
 
-    resetMetrics();
+    resetLoginMetrics(); // preserve tracking milestones (cameraReady, livenessPass, descriptorReady)
     setIsScanning(true);
     const timeoutId = setTimeout(() => {
       setIsScanning(false);
@@ -55,7 +56,7 @@ export const useLoginLogic = () => {
       const loginRes = await api.login({
         embedding: embeddingArray,
         qualityScore: ready.qualityScore,
-        livenessConfidence: ready.qualityScore, // liveness already confirmed by tracking
+        livenessConfidence: ready.livenessConfidence, // actual liveness confidence from tracking
       });
 
       markApiResponse();
