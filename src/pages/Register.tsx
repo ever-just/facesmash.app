@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Check, Loader2, AlertCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import AppNav from "@/components/AppNav";
@@ -30,6 +31,7 @@ const Register = () => {
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [lastFaceAnalysis, setLastFaceAnalysis] = useState<{ descriptor: Float32Array; qualityScore: number } | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'duplicate';
     title: string;
@@ -360,10 +362,29 @@ const Register = () => {
                       required
                     />
                   </div>
+                  <div className="flex items-start gap-3 mt-4">
+                    <Checkbox
+                      id="terms"
+                      checked={termsAccepted}
+                      onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                      className="mt-0.5 border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                    />
+                    <label htmlFor="terms" className="text-sm text-white/40 leading-relaxed cursor-pointer select-none">
+                      I agree to the{" "}
+                      <Link to="/terms" className="text-emerald-400/70 hover:text-emerald-400 transition-colors underline underline-offset-2" target="_blank">
+                        Terms of Service
+                      </Link>{" "}
+                      and{" "}
+                      <Link to="/privacy" className="text-emerald-400/70 hover:text-emerald-400 transition-colors underline underline-offset-2" target="_blank">
+                        Privacy Policy
+                      </Link>, including the collection and processing of my biometric data for authentication.
+                    </label>
+                  </div>
+
                   <Button
                     type="submit"
                     className="w-full h-12 bg-emerald-500 hover:bg-emerald-400 text-black font-medium rounded-full group mt-2"
-                    disabled={!name || !email || !isLoaded}
+                    disabled={!name || !email || !isLoaded || !termsAccepted}
                   >
                     {!isLoaded ? (
                       <>
