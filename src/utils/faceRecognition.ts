@@ -14,6 +14,17 @@ export const initializeFaceAPI = async () => {
     // Initialize TF.js backend with optimizations (vladmandic demo pattern)
     try {
       if (faceapi.tf) {
+        // Configure WASM paths to CDN before backend initialization.
+        // Without this, TF.js tries to load .wasm files from the same origin,
+        // which fails on Netlify SPA because the fallback serves index.html.
+        const tf = faceapi.tf as any;
+        if (tf.wasm?.setWasmPaths) {
+          tf.wasm.setWasmPaths(
+            'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@' +
+            tf.version_core + '/dist/'
+          );
+        }
+
         await faceapi.tf.setBackend('webgl');
         await faceapi.tf.ready();
         if (faceapi.tf.env().flagRegistry?.CANVAS2D_WILL_READ_FREQUENTLY) {
