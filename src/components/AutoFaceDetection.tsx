@@ -41,6 +41,27 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   const lightingHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const poorLightingStartRef = useRef<number | null>(null);
 
+  const videoConstraints = {
+    width: 640,
+    height: 480,
+    facingMode: "user"
+  };
+
+  // Initialize face tracking (includes liveness detection + ready descriptor pre-computation)
+  const { facePosition, isTracking, livenessState, readyDescriptor, lightingCondition } = useFaceTracking({
+    webcamRef,
+    isActive: hasPermission && !isLoading && !isScanning && !disabled,
+    onFaceDetected: () => {
+      setFaceDetected(true);
+    },
+    onFaceLost: () => {
+      setFaceDetected(false);
+      setDetectionProgress(0);
+      smoothPositionRef.current = null;
+      setSmoothPosition(null);
+    }
+  });
+
   // ── Lighting guidance (Phase 3): show hint after 3s of poor lighting ──
   useEffect(() => {
     if (!lightingCondition || lightingCondition === 'ok') {
@@ -68,27 +89,6 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       setLightingHint(hints[lightingCondition] ?? null);
     }
   }, [lightingCondition]);
-
-  const videoConstraints = {
-    width: 640,
-    height: 480,
-    facingMode: "user"
-  };
-
-  // Initialize face tracking (includes liveness detection + ready descriptor pre-computation)
-  const { facePosition, isTracking, livenessState, readyDescriptor, lightingCondition } = useFaceTracking({
-    webcamRef,
-    isActive: hasPermission && !isLoading && !isScanning && !disabled,
-    onFaceDetected: () => {
-      setFaceDetected(true);
-    },
-    onFaceLost: () => {
-      setFaceDetected(false);
-      setDetectionProgress(0);
-      smoothPositionRef.current = null;
-      setSmoothPosition(null);
-    }
-  });
 
   // ── Continuous rAF smoothing loop (Phase 3) ──
   // Runs at 60fps independent of detection frequency.
