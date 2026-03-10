@@ -16,4 +16,18 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Separate vendor chunks for better caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['framer-motion', 'lucide-react', '@radix-ui/react-tooltip', '@radix-ui/react-dialog'],
+          'vendor-query': ['@tanstack/react-query'],
+        },
+      },
+    },
+    // Enable source maps for debugging
+    sourcemap: mode === 'development',
+  },
 }));

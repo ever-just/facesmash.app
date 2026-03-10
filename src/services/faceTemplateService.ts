@@ -38,7 +38,7 @@ export const manageFaceTemplates = async (
   try {
     const embeddingArray = Array.from(faceEmbedding);
     const res = await api.addTemplate({
-      embedding: embeddingArray,
+      descriptor: embeddingArray,
       qualityScore,
     });
     return res.ok;
@@ -53,7 +53,8 @@ export const getFaceTemplates = async (_userEmail: string): Promise<FaceTemplate
     const res = await api.getTemplates();
     if (!res.ok) return [];
 
-    return res.data.map((t) => ({
+    const templates = Array.isArray(res.data) ? res.data : [];
+    return templates.map((t) => ({
       id: String(t.id),
       user_email: '',
       descriptor: [],

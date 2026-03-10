@@ -80,7 +80,17 @@ export const getFaceScansByUser = async (_userEmail: string): Promise<FaceScan[]
   try {
     const res = await api.getScans(1, 50);
     if (!res.ok) return [];
-    return res.data.scans as unknown as FaceScan[];
+    const items = res.data.items || [];
+    return items.map((s) => ({
+      id: String(s.id),
+      user_email: '',
+      image_url: s.imageUrl || '',
+      face_embedding: [],
+      confidence_score: s.confidence,
+      scan_type: s.scanType as FaceScan['scan_type'],
+      quality_score: s.qualityScore,
+      created_at: s.createdAt,
+    }));
   } catch (error) {
     console.error('Unexpected error fetching face scans:', error);
     return [];
@@ -109,9 +119,19 @@ export const getHighQualityScans = async (
   try {
     const res = await api.getScans(1, _limit);
     if (!res.ok) return [];
-    return res.data.scans.filter(
-      (s) => s.qualityScore >= _minQuality
-    ) as unknown as FaceScan[];
+    const items = res.data.items || [];
+    return items
+      .filter((s) => s.qualityScore >= _minQuality)
+      .map((s) => ({
+        id: String(s.id),
+        user_email: '',
+        image_url: s.imageUrl || '',
+        face_embedding: [],
+        confidence_score: s.confidence,
+        scan_type: s.scanType as FaceScan['scan_type'],
+        quality_score: s.qualityScore,
+        created_at: s.createdAt,
+      }));
   } catch (error) {
     console.error('Unexpected error fetching high quality scans:', error);
     return [];

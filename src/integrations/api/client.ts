@@ -65,8 +65,8 @@ class FaceSmashAPI {
     imageData?: string;
   }) {
     return this.request<{
+      success: boolean;
       user: { id: number; email: string; fullName: string | null };
-      message: string;
     }>('/api/auth/register', {
       method: 'POST',
       body: params,
@@ -76,9 +76,8 @@ class FaceSmashAPI {
   async login(params: { embedding: number[]; qualityScore?: number; livenessConfidence?: number }) {
     return this.request<{
       match: boolean;
-      user?: { id: number; email: string; fullName: string | null };
+      user?: { id: number; email: string; name: string | null };
       bestSimilarity?: number;
-      message: string;
     }>('/api/auth/login', {
       method: 'POST',
       body: params,
@@ -87,8 +86,7 @@ class FaceSmashAPI {
 
   async verify() {
     return this.request<{
-      valid: boolean;
-      user: { id: number; email: string };
+      user: { id: number; email: string; name: string | null };
     }>('/api/auth/verify');
   }
 
@@ -109,7 +107,9 @@ class FaceSmashAPI {
       avgQualityScore: number;
       confidenceThreshold: number;
       lastLogin: string | null;
+      emailVerified: boolean;
       createdAt: string;
+      updatedAt: string;
     }>('/api/profile');
   }
 
@@ -123,10 +123,18 @@ class FaceSmashAPI {
 
   async getProfileStats() {
     return this.request<{
-      templatesCount: number;
-      scansCount: number;
-      recentLogs: Array<{
-        id: number;
+      profile: {
+        loginCount: number;
+        successfulLogins: number;
+        failedLogins: number;
+        avgQualityScore: number;
+        confidenceThreshold: number;
+        lastLogin: string | null;
+        createdAt: string;
+      };
+      templateCount: number;
+      scanCount: number;
+      recentLogins: Array<{
         success: boolean;
         similarity: number | null;
         createdAt: string;
@@ -161,15 +169,15 @@ class FaceSmashAPI {
     >('/api/templates');
   }
 
-  async addTemplate(params: { embedding: number[]; qualityScore: number }) {
+  async addTemplate(params: { descriptor: number[]; qualityScore: number }) {
     return this.request('/api/templates', { method: 'POST', body: params });
   }
 
   // ─── Scans ───
 
-  async getScans(page: number = 1, limit: number = 50) {
+  async getScans(page: number = 1, perPage: number = 50) {
     return this.request<{
-      scans: Array<{
+      items: Array<{
         id: number;
         imageUrl: string | null;
         scanType: string;
@@ -177,8 +185,9 @@ class FaceSmashAPI {
         confidence: number;
         createdAt: string;
       }>;
-      total: number;
-    }>(`/api/scans?page=${page}&limit=${limit}`);
+      page: number;
+      perPage: number;
+    }>(`/api/scans?page=${page}&perPage=${perPage}`);
   }
 
   async createScan(params: {
@@ -193,9 +202,9 @@ class FaceSmashAPI {
 
   // ─── Logs ───
 
-  async getLogs(page: number = 1, limit: number = 50) {
+  async getLogs(page: number = 1, perPage: number = 50) {
     return this.request<{
-      logs: Array<{
+      items: Array<{
         id: number;
         success: boolean;
         similarity: number | null;
@@ -203,8 +212,9 @@ class FaceSmashAPI {
         ipAddress: string | null;
         createdAt: string;
       }>;
-      total: number;
-    }>(`/api/logs?page=${page}&limit=${limit}`);
+      page: number;
+      perPage: number;
+    }>(`/api/logs?page=${page}&perPage=${perPage}`);
   }
 
   // ─── Feedback ───

@@ -64,7 +64,7 @@ export const getUserProfileByName = async (name: string): Promise<UserProfile | 
       email: p.email,
       face_embedding: [], // Embeddings stay server-side
       created_at: p.createdAt,
-      updated_at: p.createdAt,
+      updated_at: p.updatedAt || p.createdAt,
       successful_logins: p.successfulLogins,
       total_logins: p.loginCount,
     };

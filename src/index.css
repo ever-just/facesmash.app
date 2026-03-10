@@ -95,8 +95,15 @@
     @apply border-border;
   }
 
-  body {
+  html, body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Smooth touch scrolling everywhere */
+  * {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -132,6 +139,22 @@
   animation: grain 8s steps(10) infinite;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
   background-size: 200px;
+  will-change: transform;
+}
+
+/* Disable grain animation on mobile for performance */
+@media (max-width: 768px) {
+  .animate-grain {
+    animation: none;
+    opacity: 0.2;
+  }
+}
+
+/* Reduce blur effects on mobile for GPU performance */
+@media (max-width: 768px) {
+  .blur-\[140px\], .blur-\[160px\], .blur-\[120px\] {
+    filter: blur(60px) !important;
+  }
 }
 .landing-mask-fade {
   mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
@@ -142,3 +165,20 @@
   100% { background-position: -200% 0; }
 }
 .animate-shimmer { animation: shimmer 6s ease-in-out infinite; }
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Better touch handling for mobile */
+.touch-pan-y {
+  touch-action: pan-y;
+}
+.touch-manipulation {
+  touch-action: manipulation;
+}

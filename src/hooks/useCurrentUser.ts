@@ -13,7 +13,7 @@ export const useCurrentUser = () => {
       let networkError = false;
       try {
         const res = await api.verify();
-        if (res.ok && res.data.valid) {
+        if (res.ok && res.data.user) {
           setCurrentUser(res.data.user.email);
           setShowLoginOptions(true);
           localStorage.setItem('currentUserName', res.data.user.email);
