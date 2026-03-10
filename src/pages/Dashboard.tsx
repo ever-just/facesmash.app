@@ -10,6 +10,7 @@ import ProfileCard from "@/components/dashboard/ProfileCard";
 import EnhancedSecurityCard from "@/components/dashboard/EnhancedSecurityCard";
 import ActivityGraph from "@/components/dashboard/ActivityGraph";
 import UserSettings from "@/components/dashboard/UserSettings";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { testStorageSetup } from "@/utils/storageTest";
 
@@ -36,13 +37,18 @@ const Dashboard = () => {
     }
     
     const fetchUserProfile = async () => {
-      const profile = await getUserProfileByName(name);
-      setUserProfile(profile);
-      // Cache profile for instant next load
-      if (profile) {
-        try {
-          localStorage.setItem(`facesmash_profile_${name}`, JSON.stringify(profile));
-        } catch { /* localStorage full — non-critical */ }
+      try {
+        const profile = await getUserProfileByName(name);
+        setUserProfile(profile);
+        // Cache profile for instant next load
+        if (profile) {
+          try {
+            localStorage.setItem(`facesmash_profile_${name}`, JSON.stringify(profile));
+          } catch { /* localStorage full — non-critical */ }
+        }
+      } catch (error) {
+        console.error('Failed to fetch user profile:', error);
+        // Keep cached profile if available, don't crash
       }
     };
     fetchUserProfile();
@@ -95,6 +101,7 @@ const Dashboard = () => {
       <DashboardHeader userName={userName} />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 relative z-10">
+        <ErrorBoundary>
         <WelcomeSection userName={userName} />
 
         {/* Dev Portal CTA */}
@@ -136,6 +143,7 @@ const Dashboard = () => {
         <div className="mb-4">
           <UserSettings userName={userName} />
         </div>
+        </ErrorBoundary>
       </div>
     </div>
   );

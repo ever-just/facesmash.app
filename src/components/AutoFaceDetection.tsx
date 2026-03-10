@@ -121,7 +121,7 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     let cancelled = false;
     let detectionCount = 0;
     const maxDetections = 2;
-    const detectionInterval = 1500;
+    const detectionInterval = 1000; // Reduced from 1500ms for faster capture
     let pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
     const autoDetect = async () => {
@@ -159,8 +159,8 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       }
     };
 
-    // Start auto-detection after face is stable
-    const startTimer = setTimeout(autoDetect, 1000);
+    // Start auto-detection after face is stable (reduced from 1000ms)
+    const startTimer = setTimeout(autoDetect, 600);
 
     return () => {
       cancelled = true;
@@ -250,7 +250,11 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
                   {/* Dynamic instruction text */}
                   <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
                     <p className="text-white text-xs font-medium bg-black bg-opacity-60 px-2 py-1 rounded">
-                      {livenessState.isLive ? 'Face detected - hold steady' : 'Verifying liveness...'}
+                      {livenessState.isLive
+                        ? 'Face detected — hold steady'
+                        : livenessState.frameCount > 10
+                          ? 'Almost there — blink naturally'
+                          : 'Verifying liveness...'}
                     </p>
                   </div>
                 </div>
@@ -304,7 +308,17 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
         
         <div className="p-4 text-center">
           <p className="text-gray-400 text-sm">
-            {isScanning ? 'Processing...' : isLoading ? 'Getting ready...' : smoothPosition ? (livenessState.isLive ? 'Face detected - hold steady' : 'Verifying liveness...') : 'Look directly at the camera'}
+            {isScanning
+              ? 'Processing...'
+              : isLoading
+                ? 'Getting ready...'
+                : smoothPosition
+                  ? livenessState.isLive
+                    ? 'Face detected — hold steady'
+                    : livenessState.frameCount > 10
+                      ? 'Almost there — blink naturally'
+                      : 'Verifying liveness...'
+                  : 'Look directly at the camera'}
           </p>
         </div>
       </CardContent>

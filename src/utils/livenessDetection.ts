@@ -113,8 +113,9 @@ export interface LivenessState {
 }
 
 const EAR_BLINK_THRESHOLD = 0.21;
-const MIN_FRAMES_FOR_LIVENESS = 5;
+const MIN_FRAMES_FOR_LIVENESS = 4;
 const MAX_HISTORY = 30;
+const LIVENESS_TIMEOUT_FRAMES = 20; // ~4s at 200ms intervals — fallback if 1+ signal present
 
 export const createLivenessState = (): LivenessState => ({
   earHistory: [],
@@ -169,7 +170,8 @@ export const updateLivenessState = (
     }
     const avgVariance = totalVariance / (poses.length - 1);
     // Real faces have micro-movements; photos are perfectly still
-    newState.hasMotion = avgVariance > 0.005;
+    // Lowered threshold to be more tolerant of users trying to hold still
+    newState.hasMotion = avgVariance > 0.003;
   }
 
   // ── EAR variance check ──
@@ -194,8 +196,12 @@ export const updateLivenessState = (
 
   newState.confidence = confidence;
   // We consider it live if we have ANY two of: blink, motion, ear fluctuation
+  // OR if we've waited long enough (timeout) with at least 1 signal (prevents UX deadlock)
   const signals = [newState.hasBlinked, newState.hasMotion, hasEarFluctuation].filter(Boolean).length;
-  newState.isLive = signals >= 2 || (newState.hasBlinked && newState.frameCount >= MIN_FRAMES_FOR_LIVENESS);
+  const timedOut = newState.frameCount >= LIVENESS_TIMEOUT_FRAMES;
+  newState.isLive = signals >= 2
+    || (newState.hasBlinked && newState.frameCount >= MIN_FRAMES_FOR_LIVENESS)
+    || (timedOut && signals >= 1);
 
   return newState;
 };
