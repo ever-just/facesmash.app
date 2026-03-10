@@ -1,10 +1,10 @@
 import * as Sentry from '@sentry/react';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import { Camera, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useFaceTracking, type ReadyDescriptor, type LightingCondition } from '@/hooks/useFaceTracking';
+import { useFaceTracking, type ReadyDescriptor } from '@/hooks/useFaceTracking';
 
 interface AutoFaceDetectionProps {
   onImagesCapture: (images: string[]) => void;
@@ -27,7 +27,6 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [faceDetected, setFaceDetected] = useState(false);
-  const [detectionProgress, setDetectionProgress] = useState(0);
   const onImagesCaptureRef = useRef(onImagesCapture);
   onImagesCaptureRef.current = onImagesCapture;
   const onReadyDescriptorCaptureRef = useRef(onReadyDescriptorCapture);
@@ -55,7 +54,6 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     },
     onFaceLost: () => {
       setFaceDetected(false);
-      setDetectionProgress(0);
       smoothPositionRef.current = null;
       setSmoothPosition(null);
     }
@@ -100,8 +98,50 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
     };
   }, [lightingCondition]);
 
+  // Only run the rAF loop while we have a face to animate.
+  // When smoothPositionRef is null (no face / scanning / idle) the loop pauses
+  // to avoid burning 60fps of CPU/battery for zero visual benefit on mobile.
+  const rafActiveRef = useRef(false);
+  const startRaf = useCallback(() => {
+    if (rafActiveRef.current) return;
+    rafActiveRef.current = true;
+    const smoothLoop = () => {
+      const cur = smoothPositionRef.current;
+      const tgt = targetPositionRef.current;
+      if (!cur || !tgt) {
+        // Nothing to animate — park the loop
+        rafActiveRef.current = false;
+        return;
+      }
+      const t = 0.15;
+      const next = {
+        x: lerp(cur.x, tgt.x, t),
+        y: lerp(cur.y, tgt.y, t),
+        w: lerp(cur.w, tgt.w, t),
+        h: lerp(cur.h, tgt.h, t),
+      };
+      smoothPositionRef.current = next;
+      // Skip re-render when position has converged (delta < 0.5px)
+      const dx = Math.abs(next.x - cur.x);
+      const dy = Math.abs(next.y - cur.y);
+      const dw = Math.abs(next.w - cur.w);
+      const dh = Math.abs(next.h - cur.h);
+      if (dx > 0.5 || dy > 0.5 || dw > 0.5 || dh > 0.5) {
+        setSmoothPosition({ ...next });
+      }
+      rafRef.current = requestAnimationFrame(smoothLoop);
+    };
+    rafRef.current = requestAnimationFrame(smoothLoop);
+  }, []);
+
+  // Clean up rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
   // ── Continuous rAF smoothing loop (Phase 3) ──
-  // Runs at 60fps independent of detection frequency.
   // When a new detection arrives, targetPositionRef updates and the loop
   // smoothly interpolates toward it over multiple frames.
   useEffect(() => {
@@ -120,37 +160,9 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       setSmoothPosition(target);
     }
     targetPositionRef.current = target;
-  }, [facePosition]);
-
-  useEffect(() => {
-    const smoothLoop = () => {
-      const cur = smoothPositionRef.current;
-      const tgt = targetPositionRef.current;
-      if (cur && tgt) {
-        const t = 0.15; // lower = smoother, higher = more responsive
-        const next = {
-          x: lerp(cur.x, tgt.x, t),
-          y: lerp(cur.y, tgt.y, t),
-          w: lerp(cur.w, tgt.w, t),
-          h: lerp(cur.h, tgt.h, t),
-        };
-        smoothPositionRef.current = next;
-        // Skip re-render when position has converged (delta < 0.5px)
-        const dx = Math.abs(next.x - cur.x);
-        const dy = Math.abs(next.y - cur.y);
-        const dw = Math.abs(next.w - cur.w);
-        const dh = Math.abs(next.h - cur.h);
-        if (dx > 0.5 || dy > 0.5 || dw > 0.5 || dh > 0.5) {
-          setSmoothPosition({ ...next });
-        }
-      }
-      rafRef.current = requestAnimationFrame(smoothLoop);
-    };
-    rafRef.current = requestAnimationFrame(smoothLoop);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
+    // Kick the rAF loop if it was parked (e.g. face re-detected after loss)
+    startRaf();
+  }, [facePosition, startRaf]);
 
   useEffect(() => {
     const initializeCamera = async () => {
@@ -192,10 +204,9 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       const fastTimer = setTimeout(() => {
         if (cancelled || hasCapturedRef.current) return;
         hasCapturedRef.current = true;
-        setDetectionProgress(100);
         onReadyDescriptorCaptureRef.current!(readyDescriptor);
       }, 300);
-      return () => { cancelled = true; clearTimeout(fastTimer); setDetectionProgress(0); };
+      return () => { cancelled = true; clearTimeout(fastTimer); };
     }
 
     // ── Fallback: traditional capture (only when readyDescriptor is not available) ──
@@ -210,7 +221,6 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       const image = webcamRef.current.getScreenshot();
       if (image) {
         detectionCount++;
-        setDetectionProgress((detectionCount / maxDetections) * 100);
 
         if (detectionCount >= maxDetections) {
           if (cancelled || hasCapturedRef.current) return;
@@ -235,7 +245,6 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
       cancelled = true;
       clearTimeout(startTimer);
       if (pendingTimer) clearTimeout(pendingTimer);
-      setDetectionProgress(0);
     };
   }, [hasPermission, isLoading, isScanning, disabled, faceDetected, livenessState.isLive, readyDescriptor]);
 
@@ -344,12 +353,15 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
                           : livenessState.confidence > 0.3
                             ? 'rgba(253, 224, 71, 0.4)' // yellow-300/40
                             : 'rgba(147, 197, 253, 0.4)', // blue-300/40
-                        animation: livenessState.isLive ? 'none' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        animation: livenessState.isLive
+                          ? 'none'
+                          : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        transition: 'opacity 0.3s ease-out',
                       }}
                     />
                   </div>
                   {/* Single instruction line below the oval */}
-                  <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
+                  <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap" role="status" aria-live="polite">
                     <p className="text-white text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full">
                       {livenessState.isLive
                         ? 'Verified — processing...'
@@ -380,28 +392,48 @@ const AutoFaceDetection: React.FC<AutoFaceDetectionProps> = ({
           )}
           
           {/* Phase 3: No black overlay flash — camera stays visible during scanning.
-              Progress and scanning states are shown via the oval color + instruction text. */}
-          {isScanning && smoothPosition && (
-            <div className="absolute pointer-events-none" style={{
-              left: `${smoothPosition.x}px`,
-              top: `${smoothPosition.y}px`,
-              width: `${Math.max(smoothPosition.w, 100)}px`,
-              height: `${Math.max(smoothPosition.h, 130)}px`,
-              transform: 'translate(-50%, -50%)',
-            }}>
-              {/* Animated green ring fill during analysis */}
-              <div className="w-full h-full rounded-full border-[3px] border-emerald-400 relative" style={{
-                boxShadow: '0 0 25px rgba(52,211,153,0.5), inset 0 0 25px rgba(52,211,153,0.15)',
-                animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              Progress and scanning states are shown via the oval color + instruction text.
+              Falls back to a centered overlay when smoothPosition is null (face lost before scan). */}
+          {isScanning && (
+            smoothPosition ? (
+              <div className="absolute pointer-events-none" style={{
+                left: `${smoothPosition.x}px`,
+                top: `${smoothPosition.y}px`,
+                width: `${Math.max(smoothPosition.w, 100)}px`,
+                height: `${Math.max(smoothPosition.h, 130)}px`,
+                transform: 'translate(-50%, -50%)',
               }}>
-                <div className="absolute inset-1 rounded-full border-2 border-emerald-300/40 animate-ping" style={{ animationDuration: '2s' }} />
+                {/* Animated green ring fill during analysis */}
+                <div className="w-full h-full rounded-full border-[3px] border-emerald-400 relative" style={{
+                  boxShadow: '0 0 25px rgba(52,211,153,0.5), inset 0 0 25px rgba(52,211,153,0.15)',
+                  animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                }}>
+                  <div className="absolute inset-1 rounded-full border-2 border-emerald-300/40 animate-ping" style={{ animationDuration: '2s' }} />
+                </div>
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
+                  <p className="text-emerald-300 text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full">
+                    Verifying identity...
+                  </p>
+                </div>
               </div>
-              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center whitespace-nowrap">
-                <p className="text-emerald-300 text-xs font-medium bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full">
-                  Verifying identity...
-                </p>
+            ) : (
+              /* Fallback: face was lost right before scanning started — show centered ring */
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="relative">
+                  <div className="w-48 h-60 rounded-full border-[3px] border-emerald-400" style={{
+                    boxShadow: '0 0 25px rgba(52,211,153,0.5), inset 0 0 25px rgba(52,211,153,0.15)',
+                    animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                  }}>
+                    <div className="absolute inset-1 rounded-full border-2 border-emerald-300/40 animate-ping" style={{ animationDuration: '2s' }} />
+                  </div>
+                  <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 text-center">
+                    <p className="text-emerald-300 text-sm font-medium bg-black/60 backdrop-blur-sm px-4 py-1.5 rounded-full">
+                      Verifying identity...
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )
           )}
         </div>
         
