@@ -11,7 +11,7 @@ export const getTinyOptions = () => new faceapi.TinyFaceDetectorOptions({ inputS
 
 // Initialize face-api models + TF.js backend
 export const initializeFaceAPI = async () => {
-  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
   
   try {
     // Initialize TF.js backend with optimizations (vladmandic demo pattern)

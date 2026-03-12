@@ -29,7 +29,7 @@ export interface ResolvedConfig {
 
 export const DEFAULT_CONFIG: ResolvedConfig = {
   apiUrl: 'https://api.facesmash.app',
-  modelUrl: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model',
+  modelUrl: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model',
   minDetectionConfidence: 0.3,
   matchThreshold: 0.45,
   minQualityScore: 0.2,
