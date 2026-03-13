@@ -1,14 +1,17 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useFaceSmash } from './FaceSmashProvider';
-import type { LoginResult } from '../core/types';
+import { useFaceTracking } from './useFaceTracking';
+import type { LoginResult, ReadyDescriptor, LivenessState, LightingCondition } from '../core/types';
 
 export interface FaceLoginProps {
-  /** Called with the login result when authentication completes */
-  onResult: (result: LoginResult) => void;
-  /** Number of images to capture for matching (default: 3) */
-  captureCount?: number;
-  /** Delay between captures in ms (default: 500) */
-  captureDelay?: number;
+  /** Called with the login result when authentication completes (API mode) */
+  onResult?: (result: LoginResult) => void;
+  /** Called with the ready descriptor when liveness passes (descriptor mode) */
+  onDescriptorReady?: (descriptor: ReadyDescriptor) => void;
+  /** Called on liveness state changes */
+  onLivenessUpdate?: (state: LivenessState) => void;
+  /** Called on lighting condition changes */
+  onLightingChange?: (condition: LightingCondition) => void;
   /** Auto-start scanning when component mounts (default: true) */
   autoStart?: boolean;
   /** Custom className for the container */
@@ -22,13 +25,16 @@ export interface FaceLoginProps {
 }
 
 /**
- * Drop-in face login component.
- * Renders a webcam feed, auto-detects a face, captures images, and authenticates.
+ * Drop-in face login component with liveness detection.
+ * Renders a webcam feed, detects face with TinyFaceDetector,
+ * validates liveness via EAR blink + head pose motion,
+ * pre-computes descriptor, and authenticates.
  */
 export function FaceLogin({
   onResult,
-  captureCount = 3,
-  captureDelay = 500,
+  onDescriptorReady,
+  onLivenessUpdate,
+  onLightingChange,
   autoStart = true,
   className,
   overlay,
@@ -37,12 +43,13 @@ export function FaceLogin({
 }: FaceLoginProps) {
   const { client, isReady, isLoading, error: initError } = useFaceSmash();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const authAttemptedRef = useRef(false);
 
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'scanning' | 'done' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'scanning' | 'authenticating' | 'done' | 'error'>('loading');
+
+  const tracking = useFaceTracking({ config: client.config });
 
   // Start camera
   const startCamera = useCallback(async () => {
@@ -54,88 +61,81 @@ export function FaceLogin({
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        // Start tracking once video is playing
+        tracking.startTracking(videoRef.current);
       }
       setCameraError(null);
+      setStatus('scanning');
     } catch {
       setCameraError('Camera access denied or not available');
       setStatus('error');
     }
-  }, []);
+  }, [tracking]);
 
   // Stop camera
   const stopCamera = useCallback(() => {
+    tracking.stopTracking();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-  }, []);
+  }, [tracking]);
 
-  // Capture a frame as base64
-  const captureFrame = useCallback((): string | null => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return null;
+  // Forward liveness updates
+  useEffect(() => {
+    onLivenessUpdate?.(tracking.livenessState);
+  }, [tracking.livenessState, onLivenessUpdate]);
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+  // Forward lighting updates
+  useEffect(() => {
+    onLightingChange?.(tracking.lightingCondition);
+  }, [tracking.lightingCondition, onLightingChange]);
 
-    ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL('image/jpeg', 0.9);
-  }, []);
+  // Auto-authenticate when liveness passes and descriptor is ready
+  useEffect(() => {
+    if (
+      tracking.livenessState.isLive &&
+      tracking.readyDescriptor &&
+      !authAttemptedRef.current &&
+      status === 'scanning'
+    ) {
+      authAttemptedRef.current = true;
 
-  // Scan and authenticate
-  const scan = useCallback(async () => {
-    if (!isReady || isScanning) return;
-    setIsScanning(true);
-    setStatus('scanning');
+      // Descriptor mode: just return the descriptor
+      if (onDescriptorReady) {
+        onDescriptorReady(tracking.readyDescriptor);
+        setStatus('done');
+        stopCamera();
+        return;
+      }
 
-    const images: string[] = [];
-    for (let i = 0; i < captureCount; i++) {
-      const frame = captureFrame();
-      if (frame) images.push(frame);
-      if (i < captureCount - 1) {
-        await new Promise((r) => setTimeout(r, captureDelay));
+      // API mode: send descriptor to server
+      if (onResult && client.hasApiClient) {
+        setStatus('authenticating');
+        const desc = tracking.readyDescriptor.descriptor;
+        client.login(desc).then((result) => {
+          onResult(result);
+          setStatus(result.success ? 'done' : 'error');
+          if (result.success) stopCamera();
+        });
       }
     }
-
-    if (images.length === 0) {
-      const result: LoginResult = { success: false, error: 'Failed to capture images from camera' };
-      onResult(result);
-      setIsScanning(false);
-      setStatus('error');
-      return;
-    }
-
-    const result = await client.login(images);
-    onResult(result);
-    setIsScanning(false);
-    setStatus('done');
-  }, [isReady, isScanning, captureCount, captureDelay, captureFrame, client, onResult]);
+  }, [tracking.livenessState.isLive, tracking.readyDescriptor, status, client, onResult, onDescriptorReady, stopCamera]);
 
   // Initialize
   useEffect(() => {
-    if (isReady) {
+    if (isReady && autoStart) {
       startCamera();
-      setStatus('ready');
     }
     return () => stopCamera();
-  }, [isReady, startCamera, stopCamera]);
-
-  // Auto-start scanning once camera is ready
-  useEffect(() => {
-    if (autoStart && status === 'ready' && !isScanning) {
-      const timer = setTimeout(scan, 2000); // 2s delay to let user position face
-      return () => clearTimeout(timer);
-    }
-  }, [autoStart, status, isScanning, scan]);
+  }, [isReady, autoStart, startCamera, stopCamera]);
 
   const retry = useCallback(() => {
+    authAttemptedRef.current = false;
     setCameraError(null);
+    tracking.reset();
     setStatus('loading');
-    startCamera().then(() => setStatus('ready'));
-  }, [startCamera]);
+    startCamera();
+  }, [startCamera, tracking]);
 
-  // Render
   const displayError = cameraError || initError;
 
   if (displayError && errorContent) {
@@ -160,7 +160,6 @@ export function FaceLogin({
           transform: 'scaleX(-1)',
         }}
       />
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
       {overlay}
       {displayError && (
         <div

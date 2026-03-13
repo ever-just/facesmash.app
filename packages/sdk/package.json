@@ -1,6 +1,6 @@
 {
   "name": "@facesmash/sdk",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Passwordless facial recognition authentication SDK. Drop-in face login for any website.",
   "author": "EVERJUST COMPANY",
   "license": "MIT",
@@ -58,8 +58,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@vladmandic/face-api": "^1.7.15",
-    "pocketbase": "^0.26.8"
+    "@vladmandic/face-api": "^1.7.15"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

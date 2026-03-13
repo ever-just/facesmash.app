@@ -9,8 +9,20 @@ export {
   extractDescriptor,
   analyzeFace,
   processImages,
-  normalizeDescriptor,
+  detectFaceTiny,
+  detectFaceSsd,
 } from './core/detection';
+
+// Liveness utilities
+export {
+  createLivenessState,
+  updateLivenessState,
+  getEyeAspectRatios,
+  calculateEAR,
+  estimateHeadPose,
+  validateFaceSize,
+  normalizeDescriptor,
+} from './core/liveness';
 
 // Matching utilities
 export {
@@ -21,6 +33,9 @@ export {
   calculateLearningWeight,
 } from './core/matching';
 
+// API client
+export { FaceSmashApiClient } from './core/api-client';
+
 // Types
 export type {
   FaceSmashConfig,
@@ -30,14 +45,19 @@ export type {
   MultiTemplateMatchResult,
   LoginResult,
   RegisterResult,
-  UserProfile,
+  MatchedUser,
   FaceTemplate,
   HeadPose,
   FaceSizeCheck,
   LightingAnalysis,
+  LightingCondition,
+  LivenessState,
+  ReadyDescriptor,
+  FacePosition,
   OnProgress,
   FaceSmashEvent,
   FaceSmashEventListener,
+  Point,
 } from './core/types';
 
 // Convenience factory

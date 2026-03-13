@@ -1,9 +1,13 @@
 /** Configuration for the FaceSmash client */
 export interface FaceSmashConfig {
-  /** PocketBase API URL (default: https://api.facesmash.app) */
+  /** API base URL for face matching/registration (default: https://api.facesmash.app) */
   apiUrl?: string;
   /** URL to load face-api.js models from (default: jsdelivr CDN) */
   modelUrl?: string;
+  /** API key for server-side face matching via the FaceSmash API (enables API mode) */
+  apiKey?: string;
+  /** Application ID for scoping face profiles (default: 'default') */
+  appId?: string;
   /** Minimum confidence for SSD MobileNet face detection (default: 0.3) */
   minDetectionConfidence?: number;
   /** Similarity threshold for face matching (default: 0.45) */
@@ -20,6 +24,8 @@ export interface FaceSmashConfig {
 export interface ResolvedConfig {
   apiUrl: string;
   modelUrl: string;
+  apiKey: string;
+  appId: string;
   minDetectionConfidence: number;
   matchThreshold: number;
   minQualityScore: number;
@@ -30,6 +36,8 @@ export interface ResolvedConfig {
 export const DEFAULT_CONFIG: ResolvedConfig = {
   apiUrl: 'https://api.facesmash.app',
   modelUrl: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model',
+  apiKey: '',
+  appId: 'default',
   minDetectionConfidence: 0.3,
   matchThreshold: 0.45,
   minQualityScore: 0.2,
@@ -76,6 +84,9 @@ export interface LightingAnalysis {
   };
 }
 
+/** Lighting condition summary for UI hints */
+export type LightingCondition = 'ok' | 'tooDark' | 'tooBright' | 'uneven' | null;
+
 /** Full face analysis result */
 export interface FaceAnalysis {
   descriptor: Float32Array;
@@ -113,20 +124,18 @@ export interface FaceTemplate {
   created: string;
 }
 
-/** A user profile from PocketBase */
-export interface UserProfile {
-  id: string;
-  name: string;
+/** A matched user from the API */
+export interface MatchedUser {
+  id: number | string;
   email: string;
-  face_embedding: number[];
-  created: string;
-  updated: string;
+  name: string | null;
+  similarity: number;
 }
 
 /** Login result */
 export interface LoginResult {
   success: boolean;
-  user?: UserProfile;
+  user?: MatchedUser;
   similarity?: number;
   error?: string;
 }
@@ -134,12 +143,47 @@ export interface LoginResult {
 /** Registration result */
 export interface RegisterResult {
   success: boolean;
-  user?: UserProfile;
+  profileId?: number;
+  created?: boolean;
+  updated?: boolean;
   error?: string;
 }
 
 /** Model loading progress callback */
 export type OnProgress = (progress: number) => void;
+
+// ─── Liveness Types ──────────────────────────────────────────
+
+/** Multi-frame liveness detection state */
+export interface LivenessState {
+  earHistory: number[];
+  poseHistory: HeadPose[];
+  blinkCount: number;
+  frameCount: number;
+  hasMotion: boolean;
+  hasBlinked: boolean;
+  isLive: boolean;
+  confidence: number;
+}
+
+/** Pre-computed face descriptor ready for submission */
+export interface ReadyDescriptor {
+  descriptor: Float32Array;
+  qualityScore: number;
+  livenessConfidence: number;
+  timestamp: number;
+}
+
+/** Face position in the video frame */
+export interface FacePosition {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+}
+
+// ─── Events ──────────────────────────────────────────────────
 
 /** Event types emitted by the SDK */
 export type FaceSmashEvent =
@@ -148,11 +192,15 @@ export type FaceSmashEvent =
   | { type: 'models-error'; error: string }
   | { type: 'face-detected'; analysis: FaceAnalysis }
   | { type: 'face-lost' }
+  | { type: 'liveness-update'; state: LivenessState }
+  | { type: 'liveness-passed'; descriptor: ReadyDescriptor }
+  | { type: 'descriptor-ready'; descriptor: ReadyDescriptor }
+  | { type: 'lighting-update'; condition: LightingCondition }
   | { type: 'login-start' }
-  | { type: 'login-success'; user: UserProfile; similarity: number }
+  | { type: 'login-success'; user: MatchedUser; similarity: number }
   | { type: 'login-failed'; error: string; bestSimilarity?: number }
   | { type: 'register-start' }
-  | { type: 'register-success'; user: UserProfile }
+  | { type: 'register-success'; profileId: number }
   | { type: 'register-failed'; error: string };
 
 export type FaceSmashEventListener = (event: FaceSmashEvent) => void;

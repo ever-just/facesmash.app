@@ -1,5 +1,11 @@
 import * as faceapi from '@vladmandic/face-api';
-import type { ResolvedConfig, FaceAnalysis, HeadPose, FaceSizeCheck, LightingAnalysis, Point } from './types';
+import type { ResolvedConfig, FaceAnalysis, LightingAnalysis } from './types';
+import {
+  estimateHeadPose,
+  getEyeAspectRatios,
+  validateFaceSize,
+  normalizeDescriptor,
+} from './liveness';
 
 let modelsLoaded = false;
 
@@ -15,7 +21,7 @@ export async function loadModels(
   }
 
   try {
-    // Initialize TF.js backend (runtime APIs not fully typed)
+    // Initialize TF.js backend
     try {
       const tf = faceapi.tf as any;
       if (tf) {
@@ -104,6 +110,40 @@ export async function extractDescriptor(
     if (config.debug) {
       console.error('[FaceSmash] Descriptor extraction failed:', error);
     }
+    return null;
+  }
+}
+
+/**
+ * Detect a face using TinyFaceDetector (fast) with landmarks.
+ * Used for continuous tracking at high FPS.
+ */
+export async function detectFaceTiny(
+  input: HTMLVideoElement | HTMLCanvasElement,
+) {
+  try {
+    return await faceapi
+      .detectSingleFace(input, getTinyOptions())
+      .withFaceLandmarks();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Detect a face using SsdMobilenetv1 (accurate) with landmarks and descriptor.
+ * Used for quality descriptor extraction during tracking.
+ */
+export async function detectFaceSsd(
+  input: HTMLVideoElement | HTMLCanvasElement,
+  minConfidence = 0.3,
+) {
+  try {
+    return await faceapi
+      .detectSingleFace(input, getSsdOptions(minConfidence))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+  } catch {
     return null;
   }
 }
@@ -214,7 +254,6 @@ export async function processImages(
 
   if (descriptors.length === 0) return null;
 
-  // Average descriptors
   const avg = new Float32Array(descriptors[0].length);
   for (let i = 0; i < avg.length; i++) {
     let sum = 0;
@@ -225,62 +264,7 @@ export async function processImages(
   return avg;
 }
 
-// ─── Helpers ────────────────────────────────────────────────
-
-function euclidean(a: Point, b: Point): number {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-}
-
-function calculateEAR(eye: Point[]): number {
-  if (eye.length < 6) return 0.3;
-  const v1 = euclidean(eye[1], eye[5]);
-  const v2 = euclidean(eye[2], eye[4]);
-  const h = euclidean(eye[0], eye[3]);
-  return h === 0 ? 0 : (v1 + v2) / (2 * h);
-}
-
-function getEyeAspectRatios(landmarks: faceapi.FaceLandmarks68) {
-  const leftEAR = calculateEAR(landmarks.getLeftEye());
-  const rightEAR = calculateEAR(landmarks.getRightEye());
-  return { leftEAR, rightEAR, avgEAR: (leftEAR + rightEAR) / 2 };
-}
-
-export function estimateHeadPose(landmarks: faceapi.FaceLandmarks68, box: faceapi.Box): HeadPose {
-  const nose = landmarks.getNose();
-  const jaw = landmarks.getJawOutline();
-  const noseTip = nose[3];
-  const faceCenterX = box.x + box.width / 2;
-  const faceCenterY = box.y + box.height / 2;
-  const yaw = (noseTip.x - faceCenterX) / (box.width / 2);
-  const pitch = (noseTip.y - faceCenterY) / (box.height / 2);
-  const jawLeft = jaw[0];
-  const jawRight = jaw[jaw.length - 1];
-  const roll = Math.atan2(jawRight.y - jawLeft.y, jawRight.x - jawLeft.x);
-  const isFrontal = Math.abs(yaw) < 0.35 && Math.abs(pitch) < 0.4 && Math.abs(roll) < 0.25;
-  return { yaw, pitch, roll, isFrontal };
-}
-
-export function validateFaceSize(
-  box: faceapi.Box,
-  frameWidth = 640,
-  frameHeight = 480
-): FaceSizeCheck {
-  const ratio = (box.width * box.height) / (frameWidth * frameHeight);
-  if (ratio < 0.02) return { isValid: false, ratio, reason: 'Face too far from camera' };
-  if (ratio > 0.65) return { isValid: false, ratio, reason: 'Face too close to camera' };
-  if (box.width < 80 || box.height < 80) return { isValid: false, ratio, reason: 'Face too small for reliable recognition' };
-  return { isValid: true, ratio };
-}
-
-export function normalizeDescriptor(descriptor: Float32Array): Float32Array {
-  let norm = 0;
-  for (let i = 0; i < descriptor.length; i++) norm += descriptor[i] ** 2;
-  norm = Math.sqrt(norm);
-  if (norm === 0) return descriptor;
-  const normalized = new Float32Array(descriptor.length);
-  for (let i = 0; i < descriptor.length; i++) normalized[i] = descriptor[i] / norm;
-  return normalized;
-}
+// ─── Lighting Analysis ───────────────────────────────────────
 
 function analyzeLighting(
   detection: faceapi.WithFaceLandmarks<faceapi.WithFaceDescriptor<faceapi.WithFaceDetection<{ detection: faceapi.FaceDetection }>>>,
@@ -341,3 +325,6 @@ function analyzeLighting(
     conditions: { tooDark, tooBright, uneven, optimal },
   };
 }
+
+// Re-export liveness functions so existing consumers don't break
+export { estimateHeadPose, getEyeAspectRatios, validateFaceSize, normalizeDescriptor } from './liveness';

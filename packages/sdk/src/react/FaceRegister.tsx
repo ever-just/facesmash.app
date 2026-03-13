@@ -1,18 +1,21 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useFaceSmash } from './FaceSmashProvider';
-import type { RegisterResult } from '../core/types';
+import { useFaceTracking } from './useFaceTracking';
+import type { RegisterResult, ReadyDescriptor, LivenessState, LightingCondition } from '../core/types';
 
 export interface FaceRegisterProps {
-  /** User's display name */
-  name: string;
-  /** Optional email */
+  /** User's email for registration (API mode) */
   email?: string;
-  /** Called with the registration result */
-  onResult: (result: RegisterResult) => void;
-  /** Number of images to capture (default: 3) */
-  captureCount?: number;
-  /** Delay between captures in ms (default: 500) */
-  captureDelay?: number;
+  /** User's display name (API mode) */
+  fullName?: string;
+  /** Called with the registration result (API mode) */
+  onResult?: (result: RegisterResult) => void;
+  /** Called with the ready descriptor when liveness passes (descriptor mode) */
+  onDescriptorReady?: (descriptor: ReadyDescriptor) => void;
+  /** Called on liveness state changes */
+  onLivenessUpdate?: (state: LivenessState) => void;
+  /** Called on lighting condition changes */
+  onLightingChange?: (condition: LightingCondition) => void;
   /** Auto-start when component mounts (default: true) */
   autoStart?: boolean;
   /** Custom className for the container */
@@ -26,15 +29,15 @@ export interface FaceRegisterProps {
 }
 
 /**
- * Drop-in face registration component.
- * Renders a webcam feed, captures face images, and registers a new user.
+ * Drop-in face registration component with liveness detection.
  */
 export function FaceRegister({
-  name,
   email,
+  fullName,
   onResult,
-  captureCount = 3,
-  captureDelay = 500,
+  onDescriptorReady,
+  onLivenessUpdate,
+  onLightingChange,
   autoStart = true,
   className,
   overlay,
@@ -43,12 +46,13 @@ export function FaceRegister({
 }: FaceRegisterProps) {
   const { client, isReady, isLoading, error: initError } = useFaceSmash();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const captureAttemptedRef = useRef(false);
 
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'capturing' | 'done' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'scanning' | 'registering' | 'done' | 'error'>('loading');
+
+  const tracking = useFaceTracking({ config: client.config });
 
   const startCamera = useCallback(async () => {
     try {
@@ -59,81 +63,81 @@ export function FaceRegister({
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        tracking.startTracking(videoRef.current);
       }
       setCameraError(null);
+      setStatus('scanning');
     } catch {
       setCameraError('Camera access denied or not available');
       setStatus('error');
     }
-  }, []);
+  }, [tracking]);
 
   const stopCamera = useCallback(() => {
+    tracking.stopTracking();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-  }, []);
+  }, [tracking]);
 
-  const captureFrame = useCallback((): string | null => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return null;
+  // Forward liveness updates
+  useEffect(() => {
+    onLivenessUpdate?.(tracking.livenessState);
+  }, [tracking.livenessState, onLivenessUpdate]);
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+  // Forward lighting updates
+  useEffect(() => {
+    onLightingChange?.(tracking.lightingCondition);
+  }, [tracking.lightingCondition, onLightingChange]);
 
-    ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL('image/jpeg', 0.9);
-  }, []);
+  // Auto-register when liveness passes and descriptor is ready
+  useEffect(() => {
+    if (
+      tracking.livenessState.isLive &&
+      tracking.readyDescriptor &&
+      !captureAttemptedRef.current &&
+      status === 'scanning'
+    ) {
+      captureAttemptedRef.current = true;
 
-  const capture = useCallback(async () => {
-    if (!isReady || isCapturing) return;
-    setIsCapturing(true);
-    setStatus('capturing');
+      // Descriptor mode
+      if (onDescriptorReady) {
+        onDescriptorReady(tracking.readyDescriptor);
+        setStatus('done');
+        stopCamera();
+        return;
+      }
 
-    const images: string[] = [];
-    for (let i = 0; i < captureCount; i++) {
-      const frame = captureFrame();
-      if (frame) images.push(frame);
-      if (i < captureCount - 1) {
-        await new Promise((r) => setTimeout(r, captureDelay));
+      // API mode
+      if (onResult && client.hasApiClient && email) {
+        setStatus('registering');
+        client.register({
+          email,
+          fullName,
+          descriptor: tracking.readyDescriptor.descriptor,
+          qualityScore: tracking.readyDescriptor.qualityScore,
+        }).then((result) => {
+          onResult(result);
+          setStatus(result.success ? 'done' : 'error');
+          if (result.success) stopCamera();
+        });
       }
     }
-
-    if (images.length === 0) {
-      const result: RegisterResult = { success: false, error: 'Failed to capture images' };
-      onResult(result);
-      setIsCapturing(false);
-      setStatus('error');
-      return;
-    }
-
-    const result = await client.register(name, images, email);
-    onResult(result);
-    setIsCapturing(false);
-    setStatus('done');
-  }, [isReady, isCapturing, captureCount, captureDelay, captureFrame, client, name, email, onResult]);
+  }, [tracking.livenessState.isLive, tracking.readyDescriptor, status, client, email, fullName, onResult, onDescriptorReady, stopCamera]);
 
   useEffect(() => {
-    if (isReady) {
+    if (isReady && autoStart) {
       startCamera();
-      setStatus('ready');
     }
     return () => stopCamera();
-  }, [isReady, startCamera, stopCamera]);
-
-  useEffect(() => {
-    if (autoStart && status === 'ready' && !isCapturing) {
-      const timer = setTimeout(capture, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [autoStart, status, isCapturing, capture]);
+  }, [isReady, autoStart, startCamera, stopCamera]);
 
   const retry = useCallback(() => {
+    captureAttemptedRef.current = false;
     setCameraError(null);
+    tracking.reset();
     setStatus('loading');
-    startCamera().then(() => setStatus('ready'));
-  }, [startCamera]);
+    startCamera();
+  }, [startCamera, tracking]);
 
   const displayError = cameraError || initError;
 
@@ -159,7 +163,6 @@ export function FaceRegister({
           transform: 'scaleX(-1)',
         }}
       />
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
       {overlay}
       {displayError && (
         <div
