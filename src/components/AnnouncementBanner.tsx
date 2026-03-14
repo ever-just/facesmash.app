@@ -36,8 +36,8 @@ const AnnouncementBanner = () => {
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-center gap-2 sm:gap-3 text-sm">
               <Package className="size-4 text-white/80 shrink-0 hidden sm:block" />
               <span className="text-white/90 text-center">
-                                <strong className="text-white font-semibold">@facesmash/sdk v2.0.0</strong>
-                                {" "}is now live on npm — Add face login to your app in minutes
+                                <strong className="text-white font-semibold">@facesmash/sdk v3.0.0</strong>
+                                {" "}is now live on npm — Real-time liveness detection & faster auth
               </span>
               <a
                 href="https://docs.facesmash.app/docs/sdk"

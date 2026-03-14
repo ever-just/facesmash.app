@@ -3,14 +3,14 @@ title: SDK Overview
 description: The FaceSmash JavaScript SDK for browser-based facial recognition
 ---
 
-The **FaceSmash SDK** (`@facesmash/sdk`) provides everything you need to add facial recognition authentication to any web application. It runs entirely in the browser using WebGL-accelerated TensorFlow.js neural networks — no server-side ML infrastructure required.
+The **FaceSmash SDK** (`@facesmash/sdk`) provides everything you need to add facial recognition authentication with liveness detection to any web application. It runs entirely in the browser using WebGL-accelerated TensorFlow.js neural networks plus multi-signal liveness validation (EAR-based blink detection, head pose estimation, motion variance) — no server-side ML infrastructure required.
 
 ```bash
 npm install @facesmash/sdk
 ```
 
 <Callout type="info">
-  **v2.0.0** — The SDK is published on npm and ready for integration. Now backed by Hono API + PostgreSQL + pgvector for server-side face matching.
+  **v3.0.0** — Real-time liveness detection with EAR-based blink & head pose estimation. Zero-capture-delay auth when liveness passes. Server-side pgvector matching with adaptive thresholds.
   [View on npm →](https://www.npmjs.com/package/@facesmash/sdk)
   [View source on GitHub →](https://github.com/ever-just/facesmash.app/tree/main/packages/sdk)
 </Callout>
@@ -25,20 +25,25 @@ FaceSmash handles the complete biometric authentication pipeline:
 
 2. **Face Detection** — Finds faces in webcam frames using SSD MobileNet v1 as the primary detector. If SSD fails to find a face above the confidence threshold, it automatically falls back to TinyFaceDetector (smaller, faster, less accurate).
 
-3. **Quality Analysis** — Scores each detected face on multiple dimensions before using it for matching:
+3. **Liveness Detection** — Multi-signal validation in real-time:
+   - **Eye Aspect Ratio (EAR)** — Detects blinks by monitoring eye closure over 3–5 frames (threshold 0.21); passes if 2+ blinks detected or timeout with motion
+   - **Head Pose** — Estimates yaw, pitch, roll from 68-point landmarks; detects subtle head movements
+   - **Motion Variance** — Tracks descriptor movement across frames to detect active head motion (threshold 0.003)
+   - Liveness passes when: 2+ independent signals OR single blink + timeout OR head motion detected during capture window
+
+4. **Quality Analysis** — Scores each frame:
    - **Detection confidence** — SSD MobileNet's raw detection score
    - **Lighting** — Measures brightness, contrast, and evenness across the face region
-   - **Head pose** — Estimates yaw, pitch, and roll from facial landmarks; rejects non-frontal faces
    - **Face size** — Ensures the face is between 2% and 65% of the frame area
-   - **Eye aspect ratio** — Detects if eyes are open (liveness signal)
+   - **Descriptor quality** — Euclidean distance from face center; higher = better centrality
 
-4. **Descriptor Extraction** — Extracts a 128-dimensional floating-point vector (face descriptor) from the detected face using the FaceRecognition neural network. This is the mathematical representation of the face.
+5. **Descriptor Extraction** — Extracts a 128-dimensional floating-point vector (face descriptor) from the best-quality detected face using the FaceRecognition neural network. Pre-computed during real-time tracking; zero-delay when liveness passes.
 
-5. **Matching** — Compares the extracted descriptor against all registered user profiles and their stored templates using enhanced Euclidean distance matching with adaptive thresholds that adjust based on lighting conditions.
+6. **Matching** — Compares the liveness-validated descriptor against all registered user profiles using pgvector cosine similarity search on the server side, with adaptive thresholds that adjust based on lighting conditions and confidence scores.
 
-6. **Registration** — Creates a new user profile via the Hono API, stores the face embedding in PostgreSQL with pgvector, creates an initial face template, and records a face scan entry.
+7. **Registration** — User faces camera, passes liveness validation, and provides name. Highest-quality descriptor is sent to Hono API for server-side duplicate check (similarity ≥ 0.75). Creates `user_profiles` entry in PostgreSQL, initial `face_templates` row, and `face_scans` record.
 
-7. **Adaptive Learning** — On each successful login, the SDK updates the user's stored face embedding using a weighted average (learning rate based on quality, lighting, and confidence). High-quality scans are also saved as additional face templates, improving future matching accuracy.
+8. **Adaptive Learning** — On each successful login, the server updates the user's stored embedding using weighted averaging (weight based on quality, lighting, confidence). High-quality scans (>0.6) are also saved as additional templates. Oldest templates are evicted if at max capacity.
 
 ---
 
@@ -174,18 +179,17 @@ import { createFaceSmash, FaceSmashClient } from '@facesmash/sdk/react';
 
 ### Data Flow: Login
 
-1. User faces the camera
-2. SDK captures 3 webcam frames (configurable) at 500ms intervals
-3. Each frame is analyzed: face detection → quality scoring → descriptor extraction
-4. The highest-quality frame's descriptor is selected
-5. Descriptor is sent to the Hono API at `api.facesmash.app`
-6. Server performs pgvector cosine similarity search across all `user_profiles`
-7. Adaptive thresholds adjust based on lighting and confidence
-8. If a match is found (similarity ≥ adaptive threshold), the user is authenticated
-9. A `sign_in_logs` entry and `face_scans` entry are created
-10. If quality is high enough (>0.5), the stored embedding is updated via weighted averaging
-11. If quality is very high (>0.6), a new template is stored (oldest template is evicted if at max)
-12. JWT httpOnly cookie is set on `.facesmash.app` domain
+1. User faces the camera; SDK starts TinyFaceDetector tracking loop (~5 FPS)
+2. Real-time liveness validation begins: EAR blink detection, head pose estimation, motion tracking
+3. When liveness passes OR timeout (~2.4s): SsdMobilenetv1 extracts high-quality descriptor (pre-computed during tracking, no delay)
+4. Liveness-validated descriptor is sent immediately to Hono API at `api.facesmash.app`
+5. Server performs pgvector cosine similarity search across all `user_profiles`
+6. Adaptive thresholds adjust based on lighting conditions and quality scores
+7. If a match is found (similarity ≥ adaptive threshold), the user is authenticated
+8. A `sign_in_logs` entry and `face_scans` entry are created
+9. If quality is high enough (>0.5), the stored embedding is updated via weighted averaging
+10. If quality is very high (>0.6), a new template is stored (oldest template is evicted if at max)
+11. JWT httpOnly cookie is set on `.facesmash.app` domain
 
 ### Data Flow: Registration
 

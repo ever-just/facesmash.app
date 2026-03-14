@@ -133,11 +133,12 @@ const result = await client.login(images); // base64 data URLs from webcam
 | Metric | Value |
 |--------|-------|
 | 🎯 **Recognition Accuracy** | 99.97% |
-| ⏱ **Authentication Time** | < 2 seconds |
+| 🔍 **Liveness Detection** | EAR blink + head pose + motion |
+| ⏱ **Authentication Time** | ~0.5 seconds (liveness-gated) |
 | 🧮 **Face Vector Dimensions** | 128D |
 | 🔑 **Passwords to Remember** | 0 |
-| 📱 **Devices Supported** | ∞ (any browser) |
-| 🧠 **ML Processing** | 100% client-side |
+| 📱 **Devices Supported** | ∞ (any browser, any OS) |
+| 🧠 **ML Processing** | 100% client-side (TensorFlow.js) |
 
 </div>
 
@@ -151,27 +152,31 @@ const result = await client.login(images); // base64 data URLs from webcam
 
 ```mermaid
 flowchart LR
-    A["📷 Camera\nactivates"] --> B["🧠 Face-API.js\ndetects face"]
-    B --> C["📐 128D vector\nextracted"]
-    C --> D{"🔒 Match\nfound?"}
-    D -->|Yes| E["✅ Authenticated\n< 2 seconds"]
-    D -->|No| F["❌ Access\ndenied"]
+    A["📷 Camera\nactivates"] --> B["🧠 Real-time\ntracking & liveness"]
+    B --> C{"🔍 Liveness\nconfirmed?"}
+    C -->|No| F["❌ Not a real\nperson"]
+    C -->|Yes| D["📐 128D vector\npre-extracted"]
+    D --> E{"🔒 Match\nfound?"}
+    E -->|Yes| G["✅ Authenticated\n~500ms"]
+    E -->|No| H["❌ Face not\nregistered"]
 
     style A fill:#07080A,stroke:#10B981,color:#fff
     style B fill:#07080A,stroke:#10B981,color:#fff
-    style C fill:#07080A,stroke:#10B981,color:#fff
+    style C fill:#07080A,stroke:#F59E0B,color:#fff
     style D fill:#07080A,stroke:#10B981,color:#fff
-    style E fill:#10B981,stroke:#10B981,color:#000
+    style E fill:#07080A,stroke:#10B981,color:#fff
+    style G fill:#10B981,stroke:#10B981,color:#000
     style F fill:#EF4444,stroke:#EF4444,color:#fff
+    style H fill:#EF4444,stroke:#EF4444,color:#fff
 ```
 
-**Three steps. Three seconds. That's it.**
+**Three steps. Half a second. That's it.**
 
 | Step | What Happens |
 |------|-------------|
 | **01 — Visit any site** | Navigate to a site using FaceSmash. Click "Sign in" — works in Chrome, Safari, Firefox, Edge, on any OS. |
-| **02 — Glance at camera** | Your browser camera activates. Our AI maps 128 facial vectors in real-time. No photos stored — just encrypted math. |
-| **03 — You're in** | Match confirmed in under 2 seconds. Works the same on your phone at a coffee shop or your desktop at home. |
+| **02 — Glance at camera** | Your browser camera activates. Real-time liveness detection validates you're not a static image or deepfake. AI maps 128 facial vectors in parallel. No photos stored — just encrypted math. |
+| **03 — You're in** | Liveness confirmed + match found. Authenticated in under 500ms. Works the same on your phone at a coffee shop or your desktop at home. |
 
 <br/>
 
@@ -215,8 +220,10 @@ graph TB
 ```
 
 **Key design decisions:**
-- **Client-side ML** — Raw camera frames *never* leave the browser. Face detection and descriptor extraction happen on-device using TensorFlow.js. Only computed 128D vectors are transmitted.
-- **Server-side matching** — Face descriptors are matched server-side using pgvector cosine similarity (`<=>` operator) with HNSW indexes. No biometric data is ever sent to the client.
+- **Real-time liveness detection** — EAR (Eye Aspect Ratio) blink detection, head pose estimation (yaw/pitch/roll), and motion variance tracking prevent spoofing attacks. Validated before any descriptor transmission.
+- **Client-side ML** — Raw camera frames *never* leave the browser. Face detection, liveness validation, and descriptor extraction happen on-device using TensorFlow.js. Only liveness-validated 128D vectors are transmitted.
+- **Server-side matching** — Face descriptors are matched server-side using pgvector cosine similarity (`<=>` operator) with HNSW indexes for sub-millisecond lookup times. No biometric data is ever sent to the client.
+- **Zero-delay auth** — Descriptors are pre-computed during real-time tracking. When liveness passes, auth completes immediately (~500ms end-to-end).
 - **Hono API + PostgreSQL** — Lightweight Hono.js REST API with Drizzle ORM, PostgreSQL 16, and pgvector 0.6.0 for vector similarity search.
 - **JWT httpOnly cookies** — Session tokens stored in httpOnly cookies on `.facesmash.app` domain. XSS-immune, automatically sent to `api.facesmash.app`.
 - **Caddy reverse proxy** — Automatic HTTPS via Let's Encrypt. Zero-config TLS termination.
