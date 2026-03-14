@@ -14,14 +14,23 @@ const ScanHistoryTable = ({ userEmail }: ScanHistoryTableProps) => {
 
   useEffect(() => {
     const fetchScans = async () => {
-      const data = await getFaceScansByUser(userEmail);
-      setScans(data);
-      setLoading(false);
+      if (!userEmail) return;
+      try {
+        const data = await getFaceScansByUser(userEmail);
+        setScans(data);
+      } catch (error) {
+        console.error('Failed to fetch scans:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    if (userEmail) {
-      fetchScans();
-    }
+    fetchScans();
+
+    // Poll for new scans every 5 seconds to show live updates
+    const pollInterval = setInterval(fetchScans, 5000);
+
+    return () => clearInterval(pollInterval);
   }, [userEmail]);
 
   const formatDate = (dateString: string) => {
