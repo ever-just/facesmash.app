@@ -216,7 +216,7 @@ const Index = () => {
 
         {/* Mobile menu overlay — locks body scroll when open */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-white/[0.04] bg-[#07080A]/95 backdrop-blur-xl max-h-[calc(100vh-3.5rem)] overflow-y-auto">
+          <div className="lg:hidden border-t border-white/[0.04] bg-[#07080A]/95 backdrop-blur-xl max-h-[calc(100vh-3.5rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto">
             <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
               <p className="text-[10px] uppercase tracking-wider text-white/20 px-3 pt-2 pb-1">Product</p>
               <Link to="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.04] text-sm text-white/50 hover:text-white transition-colors">
@@ -266,12 +266,12 @@ const Index = () => {
       {/* ══════════════════════════ HERO ══════════════════════════ */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
         {/* ambient light — warm teal, not generic purple/cyan */}
-        <div className="absolute top-[-20%] left-[15%] w-[700px] h-[700px] rounded-full bg-emerald-500/[0.07] blur-[160px]" />
-        <div className="absolute bottom-[-10%] right-[10%] w-[500px] h-[500px] rounded-full bg-teal-400/[0.05] blur-[140px]" />
+        <div className="absolute top-[-20%] left-[15%] w-[350px] h-[350px] sm:w-[500px] sm:h-[500px] md:w-[700px] md:h-[700px] rounded-full bg-emerald-500/[0.07] blur-[160px]" />
+        <div className="absolute bottom-[-10%] right-[10%] w-[250px] h-[250px] sm:w-[350px] sm:h-[350px] md:w-[500px] md:h-[500px] rounded-full bg-teal-400/[0.05] blur-[140px]" />
 
         <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 flex flex-col items-center text-center px-4 sm:px-6 max-w-5xl">
           {/* big face visualisation */}
-          <div className="relative w-[280px] h-[280px] md:w-[360px] md:h-[360px] mb-12">
+          <div className="relative w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] md:w-[360px] md:h-[360px] mb-8 sm:mb-12">
             {/* outer orbit ring */}
             <div className="absolute inset-[-30px] rounded-full border border-dashed border-white/[0.06]" />
             {/* orbiting dots */}
@@ -432,7 +432,7 @@ const Index = () => {
         <div className="max-w-6xl mx-auto">
           <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="relative">
             {/* three "screens" side by side — responsive: stack on small mobile, flex on md+ */}
-            <div className="flex items-end justify-center gap-4 sm:gap-6 md:gap-10 flex-wrap md:flex-nowrap">
+            <div className="flex items-end justify-center gap-4 sm:gap-6 md:gap-10 gap-y-6 flex-wrap md:flex-nowrap">
               {/* Phone */}
               <motion.div
                 initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0 }}
@@ -664,7 +664,7 @@ const Index = () => {
               className="flex flex-col items-center gap-8"
             >
               {/* Login form mock */}
-              <div className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#0D0F12] p-8 shadow-2xl">
+              <div className="w-full max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl border border-white/[0.08] bg-[#0D0F12] p-6 sm:p-8 shadow-2xl">
                 <p className="text-sm text-white/50 mb-6 text-center">Sign in to your account</p>
                 <div className="space-y-3 mb-6">
                   <div className="h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 flex items-center">
@@ -743,8 +743,8 @@ const Index = () => {
             <h3 className="text-xl md:text-2xl font-bold mb-8 text-center">
               How FaceCard compares to other auth methods
             </h3>
-            <div className="overflow-x-auto -mx-4 px-4 scrollbar-hide">
-              <table className="w-full min-w-[640px] text-sm">
+            <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6 scrollbar-hide">
+              <table className="w-full min-w-[580px] text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
                     <th className="text-left py-4 pr-4 text-white/30 font-medium w-[120px] sm:w-[180px]">Feature</th>
@@ -864,7 +864,7 @@ const Index = () => {
 
       {/* ══════════════ DEVELOPER EXPERIENCE — code preview ══════════════ */}
       <section className="relative py-20 sm:py-32 px-4 sm:px-6 overflow-hidden">
-        <div className="absolute top-1/2 right-0 w-[500px] h-[500px] rounded-full bg-emerald-500/[0.04] blur-[140px] -translate-y-1/2" />
+        <div className="absolute top-1/2 right-0 w-[200px] h-[200px] sm:w-[350px] sm:h-[350px] md:w-[500px] md:h-[500px] rounded-full bg-emerald-500/[0.04] blur-[140px] -translate-y-1/2" />
         <div className="max-w-6xl mx-auto">
           <motion.p
             initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
@@ -885,11 +885,11 @@ const Index = () => {
             any framework that runs in a browser.
           </motion.p>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid sm:grid-cols-2 gap-6 md:gap-8">
             {/* Code block */}
             <motion.div
               initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-              className="rounded-xl border border-white/[0.08] bg-[#0D0F12] overflow-hidden"
+              className="min-w-0 rounded-xl border border-white/[0.08] bg-[#0D0F12] overflow-hidden"
             >
               <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
                 <div className="size-3 rounded-full bg-[#ff5f56]" />
@@ -897,7 +897,7 @@ const Index = () => {
                 <div className="size-3 rounded-full bg-[#27c93f]" />
                 <span className="ml-3 text-xs text-white/25 font-mono">App.tsx</span>
               </div>
-              <pre className="p-4 sm:p-5 text-xs sm:text-sm font-mono overflow-x-auto leading-[1.8]">
+              <pre className="p-3 sm:p-4 md:p-5 text-[11px] sm:text-xs md:text-sm font-mono overflow-x-auto leading-[1.8]">
                 <code>
                   <span className="text-purple-400">import</span>
                   <span className="text-white/50">{" { "}</span>
@@ -933,7 +933,7 @@ const Index = () => {
             {/* Feature bullets */}
             <motion.div
               initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-              className="flex flex-col justify-center gap-6"
+              className="min-w-0 flex flex-col justify-center gap-5 sm:gap-6"
             >
               {[
                 { icon: <Package className="size-5 text-emerald-400" />, title: "npm install @facesmash/sdk", desc: "One package, two entry points: core client and React bindings." },
@@ -945,17 +945,17 @@ const Index = () => {
                   <div className="size-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
                     {item.icon}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-white/80 font-mono">{item.title}</p>
-                    <p className="text-sm text-white/35 mt-1">{item.desc}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-white/80 font-mono truncate">{item.title}</p>
+                    <p className="text-xs sm:text-sm text-white/35 mt-1">{item.desc}</p>
                   </div>
                 </div>
               ))}
 
               {/* npm install */}
-              <div className="flex items-center gap-3 mt-2 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+              <div className="flex items-center gap-3 mt-2 px-3 sm:px-4 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06] min-w-0 overflow-hidden">
                 <Terminal className="size-4 text-emerald-400 shrink-0" />
-                <code className="text-sm text-white/50 font-mono">npm install @facesmash/sdk</code>
+                <code className="text-xs sm:text-sm text-white/50 font-mono truncate">npm install @facesmash/sdk</code>
               </div>
             </motion.div>
           </div>
@@ -1273,7 +1273,7 @@ const Index = () => {
       {/* ══════════════ CTA ══════════════ */}
       <section className="relative py-24 sm:py-40 px-4 sm:px-6 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-[600px] h-[600px] rounded-full bg-emerald-500/[0.04] blur-[120px]" />
+          <div className="w-[250px] h-[250px] sm:w-[400px] sm:h-[400px] md:w-[600px] md:h-[600px] rounded-full bg-emerald-500/[0.04] blur-[120px]" />
         </div>
         <motion.div
           initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
@@ -1299,9 +1299,9 @@ const Index = () => {
               </Button>
             </Link>
           </div>
-          <div className="flex items-center justify-center gap-3 mt-8 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mx-auto w-fit">
+          <div className="flex items-center justify-center gap-3 mt-8 px-3 sm:px-4 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06] mx-auto w-fit max-w-full overflow-hidden">
             <Terminal className="size-4 text-emerald-400 shrink-0" />
-            <code className="text-sm text-white/50 font-mono">npm install @facesmash/sdk</code>
+            <code className="text-xs sm:text-sm text-white/50 font-mono">npm install @facesmash/sdk</code>
           </div>
         </motion.div>
       </section>
@@ -1310,7 +1310,7 @@ const Index = () => {
       <footer className="border-t border-white/[0.06] pt-16 pb-10 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           {/* top section — logo + columns */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10 lg:gap-8 mb-16">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-8 lg:gap-8 mb-16">
             {/* Brand column */}
             <div className="col-span-2 sm:col-span-3 lg:col-span-2">
               <Link to="/" className="flex items-center gap-2.5 mb-4">
